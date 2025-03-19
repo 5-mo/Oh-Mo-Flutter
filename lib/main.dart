@@ -1,19 +1,10 @@
 import 'package:flutter/material.dart';
-
+import 'package:ohmo/screen/home_screen.dart';
 void main() {
-  runApp(MyApp());
+  runApp(
+    MaterialApp(
+      home:HomeScreen(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('hello World'),
-        ),
-      ),
-    );
-  }
-}
-g
