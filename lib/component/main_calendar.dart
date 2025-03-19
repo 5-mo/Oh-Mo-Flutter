@@ -4,8 +4,17 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class MainCalendar extends StatefulWidget {
+
   @override
   _MainCalendarState createState() => _MainCalendarState();
+
+  final OnDaySelected onDaySelected;
+  final DateTime selectedDate;
+
+  MainCalendar({
+    required this.onDaySelected,
+    required this.selectedDate,
+});
 }
 
 
@@ -55,6 +64,13 @@ class _MainCalendarState extends State<MainCalendar> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10.0),
       child: TableCalendar(
+        onDaySelected:widget.onDaySelected,
+
+        selectedDayPredicate:(date)=>
+            date.year==widget.selectedDate.year &&
+            date.month==widget.selectedDate.month &&
+            date.day==widget.selectedDate.day,
+
         focusedDay: now,
         firstDay: DateTime(1800, 1, 1),
         lastDay: DateTime(3000, 1, 1),
