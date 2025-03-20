@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ohmo/component/main_calendar.dart';
 import 'package:ohmo/component/routine_banner.dart';
 import 'package:ohmo/component/routine_card.dart';
+import 'package:ohmo/component/todo_banner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -33,6 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
             RoutineCard(content: '오모 회의',
             ),
             RoutineCard(content: '데이트',
+            ),
+            TodoBanner(
+
             ),
           ],
         ),
