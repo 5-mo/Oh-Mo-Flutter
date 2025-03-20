@@ -67,10 +67,11 @@ class _MainCalendarState extends State<MainCalendar> {
 
         selectedDayPredicate:
             (date) =>
-                date.year == widget.selectedDate.year &&
-                date.month == widget.selectedDate.month &&
-                date.day == widget.selectedDate.day,
 
+        date.year == widget.selectedDate.year &&
+            date.month == widget.selectedDate.month &&
+            date.day == widget.selectedDate.day,
+        
         focusedDay: now,
         firstDay: DateTime(1800, 1, 1),
         lastDay: DateTime(3000, 1, 1),
@@ -84,7 +85,7 @@ class _MainCalendarState extends State<MainCalendar> {
         daysOfWeekStyle: DaysOfWeekStyle(
           dowTextFormatter:
               (date, locale) =>
-                  DateFormat('E', locale).format(date).substring(0, 1),
+              DateFormat('E', locale).format(date).substring(0, 1),
         ),
         calendarStyle: _calendarStyle,
 
