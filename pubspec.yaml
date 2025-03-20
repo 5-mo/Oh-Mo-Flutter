@@ -29,6 +29,7 @@ flutter:
     - android/assets/images/cal_month.svg
     - android/assets/images/cal_week.svg
     - android/assets/images/plus.svg
+    - android/assets/images/plus2.svg
 
   uses-material-design: true
   fonts:
