@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/main_calendar.dart';
+import 'package:ohmo/component/routine_banner.dart';
+import 'package:ohmo/component/routine_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -24,6 +26,11 @@ class _HomeScreenState extends State<HomeScreen> {
             MainCalendar(
               selectedDate: selectedDate,
               onDaySelected: onDaySelected,
+            ),
+            RoutineCard(content: '오모 회의',
+            ),
+            RoutineBanner(
+
             ),
           ],
         ),
