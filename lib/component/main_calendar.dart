@@ -67,10 +67,11 @@ class _MainCalendarState extends State<MainCalendar> {
 
         selectedDayPredicate:
             (date) =>
+
         date.year == widget.selectedDate.year &&
             date.month == widget.selectedDate.month &&
             date.day == widget.selectedDate.day,
-
+        
         focusedDay: now,
         firstDay: DateTime(1800, 1, 1),
         lastDay: DateTime(3000, 1, 1),
