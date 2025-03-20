@@ -87,6 +87,7 @@ class _MainCalendarState extends State<MainCalendar> {
                   DateFormat('E', locale).format(date).substring(0, 1),
         ),
         calendarStyle: _calendarStyle,
+
       ),
     );
   }
