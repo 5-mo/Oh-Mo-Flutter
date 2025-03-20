@@ -27,10 +27,12 @@ class _HomeScreenState extends State<HomeScreen> {
               selectedDate: selectedDate,
               onDaySelected: onDaySelected,
             ),
-            RoutineCard(content: '오모 회의',
-            ),
             RoutineBanner(
 
+            ),
+            RoutineCard(content: '오모 회의',
+            ),
+            RoutineCard(content: '데이트',
             ),
           ],
         ),
