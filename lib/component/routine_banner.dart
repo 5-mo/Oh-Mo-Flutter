@@ -24,4 +24,3 @@ class RoutineBanner extends StatelessWidget {
       ),
     );
   }
-}
