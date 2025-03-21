@@ -28,6 +28,7 @@ class MainCalendar extends StatefulWidget {
 
 class _MainCalendarState extends State<MainCalendar> {
   CalendarFormat _format = CalendarFormat.month;
+  DateTime _focusedDay=DateTime.now();
 
   List<Event> _getEventsForDay(DateTime day) {
     DateTime normalizedDay = DateTime(day.year, day.month, day.day);
@@ -38,18 +39,17 @@ class _MainCalendarState extends State<MainCalendar> {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    return Column(children: [_buildHeader(now), _buildCalendar(now)]);
+    return Column(children: [_buildHeader(), _buildCalendar()]);
   }
 
-  Widget _buildHeader(DateTime now) {
+  Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            DateFormat('MMM').format(now).toUpperCase(),
+            DateFormat('MMM').format(_focusedDay).toUpperCase(),
             style: _headerTextStyle,
           ),
           Row(
@@ -79,17 +79,12 @@ class _MainCalendarState extends State<MainCalendar> {
     );
   }
 
-  Widget _buildCalendar(DateTime now) {
+  Widget _buildCalendar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10.0),
       child: TableCalendar(
         onDaySelected: widget.onDaySelected,
-
-        selectedDayPredicate: (date) =>
-            date.year == widget.selectedDate.year &&
-            date.month == widget.selectedDate.month &&
-            date.day == widget.selectedDate.day,
-        focusedDay: now,
+        focusedDay:_focusedDay,
         firstDay: DateTime(1800, 1, 1),
         lastDay: DateTime(3000, 1, 1),
         calendarFormat: _format,
@@ -100,12 +95,16 @@ class _MainCalendarState extends State<MainCalendar> {
         },
         headerVisible: false,
         daysOfWeekStyle: DaysOfWeekStyle(
-          dowTextFormatter:
-              (date, locale) =>
+          dowTextFormatter: (date, locale) =>
               DateFormat('E', locale).format(date).substring(0, 1),
         ),
         calendarStyle: _calendarStyle,
         eventLoader: _getEventsForDay,
+        onPageChanged: (focusedDay){
+          setState(() {
+            _focusedDay=focusedDay;
+          });
+        },
 
       ),
     );
@@ -118,6 +117,7 @@ class _MainCalendarState extends State<MainCalendar> {
 
   static final CalendarStyle _calendarStyle = CalendarStyle(
     markerSize: 6.0,
+    markersMaxCount: 4,
     markersAlignment: Alignment(0.0, 5.0),
     markerMargin: EdgeInsets.symmetric(horizontal: 2.0,vertical: 5.0),
     markerDecoration: BoxDecoration(

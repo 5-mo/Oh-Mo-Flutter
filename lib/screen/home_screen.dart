@@ -5,7 +5,7 @@ import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 
-class Event{
+class Event {
   String title;
 
   Event(this.title);
@@ -25,11 +25,10 @@ class _HomeScreenState extends State<HomeScreen> {
     DateTime.now().day,
   );
 
-  Map<DateTime,List<Event>> events={
-    DateTime(2025,3,21):[Event('title'), Event('title2')],
-    DateTime(2025,3,22):[Event('title3')],
+  Map<DateTime, List<Event>> events = {
+    DateTime(2025, 3, 21): [Event('title'), Event('title2')],
+    DateTime(2025, 3, 22): [Event('title3')],
   };
-
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +39,12 @@ class _HomeScreenState extends State<HomeScreen> {
             MainCalendar(
               selectedDate: selectedDate,
               onDaySelected: onDaySelected,
-              eventLoader: (day){
-                DateTime normalizedDate=DateTime(day.year,day.month,day.day,);
+              eventLoader: (day) {
+                DateTime normalizedDate = DateTime(
+                  day.year,
+                  day.month,
+                  day.day,
+                );
                 return events[normalizedDate] ?? [];
               },
             ),
@@ -49,25 +52,25 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Scrollbar(
                 thickness: 2.0,
                 radius: const Radius.circular(10),
-                child: ListView(
-                  children: [
-                    RoutineBanner(),
-                    RoutineCard(content: '오모 회의'),
-                    RoutineCard(content: '데이트'),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Divider(color: Colors.grey),
-                    ),
-                    TodoBanner(),
-                    TodoCard(content: '코딩'),
-                    TodoCard(content: '운동'),
-                    TodoCard(content: '코딩'),
-                    TodoCard(content: '운동'),
-                    TodoCard(content: '코딩'),
-                    TodoCard(content: '운동'),
-                    TodoCard(content: '코딩'),
-                    TodoCard(content: '운동'),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                  child: ListView(
+                    children: [
+                      RoutineBanner(),
+                      RoutineCard(content: '오모 회의'),
+                      RoutineCard(content: '데이트'),
+                      Divider(color: Colors.grey),
+                      TodoBanner(),
+                      TodoCard(content: '코딩'),
+                      TodoCard(content: '운동'),
+                      TodoCard(content: '코딩'),
+                      TodoCard(content: '운동'),
+                      TodoCard(content: '코딩'),
+                      TodoCard(content: '운동'),
+                      TodoCard(content: '코딩'),
+                      TodoCard(content: '운동'),
+                    ],
+                  ),
                 ),
               ),
             ),
