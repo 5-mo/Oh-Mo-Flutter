@@ -3,18 +3,38 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+class Event{
+  String title;
+
+  Event(this.title);
+}
+
 class MainCalendar extends StatefulWidget {
+  final OnDaySelected onDaySelected;
+  final DateTime selectedDate;
+  final List Function(DateTime day) eventLoader;
+
+  MainCalendar({
+    required this.onDaySelected,
+    required this.selectedDate,
+    required this.eventLoader,
+  });
+
   @override
   _MainCalendarState createState() => _MainCalendarState();
 
-  final OnDaySelected onDaySelected;
-  final DateTime selectedDate;
-
-  MainCalendar({required this.onDaySelected, required this.selectedDate});
 }
+
 
 class _MainCalendarState extends State<MainCalendar> {
   CalendarFormat _format = CalendarFormat.month;
+
+  List<Event> _getEventsForDay(DateTime day) {
+    DateTime normalizedDay = DateTime(day.year, day.month, day.day);
+    return widget.eventLoader(normalizedDay)
+        .map<Event>((e)=>e is Event? e: Event(e.toString()))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,13 +85,10 @@ class _MainCalendarState extends State<MainCalendar> {
       child: TableCalendar(
         onDaySelected: widget.onDaySelected,
 
-        selectedDayPredicate:
-            (date) =>
-
-        date.year == widget.selectedDate.year &&
+        selectedDayPredicate: (date) =>
+            date.year == widget.selectedDate.year &&
             date.month == widget.selectedDate.month &&
             date.day == widget.selectedDate.day,
-        
         focusedDay: now,
         firstDay: DateTime(1800, 1, 1),
         lastDay: DateTime(3000, 1, 1),
@@ -88,6 +105,7 @@ class _MainCalendarState extends State<MainCalendar> {
               DateFormat('E', locale).format(date).substring(0, 1),
         ),
         calendarStyle: _calendarStyle,
+        eventLoader: _getEventsForDay,
 
       ),
     );
@@ -99,6 +117,13 @@ class _MainCalendarState extends State<MainCalendar> {
   );
 
   static final CalendarStyle _calendarStyle = CalendarStyle(
+    markerSize: 6.0,
+    markersAlignment: Alignment(0.0, 5.0),
+    markerMargin: EdgeInsets.symmetric(horizontal: 2.0,vertical: 5.0),
+    markerDecoration: BoxDecoration(
+      color:Colors.red,
+      shape:BoxShape.circle
+    ),
     isTodayHighlighted: true,
     todayTextStyle: const TextStyle(color: Colors.black),
     todayDecoration: BoxDecoration(
@@ -107,4 +132,5 @@ class _MainCalendarState extends State<MainCalendar> {
       border: Border.all(color: Colors.black),
     ),
   );
+
 }

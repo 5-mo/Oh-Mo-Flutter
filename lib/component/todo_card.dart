@@ -22,6 +22,15 @@ class _TodoCardState extends State<TodoCard> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Container(
+              width:12,
+              height:12,
+              decoration:BoxDecoration(
+                shape: BoxShape.circle,
+                color:Colors.red,
+              ),
+            ),
+            SizedBox(width:30.0),
             _Content(content: widget.content,textStyle: textStyle),
             Checkbox(
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

@@ -5,6 +5,12 @@ import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 
+class Event{
+  String title;
+
+  Event(this.title);
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -19,6 +25,12 @@ class _HomeScreenState extends State<HomeScreen> {
     DateTime.now().day,
   );
 
+  Map<DateTime,List<Event>> events={
+    DateTime(2025,3,21):[Event('title'), Event('title2')],
+    DateTime(2025,3,22):[Event('title3')],
+  };
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -28,6 +40,10 @@ class _HomeScreenState extends State<HomeScreen> {
             MainCalendar(
               selectedDate: selectedDate,
               onDaySelected: onDaySelected,
+              eventLoader: (day){
+                DateTime normalizedDate=DateTime(day.year,day.month,day.day,);
+                return events[normalizedDate] ?? [];
+              },
             ),
             Expanded(
               child: Scrollbar(
