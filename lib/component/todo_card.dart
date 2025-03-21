@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ohmo/const/colors.dart';
 
 class TodoCard extends StatefulWidget {
   final String content;
@@ -15,7 +16,13 @@ class _TodoCardState extends State<TodoCard> {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(fontSize: 16.0);
+    final textStyle = TextStyle(
+      fontSize: 16.0,
+      fontFamily: 'PretendardRegular',
+      decoration: _isChecked ? TextDecoration.lineThrough:TextDecoration.none,
+      color: _isChecked ? Middle_GREY_COLOR:Colors.black,
+      decorationColor: _isChecked ? Middle_GREY_COLOR:Colors.black
+    );
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: IntrinsicHeight(
