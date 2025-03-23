@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:ohmo/const/colors.dart';
 
-class RoutineBottomSheet extends StatefulWidget {
-  const RoutineBottomSheet({Key? key}) : super(key: key);
+class TodoBottomSheet extends StatefulWidget {
+  const TodoBottomSheet({Key? key}) : super(key: key);
 
   @override
-  State<RoutineBottomSheet> createState() => _RoutineBottomSheetState();
+  State<TodoBottomSheet> createState() => _TodoBottomSheetState();
 }
 
-class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
+class _TodoBottomSheetState extends State<TodoBottomSheet> {
+  bool isChecked = false;
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -20,21 +22,21 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildRepeatDaysSection(),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
                 children: [
-                  _buildAlarmToggleSection(),
-                  _buildRoutineTimeButton(),
+                  _buildDateSection(),
+                  SizedBox(height: 16),
+                  _buildTodoTimeButton(),
+                  SizedBox(height: 16),
+                  _buildCategorySelectionSection(),
+                  _buildContentInputSection(),
+                  SizedBox(height: 20),
+                  _buildSaveButton(),
+                  SizedBox(height: bottomInset),
                 ],
               ),
-              _buildCategorySelectionSection(),
-              _buildContentInputSection(),
-              SizedBox(height: 20),
-              _buildSaveButton(),
-              SizedBox(height: bottomInset),
             ],
           ),
         ),
@@ -42,73 +44,22 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     );
   }
 
-  Widget _buildRepeatDaysSection() {
-    List<String> days = ["월", "화", "수", "목", "금", "토", "일"];
-
+  Widget _buildDateSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            "루틴 반복 요일",
+            "날짜 및 시간",
             style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
           ),
           SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children:
-                days.map((day) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: _buildDayButton(day),
-                  );
-                }).toList(),
-          ),
+          _buildAlarmToggleSection(),
         ],
       ),
     );
   }
-
-  List<String> selectedDays = [];
-
-  Widget _buildDayButton(String day) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (selectedDays.contains(day)) {
-            selectedDays.remove(day);
-          } else {
-            selectedDays.add(day);
-          }
-        });
-        print('$day 클릭');
-      },
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: selectedDays.contains(day) ? Colors.black : Colors.white,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            day,
-            style: TextStyle(
-              fontSize: 13,
-              fontFamily: 'PretendardBold',
-              color: selectedDays.contains(day) ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  bool isChecked = false;
 
   Widget _buildAlarmToggleSection() {
     return Padding(
@@ -144,57 +95,72 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
   TimeOfDay? selectedTime;
 
-  Widget _buildRoutineTimeButton() {
-    return GestureDetector(
-      onTap: () async {
-        TimeOfDay? pickedTime = await showTimePicker(
-          context: context,
-          initialTime: selectedTime ?? TimeOfDay.now(),
-          builder: (BuildContext context, Widget? child) {
-            return Theme(
-              data: ThemeData(
-                primaryColor: LIGHT_GREY_COLOR,
-                timePickerTheme: TimePickerThemeData(
-                  hourMinuteColor: Colors.grey[200],
-                  hourMinuteTextColor: Colors.black,
-                  backgroundColor: Colors.white,
-                  dialHandColor: Colors.black,
-                  dialBackgroundColor: Colors.grey[200],
-                  dayPeriodColor: Colors.grey[200],
-                  dayPeriodTextColor: Colors.black,
+  Widget _buildTodoTimeButton() {
+    String todayDate = "${DateTime.now().month}월   ${DateTime.now().day}일";
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          todayDate,
+          style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
+        ),
+        GestureDetector(
+          onTap: () async {
+            TimeOfDay? pickedTime = await showTimePicker(
+              context: context,
+              initialTime: selectedTime ?? TimeOfDay.now(),
+              builder: (BuildContext context, Widget? child) {
+                return Theme(
+                  data: ThemeData(
+                    primaryColor: LIGHT_GREY_COLOR,
+                    timePickerTheme: TimePickerThemeData(
+                      hourMinuteColor: Colors.grey[200],
+                      hourMinuteTextColor: Colors.black,
+                      backgroundColor: Colors.white,
+                      dialHandColor: Colors.black,
+                      dialBackgroundColor: Colors.grey[200],
+                      dayPeriodColor: Colors.grey[200],
+                      dayPeriodTextColor: Colors.black,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+
+            if (pickedTime != null) {
+              setState(() {
+                selectedTime = pickedTime;
+              });
+            }
+          },
+          child: Container(
+            width: 195,
+            height: 37,
+            decoration: BoxDecoration(
+              shape: BoxShape.rectangle,
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+              ],
+            ),
+            child: Center(
+              child: Center(
+                child: Text(
+                  selectedTime != null
+                      ? selectedTime!.format(context)
+                      : '시간 선택',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'PretendardRegular',
+                  ),
                 ),
               ),
-              child: child!,
-            );
-          },
-        );
-
-        if (pickedTime != null) {
-          setState(() {
-            selectedTime = pickedTime;
-          });
-        }
-      },
-      child: Container(
-        width: 195,
-        height: 37,
-        decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
-          ],
-        ),
-        child: Center(
-          child: Center(
-            child: Text(
-              selectedTime != null ? selectedTime!.format(context) : '시간 선택',
-              style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 
