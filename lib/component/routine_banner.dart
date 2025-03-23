@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:ohmo/component/routine_bottom_sheet.dart';
 
 class RoutineBanner extends StatelessWidget {
   const RoutineBanner({Key? key}) : super(key: key);
@@ -17,7 +18,21 @@ class RoutineBanner extends StatelessWidget {
             Text('Routine', style: textStyle),
             IconButton(
               icon: SvgPicture.asset('android/assets/images/plus.svg'),
-              onPressed: () => print('plus'),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  isDismissible: true,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(59),
+                      topLeft: Radius.circular(59),
+                    ),
+                  ),
+                  builder: (_) => RoutineBottomSheet(),
+                );
+              },
             ),
           ],
         ),

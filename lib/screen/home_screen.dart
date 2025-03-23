@@ -4,6 +4,7 @@ import 'package:ohmo/component/routine_banner.dart';
 import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
+import 'package:ohmo/const/colors.dart';
 
 class Event {
   String title;
