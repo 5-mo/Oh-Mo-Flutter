@@ -16,23 +16,26 @@ class RoutineBanner extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Routine', style: textStyle),
-            IconButton(
-              icon: SvgPicture.asset('android/assets/images/plus.svg'),
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  isDismissible: true,
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.only(
-                      topRight: Radius.circular(59),
-                      topLeft: Radius.circular(59),
+            Transform.translate(
+              offset: Offset(5, 0),
+              child: IconButton(
+                icon: SvgPicture.asset('android/assets/images/plus.svg'),
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    isDismissible: true,
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(59),
+                        topLeft: Radius.circular(59),
+                      ),
                     ),
-                  ),
-                  builder: (_) => RoutineBottomSheet(),
-                );
-              },
+                    builder: (_) => RoutineBottomSheet(),
+                  );
+                },
+              ),
             ),
           ],
         ),

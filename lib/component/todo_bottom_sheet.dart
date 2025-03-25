@@ -122,6 +122,11 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                       dayPeriodColor: Colors.grey[200],
                       dayPeriodTextColor: Colors.black,
                     ),
+                    textButtonTheme: TextButtonThemeData(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                      ),
+                    ),
                   ),
                   child: child!,
                 );

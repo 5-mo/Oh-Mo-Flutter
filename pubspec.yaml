@@ -30,6 +30,8 @@ flutter:
     - android/assets/images/cal_week.svg
     - android/assets/images/plus.svg
     - android/assets/images/plus2.svg
+    - android/assets/images/routine_alarm.svg
+    - android/assets/images/todo_alarm.svg
 
   uses-material-design: true
   fonts:

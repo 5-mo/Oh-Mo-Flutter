@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
+import 'alarm_bottom_sheet.dart';
 
 class RoutineCard extends StatefulWidget {
   final String content;
@@ -9,22 +11,22 @@ class RoutineCard extends StatefulWidget {
     : super(key: key);
 
   @override
-  _RoutineCardState createState()=>_RoutineCardState();
+  _RoutineCardState createState() => _RoutineCardState();
 }
 
 class _RoutineCardState extends State<RoutineCard> {
   bool _isChecked = false;
-  bool _isEditing=false;
+  bool _isEditing = false;
   late TextEditingController _controller;
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    _controller=TextEditingController(text: widget.content);
+    _controller = TextEditingController(text: widget.content);
   }
 
   @override
-  void dispose(){
+  void dispose() {
     _controller.dispose();
     super.dispose();
   }
@@ -32,11 +34,11 @@ class _RoutineCardState extends State<RoutineCard> {
   @override
   Widget build(BuildContext context) {
     final textStyle = TextStyle(
-        fontSize: 16.0,
-        fontFamily: 'PretendardRegular',
-        decoration: _isChecked ? TextDecoration.lineThrough:TextDecoration.none,
-        color: _isChecked ? Middle_GREY_COLOR:Colors.black,
-        decorationColor: _isChecked ? Middle_GREY_COLOR:Colors.black
+      fontSize: 16.0,
+      fontFamily: 'PretendardRegular',
+      decoration: _isChecked ? TextDecoration.lineThrough : TextDecoration.none,
+      color: _isChecked ? Middle_GREY_COLOR : Colors.black,
+      decorationColor: _isChecked ? Middle_GREY_COLOR : Colors.black,
     );
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -45,42 +47,68 @@ class _RoutineCardState extends State<RoutineCard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              width:12,
-              height:12,
-              decoration:BoxDecoration(
-                  shape: BoxShape.circle,
-                      color:Colors.red,
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.red,
               ),
             ),
-            const SizedBox(width:30.0),
+            const SizedBox(width: 30.0),
+
             Expanded(
-              child: _isEditing
-            ? TextField(
-              controller: _controller,
-              style: textStyle,
-              autofocus: true,
-              onSubmitted:(value){
-                setState(() {
-                  _isEditing=false;
-                });
-                widget.onEdit(value);
-              },
-              onTapOutside: (_){
-                setState(() {
-                  _isEditing=false;
-                });
-                widget.onEdit(_controller.text);
-              },
-            )
-                :GestureDetector(
-              onTap: (){
-                setState(() {
-                  _isEditing=true;
-                });
-              },
-              child: Text(_controller.text,style: textStyle),
+              child:
+                  _isEditing
+                      ? TextField(
+                        controller: _controller,
+                        style: textStyle,
+                        autofocus: true,
+                        onSubmitted: (value) {
+                          setState(() {
+                            _isEditing = false;
+                          });
+                          widget.onEdit(value);
+                        },
+                        onTapOutside: (_) {
+                          setState(() {
+                            _isEditing = false;
+                          });
+                          widget.onEdit(_controller.text);
+                        },
+                      )
+                      : GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isEditing = true;
+                          });
+                        },
+                        child: Text(_controller.text, style: textStyle),
+                      ),
             ),
+
+            GestureDetector(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  isDismissible: true,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(59),
+                      topLeft: Radius.circular(59),
+                    ),
+                  ),
+                  builder: (BuildContext context) {
+                    return RoutineAlarm();
+                  },
+                );
+              },
+              child: SvgPicture.asset('android/assets/images/routine_alarm.svg',
+              ),
             ),
+            const SizedBox(width: 8.0),
+
             Checkbox(
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: const VisualDensity(
@@ -89,10 +117,10 @@ class _RoutineCardState extends State<RoutineCard> {
               ),
               value: _isChecked,
               onChanged: (bool? value) {
-              setState(() {
-                _isChecked = value ?? false;
-              });
-            },
+                setState(() {
+                  _isChecked = value ?? false;
+                });
+              },
               activeColor: Colors.black,
               checkColor: Colors.white,
               fillColor: MaterialStateProperty.all(Colors.black),

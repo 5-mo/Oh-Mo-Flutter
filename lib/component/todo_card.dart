@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:flutter_svg/svg.dart';
+import 'alarm_bottom_sheet.dart';
 
 class TodoCard extends StatefulWidget {
   final String content;
@@ -82,6 +84,30 @@ class _TodoCardState extends State<TodoCard> {
                         child: Text(_controller.text, style: textStyle),
                       ),
             ),
+
+            GestureDetector(
+              onTap: (){
+                showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    isDismissible: true,
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(59),
+                        topLeft: Radius.circular(59),
+                      ),
+                    ),
+                    builder: (BuildContext context){
+                      return TodoAlarm();
+                    },
+                );
+              },
+              child: SvgPicture.asset('android/assets/images/todo_alarm.svg',
+              ),
+            ),
+            const SizedBox(width: 8.0),
+
             Checkbox(
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: const VisualDensity(

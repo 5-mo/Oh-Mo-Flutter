@@ -16,23 +16,26 @@ class TodoBanner extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('To-Do list', style: textStyle),
-            IconButton(
-              icon: SvgPicture.asset('android/assets/images/plus2.svg'),
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  isDismissible: true,
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.only(
-                      topRight: Radius.circular(59),
-                      topLeft: Radius.circular(59),
+            Transform.translate(
+              offset: Offset(5, 0),
+              child: IconButton(
+                icon: SvgPicture.asset('android/assets/images/plus2.svg'),
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    isDismissible: true,
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(59),
+                        topLeft: Radius.circular(59),
+                      ),
                     ),
-                  ),
-                  builder: (_) => TodoBottomSheet(),
-                );
-              },
+                    builder: (_) => TodoBottomSheet(),
+                  );
+                },
+              ),
             ),
           ],
         ),
