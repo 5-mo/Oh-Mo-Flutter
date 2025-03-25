@@ -32,6 +32,12 @@ flutter:
     - android/assets/images/plus2.svg
     - android/assets/images/routine_alarm.svg
     - android/assets/images/todo_alarm.svg
+    - android/assets/images/calendar_unselected.svg
+    - android/assets/images/calendar_selected.svg
+    - android/assets/images/daylog_unselected.svg
+    - android/assets/images/daylog_selected.svg
+    - android/assets/images/my_unselected.svg
+    - android/assets/images/my_selected.svg
 
   uses-material-design: true
   fonts:
