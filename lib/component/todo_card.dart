@@ -3,25 +3,40 @@ import 'package:ohmo/const/colors.dart';
 
 class TodoCard extends StatefulWidget {
   final String content;
+  final Function(String) onEdit;
 
-  const TodoCard({required this.content, Key? key})
-      : super(key: key);
+  const TodoCard({required this.content, required this.onEdit, Key? key})
+    : super(key: key);
 
   @override
-  _TodoCardState createState()=>_TodoCardState();
+  _TodoCardState createState() => _TodoCardState();
 }
 
 class _TodoCardState extends State<TodoCard> {
   bool _isChecked = false;
+  bool _isEditing = false;
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.content);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final textStyle = TextStyle(
       fontSize: 16.0,
       fontFamily: 'PretendardRegular',
-      decoration: _isChecked ? TextDecoration.lineThrough:TextDecoration.none,
-      color: _isChecked ? Middle_GREY_COLOR:Colors.black,
-      decorationColor: _isChecked ? Middle_GREY_COLOR:Colors.black
+      decoration: _isChecked ? TextDecoration.lineThrough : TextDecoration.none,
+      color: _isChecked ? Middle_GREY_COLOR : Colors.black,
+      decorationColor: _isChecked ? Middle_GREY_COLOR : Colors.black,
     );
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -30,15 +45,43 @@ class _TodoCardState extends State<TodoCard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              width:12,
-              height:12,
-              decoration:BoxDecoration(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color:Colors.red,
+                color: Colors.red,
               ),
             ),
-            SizedBox(width:30.0),
-            _Content(content: widget.content,textStyle: textStyle),
+            const SizedBox(width: 30.0),
+            Expanded(
+              child:
+                  _isEditing
+                      ? TextField(
+                        controller: _controller,
+                        style: textStyle,
+                        autofocus: true,
+                        onSubmitted: (value) {
+                          setState(() {
+                            _isEditing = false;
+                          });
+                          widget.onEdit(value);
+                        },
+                        onTapOutside: (_) {
+                          setState(() {
+                            _isEditing = false;
+                          });
+                          widget.onEdit(_controller.text);
+                        },
+                      )
+                      : GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isEditing = true;
+                          });
+                        },
+                        child: Text(_controller.text, style: textStyle),
+                      ),
+            ),
             Checkbox(
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: const VisualDensity(
@@ -57,23 +100,6 @@ class _TodoCardState extends State<TodoCard> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-
-class _Content extends StatelessWidget {
-  final String content;
-  final TextStyle textStyle;
-
-  const _Content({required this.content, required this.textStyle, Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Text(content,
-        style:textStyle,
       ),
     );
   }

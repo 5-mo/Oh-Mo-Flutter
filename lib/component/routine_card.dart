@@ -3,8 +3,9 @@ import 'package:ohmo/const/colors.dart';
 
 class RoutineCard extends StatefulWidget {
   final String content;
+  final Function(String) onEdit;
 
-  const RoutineCard({required this.content, Key? key})
+  const RoutineCard({required this.content, required this.onEdit, Key? key})
     : super(key: key);
 
   @override
@@ -13,6 +14,20 @@ class RoutineCard extends StatefulWidget {
 
 class _RoutineCardState extends State<RoutineCard> {
   bool _isChecked = false;
+  bool _isEditing=false;
+  late TextEditingController _controller;
+
+  @override
+  void initState(){
+    super.initState();
+    _controller=TextEditingController(text: widget.content);
+  }
+
+  @override
+  void dispose(){
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +52,35 @@ class _RoutineCardState extends State<RoutineCard> {
                       color:Colors.red,
               ),
             ),
-            SizedBox(width:30.0),
-            _Content(content: widget.content,textStyle: textStyle),
+            const SizedBox(width:30.0),
+            Expanded(
+              child: _isEditing
+            ? TextField(
+              controller: _controller,
+              style: textStyle,
+              autofocus: true,
+              onSubmitted:(value){
+                setState(() {
+                  _isEditing=false;
+                });
+                widget.onEdit(value);
+              },
+              onTapOutside: (_){
+                setState(() {
+                  _isEditing=false;
+                });
+                widget.onEdit(_controller.text);
+              },
+            )
+                :GestureDetector(
+              onTap: (){
+                setState(() {
+                  _isEditing=true;
+                });
+              },
+              child: Text(_controller.text,style: textStyle),
+            ),
+            ),
             Checkbox(
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: const VisualDensity(
@@ -58,23 +100,6 @@ class _RoutineCardState extends State<RoutineCard> {
           ],
         ),
       ),
-    );
-  }
-}
-
-
-class _Content extends StatelessWidget {
-  final String content;
-  final TextStyle textStyle;
-
-  const _Content({required this.content, required this.textStyle, Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-        child: Text(content,
-        style:textStyle,
-        ),
     );
   }
 }

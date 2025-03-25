@@ -31,51 +31,69 @@ class _HomeScreenState extends State<HomeScreen> {
     DateTime(2025, 3, 22): [Event('title3')],
   };
 
+  List<String> routines = ['오모 회의', '데이트'];
+
+  List<String> todos = ['코딩하기', '회의', '코딩하기', '회의', '코딩하기', '회의', '코딩하기', '회의'];
+
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            MainCalendar(
-              selectedDate: selectedDate,
-              onDaySelected: onDaySelected,
-              eventLoader: (day) {
-                DateTime normalizedDate = DateTime(
-                  day.year,
-                  day.month,
-                  day.day,
-                );
-                return events[normalizedDate] ?? [];
-              },
-            ),
-            Expanded(
-              child: Scrollbar(
-                thickness: 2.0,
-                radius: const Radius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                  child: ListView(
-                    children: [
-                      RoutineBanner(),
-                      RoutineCard(content: '오모 회의'),
-                      RoutineCard(content: '데이트'),
-                      Divider(color: Colors.grey),
-                      TodoBanner(),
-                      TodoCard(content: '코딩'),
-                      TodoCard(content: '운동'),
-                      TodoCard(content: '코딩'),
-                      TodoCard(content: '운동'),
-                      TodoCard(content: '코딩'),
-                      TodoCard(content: '운동'),
-                      TodoCard(content: '코딩'),
-                      TodoCard(content: '운동'),
-                    ],
-                  ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MainCalendar(
+                selectedDate: selectedDate,
+                onDaySelected: onDaySelected,
+                eventLoader: (day) {
+                  DateTime normalizedDate = DateTime(
+                    day.year,
+                    day.month,
+                    day.day,
+                  );
+                  return events[normalizedDate] ?? [];
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                child: Column(
+                  children: [
+                    RoutineBanner(),
+                    ...routines.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      String routine = entry.value;
+                      return RoutineCard(
+                        content: routine,
+                        onEdit: (newContent) {
+                          setState(() {
+                            routines[index] = newContent;
+                          });
+                        },
+                      );
+                    }).toList(),
+                    const Divider(color: Colors.grey),
+                    TodoBanner(),
+                    ...todos.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      String todo = entry.value;
+                      return TodoCard(
+                        content: todo,
+                        onEdit: (newContent) {
+                          setState(() {
+                            todos[index] = newContent;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
