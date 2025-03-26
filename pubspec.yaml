@@ -38,6 +38,9 @@ flutter:
     - android/assets/images/daylog_selected.svg
     - android/assets/images/my_unselected.svg
     - android/assets/images/my_selected.svg
+    - android/assets/images/happy_unselected.svg
+    - android/assets/images/soso_unselected.svg
+    - android/assets/images/bad_unselected.svg
 
   uses-material-design: true
   fonts:
