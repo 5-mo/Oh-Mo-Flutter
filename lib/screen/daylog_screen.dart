@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:ohmo/const/colors.dart';
+import 'package:ohmo/component/routine_bottom_sheet.dart';
+import 'package:ohmo/component/todo_bottom_sheet.dart';
+import 'package:ohmo/screen/home_screen.dart';
 
 class DaylogScreen extends StatefulWidget {
   @override
@@ -17,13 +21,21 @@ class _DaylogScreenState extends State<DaylogScreen> {
   void _onLeftChevronPressed() {
     setState(() {
       _focusedDay = _focusedDay.subtract(Duration(days: 1));
+      _resetIconState();
     });
   }
 
   void _onRightChevronPressed() {
     setState(() {
       _focusedDay = _focusedDay.add(Duration(days: 1));
+      _resetIconState();
     });
+  }
+
+  void _resetIconState(){
+    _happyActive=false;
+    _sosoActive=false;
+    _badActive=false;
   }
 
   void _onIconPressed(String iconName) {
@@ -49,7 +61,19 @@ class _DaylogScreenState extends State<DaylogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(children: [SizedBox(height: 70), _buildHeader()]),
+      body: Column(
+        children: [
+          SizedBox(height: 70),
+          _buildHeader(),
+          _buildRoutineBanner(),
+          _buildRoutineSection(),
+          _buildDoneBanner(),
+          _buildDoneSection(),
+          _buildProgressBanner(),
+          _buildProgressSection(),
+          _buildFeedbackSection(),
+        ],
+      ),
     );
   }
 
@@ -144,4 +168,321 @@ class _DaylogScreenState extends State<DaylogScreen> {
       ),
     );
   }
+
+  Widget _buildRoutineBanner() {
+    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
+    return Container(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Routine', style: textStyle),
+            Transform.translate(offset: Offset(5, 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoutineSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        children: [
+          Center(
+            child: Text(
+              "이번 주 루틴 현황을 보여드립니다.",
+              style: TextStyle(
+                fontSize: 10,
+                fontFamily: 'PretendardSemiBold',
+                color: DARK_GREY_COLOR,
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Center(child: _buildRoutineButton()),
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(width: 320, child: Divider(color: Colors.grey)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoutineButton() {
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          isDismissible: true,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(59),
+              topLeft: Radius.circular(59),
+            ),
+          ),
+          builder: (_) => RoutineBottomSheet(),
+        );
+      },
+      child: Container(
+        width: 87,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.rectangle,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+          ],
+        ),
+        child: Center(
+          child: Center(
+            child: Text(
+              '루틴 만들기',
+              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoneBanner() {
+    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
+    return Container(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Done", style: textStyle),
+            Transform.translate(offset: Offset(5, 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoneSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        children: [
+          Center(
+            child: Text(
+              "오늘 끝낸 to-do 리스트를 보여드립니다.",
+              style: TextStyle(
+                fontSize: 10,
+                fontFamily: 'PretendardSemiBold',
+                color: DARK_GREY_COLOR,
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Center(child: _buildTodoButton()),
+          SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.center),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTodoButton() {
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          isDismissible: true,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(59),
+              topLeft: Radius.circular(59),
+            ),
+          ),
+          builder: (_) => TodoBottomSheet(),
+        );
+      },
+      child: Container(
+        width: 87,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.rectangle,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+          ],
+        ),
+        child: Center(
+          child: Center(
+            child: Text(
+              '투두 만들기',
+              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBanner() {
+    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
+    return Container(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Monthly Progress", style: textStyle),
+            Transform.translate(offset: Offset(5, 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBox() {
+    int daysInMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0).day;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 40.0),
+      child: Transform.translate(
+        offset: Offset(0, -50),
+        child: Container(
+          constraints: BoxConstraints(maxHeight: 200),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 11,
+              crossAxisSpacing: 4.0,
+              mainAxisSpacing: 4.0,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: daysInMonth,
+            itemBuilder: (context, index) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _buildProgressBox(),
+          Transform.translate(
+            offset: Offset(0, -10),
+            child: Container(
+              width: 350,
+              height: 110,
+              padding: EdgeInsets.all(16.0),
+
+
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Text(
+                      "이번 달 to-do 달성률을 보여드립니다.\n퍼센트에 따라 색깔을 달리 표현합니다.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontFamily: 'PretendardSemiBold',
+                        color: DARK_GREY_COLOR,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Center(child: _buildCalendarButton()),
+                  Row(mainAxisAlignment: MainAxisAlignment.center),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context)=>HomeScreen()),
+        );
+      },
+      child: Container(
+        width: 87,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.rectangle,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+          ],
+        ),
+        child: Center(
+          child: Center(
+            child: Text(
+              '캘린더 보러 가기',
+              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        children: [
+          Center(
+            child: Text(
+              "데일리 일정 달성률에 따른 피드백을 드립니다.\n계획적인 삶에 한 발 짝 다가가는 당신을 응원할게요:)",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                fontFamily: 'PretendardSemiBold',
+                color: DARK_GREY_COLOR,
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.center),
+        ],
+      ),
+    );
+  }
+
 }

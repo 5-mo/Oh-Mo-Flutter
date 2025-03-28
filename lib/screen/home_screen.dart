@@ -34,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -44,23 +43,36 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
         },
-        items:  [
+        items: [
           BottomNavigationBarItem(
-            icon: _selectedIndex==0
-            ? SvgPicture.asset('android/assets/images/calendar_selected.svg')
-            : SvgPicture.asset('android/assets/images/calendar_unselected.svg'),
+            icon:
+                _selectedIndex == 0
+                    ? SvgPicture.asset(
+                      'android/assets/images/calendar_selected.svg',
+                    )
+                    : SvgPicture.asset(
+                      'android/assets/images/calendar_unselected.svg',
+                    ),
             label: 'Calendar',
           ),
           BottomNavigationBarItem(
-            icon: _selectedIndex==1
-                ? SvgPicture.asset('android/assets/images/daylog_selected.svg')
-                : SvgPicture.asset('android/assets/images/daylog_unselected.svg'),
+            icon:
+                _selectedIndex == 1
+                    ? SvgPicture.asset(
+                      'android/assets/images/daylog_selected.svg',
+                    )
+                    : SvgPicture.asset(
+                      'android/assets/images/daylog_unselected.svg',
+                    ),
             label: 'Daylog',
           ),
           BottomNavigationBarItem(
-            icon: _selectedIndex==2
-                ? SvgPicture.asset('android/assets/images/my_selected.svg')
-                : SvgPicture.asset('android/assets/images/my_unselected.svg'),
+            icon:
+                _selectedIndex == 2
+                    ? SvgPicture.asset('android/assets/images/my_selected.svg')
+                    : SvgPicture.asset(
+                      'android/assets/images/my_unselected.svg',
+                    ),
             label: 'My',
           ),
         ],
@@ -105,60 +117,60 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            MainCalendar(
-              selectedDate: selectedDate,
-              onDaySelected: onDaySelected,
-              eventLoader: (day) {
-                DateTime normalizedDate = DateTime(
-                  day.year,
-                  day.month,
-                  day.day,
-                );
-                return events[normalizedDate] ?? [];
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0),
-              child: Column(
-                children: [
-                  RoutineBanner(),
-                  ...routines.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    String routine = entry.value;
-                    return RoutineCard(
-                      content: routine,
-                      onEdit: (newContent) {
-                        setState(() {
-                          routines[index] = newContent;
-                        });
-                      },
-                    );
-                  }).toList(),
-                  const Divider(color: Colors.grey),
-                  TodoBanner(),
-                  ...todos.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    String todo = entry.value;
-                    return TodoCard(
-                      content: todo,
-                      onEdit: (newContent) {
-                        setState(() {
-                          todos[index] = newContent;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ],
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MainCalendar(
+                selectedDate: selectedDate,
+                onDaySelected: onDaySelected,
+                eventLoader: (day) {
+                  DateTime normalizedDate = DateTime(
+                    day.year,
+                    day.month,
+                    day.day,
+                  );
+                  return events[normalizedDate] ?? [];
+                },
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                child: Column(
+                  children: [
+                    RoutineBanner(),
+                    ...routines.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      String routine = entry.value;
+                      return RoutineCard(
+                        content: routine,
+                        onEdit: (newContent) {
+                          setState(() {
+                            routines[index] = newContent;
+                          });
+                        },
+                      );
+                    }).toList(),
+                    const Divider(color: Colors.grey),
+                    TodoBanner(),
+                    ...todos.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      String todo = entry.value;
+                      return TodoCard(
+                        content: todo,
+                        onEdit: (newContent) {
+                          setState(() {
+                            todos[index] = newContent;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
     );
   }
 
