@@ -12,8 +12,10 @@ class DaylogScreen extends StatefulWidget {
 }
 
 class _DaylogScreenState extends State<DaylogScreen> {
-  DateTime _focusedDay = DateTime.now();
+  bool isPressed = false;
+  String? selectedQuestion;
 
+  DateTime _focusedDay = DateTime.now();
   bool _happyActive = false;
   bool _sosoActive = false;
   bool _badActive = false;
@@ -32,10 +34,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
   }
 
-  void _resetIconState(){
-    _happyActive=false;
-    _sosoActive=false;
-    _badActive=false;
+  void _resetIconState() {
+    _happyActive = false;
+    _sosoActive = false;
+    _badActive = false;
   }
 
   void _onIconPressed(String iconName) {
@@ -61,18 +63,31 @@ class _DaylogScreenState extends State<DaylogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          SizedBox(height: 70),
-          _buildHeader(),
-          _buildRoutineBanner(),
-          _buildRoutineSection(),
-          _buildDoneBanner(),
-          _buildDoneSection(),
-          _buildProgressBanner(),
-          _buildProgressSection(),
-          _buildFeedbackSection(),
-        ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildRoutineBanner(),
+              _buildRoutineSection(),
+              _buildDoneBanner(),
+              _buildDoneSection(),
+              _buildProgressBanner(),
+              _buildProgressSection(),
+              _buildFeedbackSection(),
+              _buildQuestionBanner(),
+              _buildQuestionButtons(),
+              if (selectedQuestion != null)
+                _buildAnswerField(selectedQuestion!),
+              SizedBox(height: 30),
+              _buildDiaryBanner(),
+              _buildDiaryField(),
+              SizedBox(height: 20),
+              _buildDaylogSaveButton(),
+              SizedBox(height: 50),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -355,36 +370,33 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 40.0),
-      child: Transform.translate(
-        offset: Offset(0, -50),
-        child: Container(
-          constraints: BoxConstraints(maxHeight: 200),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 11,
-              crossAxisSpacing: 4.0,
-              mainAxisSpacing: 4.0,
-              childAspectRatio: 1.0,
-            ),
-            itemCount: daysInMonth,
-            itemBuilder: (context, index) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-                alignment: Alignment.center,
-              );
-            },
+      child: Container(
+        constraints: BoxConstraints(maxHeight: 200),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 11,
+            crossAxisSpacing: 4.0,
+            mainAxisSpacing: 4.0,
+            childAspectRatio: 1.0,
           ),
+          itemCount: daysInMonth,
+          itemBuilder: (context, index) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 2,
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+            );
+          },
         ),
       ),
     );
@@ -398,12 +410,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
         children: [
           _buildProgressBox(),
           Transform.translate(
-            offset: Offset(0, -10),
+            offset: Offset(0, 10),
             child: Container(
               width: 350,
               height: 110,
               padding: EdgeInsets.all(16.0),
-
 
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -436,7 +447,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context)=>HomeScreen()),
+          MaterialPageRoute(builder: (context) => HomeScreen()),
         );
       },
       child: Container(
@@ -485,4 +496,181 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
+  Widget _buildQuestionBanner() {
+    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
+    return Container(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.0, vertical: 10.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Question', style: textStyle),
+            Transform.translate(offset: Offset(5, 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestionButtons() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 40.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        child: Row(
+          children: [
+            _buildQuestionButton('\u{1F4B0} 오늘의 소비는?'),
+            SizedBox(width: 10),
+            _buildQuestionButton('\u{1F60A} 오늘의 내가 감사했던 일은?'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestionButton(String text) {
+    bool isSelected = selectedQuestion == text;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedQuestion = (selectedQuestion == text) ? null : text;
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        decoration: BoxDecoration(
+          shape: BoxShape.rectangle,
+          color: isSelected ? DARK_GREY_COLOR : Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              fontFamily: 'PretendardRegular',
+              color: isSelected ? Colors.white : Colors.black,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnswerField(String question) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 40.0, vertical: 10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: 10),
+          Text(
+            question,
+            style: TextStyle(fontSize: 13, fontFamily: 'PretendardSemibold'),
+          ),
+          SizedBox(height: 5),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            child: Row(
+              children: [
+                Container(
+                  width: 300,
+                  height: 41,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16.0),
+                    child: TextField(
+                      decoration: InputDecoration(border: InputBorder.none),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiaryBanner() {
+    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
+    return Container(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.0, vertical: 5.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [Text('Today was...', style: textStyle)],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiaryField() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 0.0, horizontal: 40.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: TextField(
+          maxLines: null,
+          minLines:10,
+          decoration: InputDecoration(
+            hintText: "오늘은 어떤 하루였나요?",
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(borderSide: BorderSide.none),
+            hintStyle: TextStyle(
+              fontFamily: 'PretendardRegular',
+              color: LIGHT_GREY_COLOR,
+              fontSize: 14,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              vertical: 20.0,
+              horizontal: 10.0,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDaylogSaveButton() {
+    return GestureDetector(
+      onTap: () {
+        print('일기 저장하기');
+      },
+      child: Container(
+        width: 334,
+        height: 56,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Center(
+          child: Text(
+            '일기 저장하기',
+            style: TextStyle(
+              fontSize: 20,
+              fontFamily: 'PretendardBold',
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
