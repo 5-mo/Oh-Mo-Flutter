@@ -41,6 +41,9 @@ flutter:
     - android/assets/images/happy_unselected.svg
     - android/assets/images/soso_unselected.svg
     - android/assets/images/bad_unselected.svg
+    - android/assets/images/mybackground.svg
+    - android/assets/images/myprofile.svg
+    - android/assets/images/notion.svg
 
   uses-material-design: true
   fonts:
