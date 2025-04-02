@@ -8,6 +8,7 @@ import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:ohmo/component/bottom_navigation_bar.dart';
 
 class Event {
   String title;
@@ -32,61 +33,19 @@ class _HomeScreenState extends State<HomeScreen> {
     MyScreen(),
   ];
 
+  void _onTabChange(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon:
-                _selectedIndex == 0
-                    ? SvgPicture.asset(
-                      'android/assets/images/calendar_selected.svg',
-                    )
-                    : SvgPicture.asset(
-                      'android/assets/images/calendar_unselected.svg',
-                    ),
-            label: 'Calendar',
-          ),
-          BottomNavigationBarItem(
-            icon:
-                _selectedIndex == 1
-                    ? SvgPicture.asset(
-                      'android/assets/images/daylog_selected.svg',
-                    )
-                    : SvgPicture.asset(
-                      'android/assets/images/daylog_unselected.svg',
-                    ),
-            label: 'Daylog',
-          ),
-          BottomNavigationBarItem(
-            icon:
-                _selectedIndex == 2
-                    ? SvgPicture.asset('android/assets/images/my_selected.svg')
-                    : SvgPicture.asset(
-                      'android/assets/images/my_unselected.svg',
-                    ),
-            label: 'My',
-          ),
-        ],
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black,
-        selectedLabelStyle: TextStyle(
-          fontSize: 12,
-          fontFamily: 'RubikSprayPaint',
-        ),
-        unselectedLabelStyle: TextStyle(
-          fontFamily: 'RubikSprayPaint',
-          fontSize: 12,
-        ),
+      bottomNavigationBar: OhmoBottomNavigationBar(
+        selectedIndex: _selectedIndex,
+        onTabChange: _onTabChange,
       ),
     );
   }

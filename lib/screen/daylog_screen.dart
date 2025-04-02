@@ -5,21 +5,53 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/screen/home_screen.dart';
+import 'package:ohmo/component/bottom_navigation_bar.dart';
+import 'package:ohmo/screen/my_screen.dart';
 
 class DaylogScreen extends StatefulWidget {
+  final String? date;
+
+  DaylogScreen({this.date});
+
   @override
   _DaylogScreenState createState() => _DaylogScreenState();
 }
 
 class _DaylogScreenState extends State<DaylogScreen> {
+  int _selectedIndex=1;
+  
+  void_onTabChange(int index){
+    setState(() {
+      _selectedIndex=index;
+      if(index==0){
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>HomeScreen()));
+      } else if(index==2){
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>MyScreen()));
+      }
+    });
+  }
+  
   bool isPressed = false;
   String? selectedQuestion;
 
-  DateTime _focusedDay = DateTime.now();
+  late DateTime _focusedDay;
   bool _happyActive = false;
   bool _sosoActive = false;
   bool _badActive = false;
 
+  @override
+  void initState(){
+    super.initState();
+    if (widget.date != null) {
+      try {
+        _focusedDay = DateFormat('yyyy.MM.dd').parse(widget.date!);
+      } catch (e) {
+        _focusedDay = DateTime.now();
+      }
+    } else {
+      _focusedDay = DateTime.now();
+    }
+  }
   void _onLeftChevronPressed() {
     setState(() {
       _focusedDay = _focusedDay.subtract(Duration(days: 1));
