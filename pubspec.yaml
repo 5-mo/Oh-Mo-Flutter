@@ -15,6 +15,8 @@ dependencies:
   table_calendar: 3.0.9
   intl: 0.18.1
   flutter_svg: ^2.0.17
+  image_picker: 1.1.2
+  provider: ^6.0.0
 
 
 dev_dependencies:
@@ -44,6 +46,8 @@ flutter:
     - android/assets/images/mybackground.svg
     - android/assets/images/myprofile.svg
     - android/assets/images/notion.svg
+    - android/assets/images/profile_photo.svg
+    - android/assets/images/background_edit.svg
 
   uses-material-design: true
   fonts:

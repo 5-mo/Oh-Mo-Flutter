@@ -1,48 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
-import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/screen/profile_screen.dart';
-import 'package:ohmo/screen/daylog_screen.dart';
 import 'package:intl/intl.dart';
-import 'package:ohmo/component/bottom_navigation_bar.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:ohmo/profile_data_provider.dart';
 
 class MyScreen extends StatefulWidget {
+  final Function(int) onTabChange;
+  final ValueNotifier<DateTime> selectedDateNotifier;
+
+  MyScreen({required this.onTabChange, required this.selectedDateNotifier});
+
   @override
   _MyScreenState createState() => _MyScreenState();
 }
 
 class _MyScreenState extends State<MyScreen> {
-  int _selectedIndex = 2;
-
-  void _onTabChange(int index) {
-    setState(() {
-      _selectedIndex = index;
-      if (index == 0) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
-      } else if (index == 1) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => DaylogScreen()),
-        );
-      }
-    });
-  }
-
   bool _showSearchRecords = false;
+
   final List<Map<String, String>> _searchRecords = [
     {'text': '오모 회식', 'date': '2025.02.02'},
     {'text': '미팅 일정', 'date': '2025.03.02'},
     {'text': '운동 계획', 'date': '2025.02.22'},
     {'text': '공부', 'date': '2025.03.22'},
   ];
+
   final TextEditingController _searchController = TextEditingController();
+
+  Future<void> _pickImage(BuildContext context) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+        Provider.of<ProfileData>(context,listen:false).updateProfile(updateImage:File(pickedFile.path));
+    } else {
+      print('이미지를 선택하지 않았습니다.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final profile=Provider.of<ProfileData>(context);
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Column(
@@ -63,12 +64,28 @@ class _MyScreenState extends State<MyScreen> {
                   left: 41,
                   child: Row(
                     children: [
-                      SvgPicture.asset('android/assets/images/myprofile.svg'),
+                      GestureDetector(
+                        onTap: ()=>_pickImage(context),
+                        child: profile.image != null
+                                ? ClipOval(
+                                  child: Image.file(
+                                    profile.image!,
+                                    width: 84,
+                                    height: 84,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                                : SvgPicture.asset(
+                                  'android/assets/images/myprofile.svg',
+                                ),
+                      ),
+
                       SizedBox(width: 50),
                       _buildProfileSection(context),
                     ],
                   ),
                 ),
+
                 Positioned(
                   left: 38,
                   top: 367,
@@ -83,9 +100,11 @@ class _MyScreenState extends State<MyScreen> {
                     ],
                   ),
                 ),
+
                 Positioned(
                   left: 50,
                   top: 186,
+
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -103,13 +122,11 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Widget _buildProfileSection(BuildContext context) {
+    final profile=Provider.of<ProfileData>(context);
     return Column(
       children: [
-        Text('오모', style: TextStyle(color: Colors.white, fontSize: 16.0)),
-        Text(
-          'jwjwhvv@gamil.com',
-          style: TextStyle(color: Colors.white, fontSize: 16.0),
-        ),
+        Text(profile.nickname, style: TextStyle(color: Colors.white, fontSize: 16.0)),
+        Text(profile.email, style: TextStyle(color: Colors.white, fontSize: 16.0)),
         SizedBox(height: 10.0),
         _buildProfileButton(context),
       ],
@@ -117,13 +134,28 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Widget _buildProfileButton(BuildContext context) {
+    final profile = Provider.of<ProfileData>(context, listen: false);
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ProfileScreen()),
-        );
-      },
+        onTap: () async {
+          final result = await Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                  ProfileScreen(
+                    initialImage: profile.image,
+                    initialNickname: profile.nickname,
+                    initialEmail: profile.email,
+                  ),
+            ),
+          );
+
+          profile.updateProfile(
+            updateImage: result?['image'],
+            updateNickname: result?['nickname'],
+            updateEmail: result?['email'],
+          );
+  },
       child: Container(
         width: 87,
         height: 18,
@@ -132,6 +164,7 @@ class _MyScreenState extends State<MyScreen> {
           borderRadius: BorderRadius.circular(15),
           border: Border.all(color: Colors.white),
         ),
+
         child: Center(
           child: Text(
             '프로필 수정',
@@ -154,6 +187,7 @@ class _MyScreenState extends State<MyScreen> {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.white),
       ),
+
       child: Row(
         children: [
           SizedBox(width: 40.0),
@@ -166,6 +200,7 @@ class _MyScreenState extends State<MyScreen> {
                 fontSize: 16,
                 fontFamily: 'PretendardRegular',
               ),
+
               decoration: InputDecoration(
                 hintText: '일정 검색',
                 hintStyle: TextStyle(
@@ -181,6 +216,7 @@ class _MyScreenState extends State<MyScreen> {
                   _showSearchRecords = true;
                 });
               },
+
               onChanged: (text) {
                 setState(() {
                   _showSearchRecords = text.isNotEmpty;
@@ -188,6 +224,7 @@ class _MyScreenState extends State<MyScreen> {
               },
             ),
           ),
+
           GestureDetector(
             onTap: () {
               print("검색");
@@ -211,6 +248,7 @@ class _MyScreenState extends State<MyScreen> {
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: Middle_GREY_COLOR),
         ),
+
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(_searchRecords.length * 2 - 1, (index) {
@@ -218,38 +256,9 @@ class _MyScreenState extends State<MyScreen> {
               final record = _searchRecords[index ~/ 2];
               return GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => Scaffold(
-                            body: DaylogScreen(date: record['date']!),
-                            bottomNavigationBar: OhmoBottomNavigationBar(
-                              selectedIndex: 1,
-                              onTabChange: (index) {
-                                setState(() {
-                                  _selectedIndex = index;
-                                  if (index == 0) {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => HomeScreen(),
-                                      ),
-                                    );
-                                  } else if (index == 2) {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => MyScreen(),
-                                      ),
-                                    );
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                    ),
-                  );
+                  final date = DateFormat('yyyy.MM.dd').parse(record['date']!);
+                  widget.selectedDateNotifier.value = date;
+                  widget.onTabChange(1);
                 },
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 3.0, horizontal: 5.0),
@@ -292,6 +301,7 @@ class _MyScreenState extends State<MyScreen> {
           BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
         ],
       ),
+
       child: Center(
         child: Center(
           child: Row(
@@ -313,6 +323,7 @@ class _MyScreenState extends State<MyScreen> {
   Widget _buildCategoryManaging(BuildContext context) {
     return Text(
       "카테고리 관리",
+
       style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
     );
   }
@@ -320,6 +331,7 @@ class _MyScreenState extends State<MyScreen> {
   Widget _buildDiaryCollection(BuildContext context) {
     return Text(
       "일기 모아보기",
+
       style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
     );
   }
