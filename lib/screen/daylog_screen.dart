@@ -10,29 +10,24 @@ import 'package:ohmo/screen/my_screen.dart';
 
 class DaylogScreen extends StatefulWidget {
   final String? date;
+  final Function(int) onTabChange;
+  final ValueNotifier<DateTime> selectedDateNotifier;
 
-  DaylogScreen({this.date});
+  DaylogScreen({
+    required this.onTabChange,
+    this.date,
+    required this.selectedDateNotifier,
+  });
 
   @override
   _DaylogScreenState createState() => _DaylogScreenState();
 }
 
 class _DaylogScreenState extends State<DaylogScreen> {
-  int _selectedIndex=1;
-  
-  void_onTabChange(int index){
-    setState(() {
-      _selectedIndex=index;
-      if(index==0){
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>HomeScreen()));
-      } else if(index==2){
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>MyScreen()));
-      }
-    });
-  }
-  
   bool isPressed = false;
   String? selectedQuestion;
+  String? answer;
+  String? diary;
 
   late DateTime _focusedDay;
   bool _happyActive = false;
@@ -40,18 +35,20 @@ class _DaylogScreenState extends State<DaylogScreen> {
   bool _badActive = false;
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    if (widget.date != null) {
-      try {
-        _focusedDay = DateFormat('yyyy.MM.dd').parse(widget.date!);
-      } catch (e) {
-        _focusedDay = DateTime.now();
+    _focusedDay = widget.selectedDateNotifier.value;
+
+    widget.selectedDateNotifier.addListener(() {
+      if(!mounted) return;
+      if (_focusedDay != widget.selectedDateNotifier.value) {
+        setState(() {
+          _focusedDay = widget.selectedDateNotifier.value;
+        });
       }
-    } else {
-      _focusedDay = DateTime.now();
-    }
+    });
   }
+
   void _onLeftChevronPressed() {
     setState(() {
       _focusedDay = _focusedDay.subtract(Duration(days: 1));
@@ -88,8 +85,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
         _sosoActive = false;
       }
     });
-
-    print("Clicked : $iconName");
   }
 
   @override
@@ -447,7 +442,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
               width: 350,
               height: 110,
               padding: EdgeInsets.all(16.0),
-
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -628,6 +622,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
                     padding: const EdgeInsets.only(left: 16.0),
                     child: TextField(
                       decoration: InputDecoration(border: InputBorder.none),
+                      onChanged: (value) {
+                        setState(() {
+                          answer = value;
+                        });
+                      },
                     ),
                   ),
                 ),
@@ -659,7 +658,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         scrollDirection: Axis.vertical,
         child: TextField(
           maxLines: null,
-          minLines:10,
+          minLines: 10,
           decoration: InputDecoration(
             hintText: "오늘은 어떤 하루였나요?",
             filled: true,
@@ -675,6 +674,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
               horizontal: 10.0,
             ),
           ),
+          onChanged: (value) {
+            setState(() {
+              diary = value;
+            });
+          },
         ),
       ),
     );
@@ -684,6 +688,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     return GestureDetector(
       onTap: () {
         print('일기 저장하기');
+        print('answer: $answer, diary: $diary');
       },
       child: Container(
         width: 334,

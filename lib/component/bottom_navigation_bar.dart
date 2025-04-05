@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:ohmo/screen/daylog_screen.dart';
-import 'package:ohmo/screen/home_screen.dart';
-import 'package:ohmo/screen/my_screen.dart';
+
 
 class OhmoBottomNavigationBar extends StatefulWidget{
   final int selectedIndex;
