@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/profile_data_provider.dart';
+import 'package:ohmo/screen/category_screen.dart';
 
 class MyScreen extends StatefulWidget {
   final Function(int) onTabChange;
@@ -34,7 +35,10 @@ class _MyScreenState extends State<MyScreen> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-        Provider.of<ProfileData>(context,listen:false).updateProfile(updateImage:File(pickedFile.path));
+      Provider.of<ProfileData>(
+        context,
+        listen: false,
+      ).updateProfile(updateImage: File(pickedFile.path));
     } else {
       print('이미지를 선택하지 않았습니다.');
     }
@@ -42,7 +46,7 @@ class _MyScreenState extends State<MyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final profile=Provider.of<ProfileData>(context);
+    final profile = Provider.of<ProfileData>(context);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -65,8 +69,9 @@ class _MyScreenState extends State<MyScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: ()=>_pickImage(context),
-                        child: profile.image != null
+                        onTap: () => _pickImage(context),
+                        child:
+                            profile.image != null
                                 ? ClipOval(
                                   child: Image.file(
                                     profile.image!,
@@ -122,11 +127,17 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Widget _buildProfileSection(BuildContext context) {
-    final profile=Provider.of<ProfileData>(context);
+    final profile = Provider.of<ProfileData>(context);
     return Column(
       children: [
-        Text(profile.nickname, style: TextStyle(color: Colors.white, fontSize: 16.0)),
-        Text(profile.email, style: TextStyle(color: Colors.white, fontSize: 16.0)),
+        Text(
+          profile.nickname,
+          style: TextStyle(color: Colors.white, fontSize: 16.0),
+        ),
+        Text(
+          profile.email,
+          style: TextStyle(color: Colors.white, fontSize: 16.0),
+        ),
         SizedBox(height: 10.0),
         _buildProfileButton(context),
       ],
@@ -136,26 +147,25 @@ class _MyScreenState extends State<MyScreen> {
   Widget _buildProfileButton(BuildContext context) {
     final profile = Provider.of<ProfileData>(context, listen: false);
     return GestureDetector(
-        onTap: () async {
-          final result = await Navigator.push<Map<String, dynamic>>(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (context) =>
-                  ProfileScreen(
-                    initialImage: profile.image,
-                    initialNickname: profile.nickname,
-                    initialEmail: profile.email,
-                  ),
-            ),
-          );
+      onTap: () async {
+        final result = await Navigator.push<Map<String, dynamic>>(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ProfileScreen(
+                  initialImage: profile.image,
+                  initialNickname: profile.nickname,
+                  initialEmail: profile.email,
+                ),
+          ),
+        );
 
-          profile.updateProfile(
-            updateImage: result?['image'],
-            updateNickname: result?['nickname'],
-            updateEmail: result?['email'],
-          );
-  },
+        profile.updateProfile(
+          updateImage: result?['image'],
+          updateNickname: result?['nickname'],
+          updateEmail: result?['email'],
+        );
+      },
       child: Container(
         width: 87,
         height: 18,
@@ -321,17 +331,23 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Widget _buildCategoryManaging(BuildContext context) {
-    return Text(
-      "카테고리 관리",
-
-      style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CategoryScreen()),
+        );
+      },
+      child: Text(
+        '카테고리 관리',
+        style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
+      ),
     );
   }
 
   Widget _buildDiaryCollection(BuildContext context) {
     return Text(
       "일기 모아보기",
-
       style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
     );
   }
