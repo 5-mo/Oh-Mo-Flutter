@@ -48,6 +48,10 @@ flutter:
     - android/assets/images/notion.svg
     - android/assets/images/profile_photo.svg
     - android/assets/images/background_edit.svg
+    - android/assets/images/login_google.svg
+    - android/assets/images/login_naver.svg
+    - android/assets/images/login_kakao.svg
+
 
   uses-material-design: true
   fonts:
