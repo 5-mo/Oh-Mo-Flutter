@@ -12,7 +12,7 @@ void main() {
         theme: ThemeData(
           scaffoldBackgroundColor: Colors.white,
         ),
-        home: LoginScreen(),
+        home: HomeScreen(),
         debugShowCheckedModeBanner: false,
       ),
     ),

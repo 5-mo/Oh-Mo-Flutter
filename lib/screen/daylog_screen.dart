@@ -5,8 +5,7 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/screen/home_screen.dart';
-import 'package:ohmo/component/bottom_navigation_bar.dart';
-import 'package:ohmo/screen/my_screen.dart';
+import 'package:ohmo/shared_data.dart';
 
 class DaylogScreen extends StatefulWidget {
   final String? date;
@@ -546,9 +545,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
         clipBehavior: Clip.none,
         child: Row(
           children: [
-            _buildQuestionButton('\u{1F4B0} 오늘의 소비는?'),
-            SizedBox(width: 10),
-            _buildQuestionButton('\u{1F60A} 오늘의 내가 감사했던 일은?'),
+            ...daylogQuestions.map((q)=>Row(
+              children: [
+                _buildQuestionButton(q.content),
+              ],
+            ))
           ],
         ),
       ),
