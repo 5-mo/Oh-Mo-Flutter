@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
 import 'alarm_bottom_sheet.dart';
+import 'delete_popup.dart';
 
 class RoutineCard extends StatefulWidget {
   final String content;
   final Function(String) onEdit;
+  final bool showCheckbox;
+  final Widget Function(BuildContext)? deletePopupBuilder;
 
-  const RoutineCard({required this.content, required this.onEdit, Key? key})
-    : super(key: key);
+  const RoutineCard({
+    required this.content,
+    required this.onEdit,
+    this.showCheckbox = true,
+    this.deletePopupBuilder,
+    Key? key,
+  }) : super(key: key);
 
   @override
   _RoutineCardState createState() => _RoutineCardState();
@@ -41,7 +49,7 @@ class _RoutineCardState extends State<RoutineCard> {
       decorationColor: _isChecked ? Middle_GREY_COLOR : Colors.black,
     );
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(8.0),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -88,43 +96,55 @@ class _RoutineCardState extends State<RoutineCard> {
 
             GestureDetector(
               onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  isDismissible: true,
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.only(
-                      topRight: Radius.circular(59),
-                      topLeft: Radius.circular(59),
+                final popupWidget=widget.deletePopupBuilder?.call(context);
+               if(popupWidget is DeletePopup){
+                 showDialog(
+                   context: context,
+                   barrierColor: Colors.black.withOpacity(0.4),
+                   builder: (_) => popupWidget,
+                 );
+                }else {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    isDismissible: true,
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(59),
+                        topLeft: Radius.circular(59),
+                      ),
                     ),
-                  ),
-                  builder: (BuildContext context) {
-                    return RoutineAlarm();
-                  },
-                );
+                    builder:
+                    widget.deletePopupBuilder ??
+                            (context) => RoutineAlarm(),
+                  );
+                }
               },
-              child: SvgPicture.asset('android/assets/images/routine_alarm.svg',
+
+              child: SvgPicture.asset(
+                'android/assets/images/routine_alarm.svg',
               ),
             ),
             const SizedBox(width: 8.0),
-
-            Checkbox(
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: const VisualDensity(
-                horizontal: VisualDensity.minimumDensity,
-                vertical: VisualDensity.minimumDensity,
-              ),
-              value: _isChecked,
-              onChanged: (bool? value) {
-                setState(() {
-                  _isChecked = value ?? false;
-                });
-              },
-              activeColor: Colors.black,
-              checkColor: Colors.white,
-              fillColor: MaterialStateProperty.all(Colors.black),
-            ),
+            widget.showCheckbox
+                ? Checkbox(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: const VisualDensity(
+                    horizontal: VisualDensity.minimumDensity,
+                    vertical: VisualDensity.minimumDensity,
+                  ),
+                  value: _isChecked,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      _isChecked = value ?? false;
+                    });
+                  },
+                  activeColor: Colors.black,
+                  checkColor: Colors.white,
+                  fillColor: MaterialStateProperty.all(Colors.black),
+                )
+                : SizedBox.shrink(),
           ],
         ),
       ),

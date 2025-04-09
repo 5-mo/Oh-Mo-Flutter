@@ -7,6 +7,7 @@ import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/component/bottom_navigation_bar.dart';
+import 'package:ohmo/shared_data.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -68,9 +69,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
     DateTime.now().day,
   );
 
-  List<String> routines = ['오모 회의', '데이트'];
-  List<String> todos = ['코딩하기', '회의', '코딩하기', '회의', '코딩하기', '회의', '코딩하기', '회의'];
-
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -93,32 +91,35 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
               child: Column(
                 children: [
                   RoutineBanner(),
-                  ...routines.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    String routine = entry.value;
+                  ...routines.map((routine) {
                     return RoutineCard(
-                      content: routine,
+                      content: routine.content,
                       onEdit: (newContent) {
                         setState(() {
-                          routines[index] = newContent;
+                          final target = routines.firstWhere(
+                            (item) => item.id == routine.id,
+                          );
+                          target.content = newContent;
                         });
                       },
                     );
-                  }).toList(),
+                  }),
+                  SizedBox(height: 20.0),
                   const Divider(color: Colors.grey),
                   TodoBanner(),
-                  ...todos.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    String todo = entry.value;
+                  ...todos.map((todo) {
                     return TodoCard(
-                      content: todo,
+                      content: todo.content,
                       onEdit: (newContent) {
                         setState(() {
-                          todos[index] = newContent;
+                          final target = todos.firstWhere(
+                            (item) => item.id == todo.id,
+                          );
+                          target.content = newContent;
                         });
                       },
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
