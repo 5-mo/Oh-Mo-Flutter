@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:ohmo/screen/login/email_screen.dart';
+import 'package:ohmo/const/colors.dart';
+import 'package:ohmo/screen/login/signup_screen.dart';
+import 'package:ohmo/screen/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -11,30 +13,67 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 553,
-                  left: 17,
-                  child: Column(
-                    children: [
-                      _buildGoogleLogin(),
-                      SizedBox(height: 13),
-                      _buildNaverLogin(),
-                      SizedBox(height: 13),
-                      _buildKakaoLogin(),
-                      SizedBox(height: 13),
-                      _buildEmailLogin(context),
-                    ],
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(height: 60),
+              Center(
+                child: Text(
+                  '로그인',
+                  style: TextStyle(
+                    fontFamily: 'PretendardSemibold',
+                    fontSize: 24.0,
                   ),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(height: 60),
+              _buildTextField('이메일 주소', false),
+              SizedBox(height: 30),
+              _buildTextField('비밀번호', true),
+              SizedBox(height:20),
+              _buildSignup(context),
+              SizedBox(height: 40),
+              _buildLoginButton(),
+              SizedBox(height: 100),
+              _buildGoogleLogin(),
+              SizedBox(height: 13),
+              _buildNaverLogin(),
+              SizedBox(height: 13),
+              _buildKakaoLogin(),
+              SizedBox(height: 13),
+
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(String hint, bool obscure) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: TextField(
+        obscureText: obscure,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: LIGHT_GREY_COLOR,
+            fontFamily: 'PretendardBold',
+            fontSize: 16,
+          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(7),
+            borderSide: BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(7),
+            borderSide: BorderSide(color: Colors.grey),
+          ),
+        ),
       ),
     );
   }
@@ -60,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SvgPicture.asset('android/assets/images/login_google.svg'),
               SizedBox(width: 90.0),
               Text(
-                'Google로 시작하기',
+                'Google로 로그인 하기',
                 style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
               ),
             ],
@@ -91,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SvgPicture.asset('android/assets/images/login_naver.svg'),
               SizedBox(width: 97.0),
               Text(
-                '네이버로 시작하기',
+                '네이버로 로그인 하기',
                 style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
               ),
             ],
@@ -120,9 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               SizedBox(width: 20.0),
               SvgPicture.asset('android/assets/images/login_kakao.svg'),
-              SizedBox(width: 97.0),
+              SizedBox(width: 88.0),
               Text(
-                '카카오로 시작하기',
+                '카카오로 로그인 하기',
                 style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
               ),
             ],
@@ -132,20 +171,49 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildEmailLogin(BuildContext context) {
+  Widget _buildSignup(BuildContext context) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => EmailScreen()),
+          MaterialPageRoute(builder: (context) => SignupScreen()),
         );
       },
       child: Text(
-        '이메일로 로그인',
+        '회원가입',
         style: TextStyle(
           fontSize: 14,
           fontFamily: 'PretendardRegular',
           decoration: TextDecoration.underline,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      },
+      child: Container(
+        width: 140,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Center(
+          child: Text(
+            '로그인',
+            style: TextStyle(
+              fontSize: 16,
+              fontFamily: 'PretendardBold',
+              color: Colors.white,
+            ),
+          ),
         ),
       ),
     );

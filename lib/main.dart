@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/profile_data_provider.dart';
 import 'package:ohmo/screen/login/login_screen.dart';
+import 'package:ohmo/screen/splash_screen.dart';
 
 void main() {
   runApp(
@@ -12,7 +13,7 @@ void main() {
         theme: ThemeData(
           scaffoldBackgroundColor: Colors.white,
         ),
-        home: HomeScreen(),
+        home: Splash(),
         debugShowCheckedModeBanner: false,
       ),
     ),
