@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ohmo/profile_data_provider.dart';
+import 'package:ohmo/services/auth_service.dart';
+import 'package:ohmo/screen/home_screen.dart';
+import 'package:provider/provider.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -11,6 +15,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -120,8 +126,37 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Widget _buildSignupButton() {
     return GestureDetector(
-      onTap: () {
-        print('회원가입 완료');
+      onTap: () async{
+        final nickname=_nicknameController.text;
+        final email=_emailController.text;
+        final password=_passwordController.text;
+
+        if(nickname.isEmpty||email.isEmpty||password.isEmpty){
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("빈칸 없이 모두 입력해주세요."))
+          );
+          return;
+        }
+
+        final result=await AuthService.signup(email,password,nickname);
+
+        if(result==null){
+          print("회원가입 성공");
+
+          final profile=Provider.of<ProfileData>(context,listen:false);
+          profile.updateProfile(
+            updateNickname:nickname,
+            updateEmail:email,
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => HomeScreen()),
+          );
+        } else{
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content:Text(result)),
+          );
+        }
       },
       child: Container(
         width: 140,
