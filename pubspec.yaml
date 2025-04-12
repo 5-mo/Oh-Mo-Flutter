@@ -55,7 +55,7 @@ flutter:
     - android/assets/images/login_google.svg
     - android/assets/images/login_naver.svg
     - android/assets/images/login_kakao.svg
-
+    - android/assets/images/omo.png
 
   uses-material-design: true
   fonts:

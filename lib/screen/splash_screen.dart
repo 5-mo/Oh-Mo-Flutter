@@ -9,7 +9,7 @@ class Splash extends StatelessWidget {
         children: [
           Positioned(
             top: 591,
-            left: 60,
+            left: 68,
             child: Material(
               color: Colors.transparent,
               child: InkWell(

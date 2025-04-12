@@ -16,12 +16,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: TextButton(
           onPressed: () {
@@ -36,39 +34,57 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
           ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Center(
-                child: Text(
-                  '회원가입',
-                  style: TextStyle(
-                    fontFamily: 'PretendardSemibold',
-                    fontSize: 24.0,
-                  ),
-                ),
-              ),
-              SizedBox(height: 60),
-              _buildSignupText('닉네임'),
-              SizedBox(height: 10),
-              _buildTextField(_nicknameController),
-              SizedBox(height: 20),
-              _buildSignupText('이메일'),
-              SizedBox(height: 10),
-              _buildTextField(_emailController),
-              SizedBox(height: 20),
-              _buildSignupText('비밀번호'),
-              SizedBox(height: 10),
-              _buildTextField(_passwordController, isPassword: true),
-              SizedBox(height: 40),
-              _buildSignupButton(),
-            ],
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
           ),
         ),
+      ),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              reverse: true,
+              child: Column(
+                children: [
+                  Center(
+                    child: Text(
+                      '회원가입',
+                      style: TextStyle(
+                        fontFamily: 'PretendardSemibold',
+                        fontSize: 24.0,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 60),
+                  _buildSignupText('닉네임'),
+                  SizedBox(height: 10),
+                  _buildTextField(_nicknameController),
+                  SizedBox(height: 20),
+                  _buildSignupText('이메일'),
+                  SizedBox(height: 10),
+                  _buildTextField(_emailController),
+                  SizedBox(height: 20),
+                  _buildSignupText('비밀번호'),
+                  SizedBox(height: 10),
+                  _buildTextField(_passwordController, isPassword: true),
+                  SizedBox(height: 40),
+                  _buildSignupButton(),
+                  SizedBox(height: 300),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: IgnorePointer(
+              child: Image.asset('android/assets/images/omo.png', width: 250),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -126,36 +142,33 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Widget _buildSignupButton() {
     return GestureDetector(
-      onTap: () async{
-        final nickname=_nicknameController.text;
-        final email=_emailController.text;
-        final password=_passwordController.text;
+      onTap: () async {
+        final nickname = _nicknameController.text;
+        final email = _emailController.text;
+        final password = _passwordController.text;
 
-        if(nickname.isEmpty||email.isEmpty||password.isEmpty){
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("빈칸 없이 모두 입력해주세요."))
-          );
+        if (nickname.isEmpty || email.isEmpty || password.isEmpty) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("빈칸 없이 모두 입력해주세요.")));
           return;
         }
 
-        final result=await AuthService.signup(email,password,nickname);
+        final result = await AuthService.signup(email, password, nickname);
 
-        if(result==null){
+        if (result == null) {
           print("회원가입 성공");
 
-          final profile=Provider.of<ProfileData>(context,listen:false);
-          profile.updateProfile(
-            updateNickname:nickname,
-            updateEmail:email,
-          );
+          final profile = Provider.of<ProfileData>(context, listen: false);
+          profile.updateProfile(updateNickname: nickname, updateEmail: email);
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => HomeScreen()),
           );
-        } else{
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content:Text(result)),
-          );
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(result)));
         }
       },
       child: Container(
