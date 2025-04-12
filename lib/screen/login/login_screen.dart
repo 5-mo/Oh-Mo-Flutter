@@ -3,13 +3,21 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/screen/login/signup_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
+import 'package:provider/provider.dart';
+import '../../profile_data_provider.dart';
+import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _emailController=TextEditingController();
+  final TextEditingController _passwordController=TextEditingController();
+  final TextEditingController _nicknameController=TextEditingController();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,9 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               SizedBox(height: 60),
-              _buildTextField('이메일 주소', false),
+              _buildTextField('이메일 주소', false,_emailController),
               SizedBox(height: 30),
-              _buildTextField('비밀번호', true),
+              _buildTextField('비밀번호', true,_passwordController),
               SizedBox(height:20),
               _buildSignup(context),
               SizedBox(height: 40),
@@ -52,10 +60,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField(String hint, bool obscure) {
+  Widget _buildTextField(String hint, bool obscure,TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: TextField(
+        controller: controller,
         obscureText: obscure,
         decoration: InputDecoration(
           hintText: hint,
@@ -192,11 +201,33 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildLoginButton() {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
+      onTap: () async {
+        final email = _emailController.text;
+        final password = _passwordController.text;
+
+        if (email.isEmpty || password.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('이메일과 비밀번호를 모두 입력해주세요.')),
+          );
+          return;
+        }
+        final response=await AuthService.login(email,password);
+
+        if(response!=null){
+          print('로그인 성공');
+
+          final profile=Provider.of<ProfileData>(context,listen:false);
+          profile.updateProfile(
+            updateEmail: email,
+            updateNickname: response['nickname'],
+          );
+          Navigator.push(context, MaterialPageRoute(builder: (context)=>HomeScreen()),
+          );
+        }else{
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('로그인에 실패했습니다.')),
+          );
+        }
       },
       child: Container(
         width: 140,
