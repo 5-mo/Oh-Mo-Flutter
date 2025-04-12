@@ -20,6 +20,7 @@ dependencies:
   expansion_tile_card: ^3.0.0
   uuid: ^4.0.0
   fluttertoast: ^8.2.12
+  http: ^1.0.0
 
 
 dev_dependencies:
