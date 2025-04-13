@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 
 class DeletePopup extends StatefulWidget {
   final VoidCallback onDelete;
+  final String messageHeader;
+  final String message;
 
-  const DeletePopup({Key? key, required this.onDelete}) : super(key: key);
+  const DeletePopup({
+    Key? key,
+    required this.onDelete,
+    required this.messageHeader,
+    required this.message,
+  }) : super(key: key);
 
   @override
-  State<DeletePopup> createState() => _CategoryRoutineBottomSheetState();
+  State<DeletePopup> createState() => _DeletePopupState();
 }
 
-class _CategoryRoutineBottomSheetState extends State<DeletePopup> {
+class _DeletePopupState extends State<DeletePopup> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -18,12 +25,12 @@ class _CategoryRoutineBottomSheetState extends State<DeletePopup> {
         shape:RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
         ),
-        title: const Text(
-          '삭제', textAlign: TextAlign.center,
+        title: Text(
+          widget.messageHeader, textAlign: TextAlign.center,
           style: TextStyle(fontFamily: 'PretendardBold', fontSize: 24.0),
         ),
-        content: const Text(
-          '해당 목록을 삭제할까요?', textAlign: TextAlign.center,
+        content: Text(
+          widget.message, textAlign: TextAlign.center,
           style: TextStyle(fontFamily: 'PretendardRegular', fontSize: 15.0),
         ),
         actions: [_builddeleteButton()],
@@ -41,7 +48,7 @@ class _CategoryRoutineBottomSheetState extends State<DeletePopup> {
         width: 327,
         height: 56,
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: Color(0xFFE04747),
           borderRadius: BorderRadius.circular(9),
         ),
         child: Center(

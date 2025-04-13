@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/alarm_setting.dart';
-import 'package:intl/intl.dart';
 
 class RoutineAlarm extends StatefulWidget {
   const RoutineAlarm({Key? key}) : super(key: key);
