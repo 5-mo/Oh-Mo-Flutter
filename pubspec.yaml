@@ -21,6 +21,8 @@ dependencies:
   uuid: ^4.0.0
   fluttertoast: ^8.2.12
   http: ^1.0.0
+  emoji_picker_flutter: ^4.3.0
+  flutter_slidable: 4.0.0
 
 
 dev_dependencies:
