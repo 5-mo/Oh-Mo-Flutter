@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_checked="false">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+            <stroke
+                android:width="3dp"
+            android:color="#000000" />
+            <corners android:radius="1dp" />
+            <size android:width="23dp" android:height="23dp" />
+        </shape>
+    </item>
+
+    <!-- 체크된 상태 (채워진 정사각형) -->
+    <item android:state_checked="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#000000" />
+            <corners android:radius="1dp" />
+            <size android:width="23dp" android:height="23dp" />
+        </shape>
+    </item>
+</selector>
