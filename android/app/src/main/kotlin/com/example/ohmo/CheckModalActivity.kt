@@ -9,16 +9,14 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Window
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.ohmo.R
 import com.example.ohmo.model.ScheduleItem
 
-class ModalActivity : AppCompatActivity() {
+class CheckModalActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ScheduleAdapter
@@ -27,7 +25,7 @@ class ModalActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE) // 반드시 super.onCreate 이전에 호출
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.modal_layout)
+        setContentView(R.layout.check_modal_layout)
 
         // 크기 설정
         val displayMetrics = DisplayMetrics()

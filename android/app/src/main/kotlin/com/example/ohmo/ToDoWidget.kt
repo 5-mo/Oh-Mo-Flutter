@@ -8,7 +8,7 @@ import android.content.Intent
 import android.net.Uri // Uri 임포트 추가
 import android.widget.RemoteViews
 
-class MyAppWidget : AppWidgetProvider() {
+class ToDoWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
@@ -28,14 +28,16 @@ class MyAppWidget : AppWidgetProvider() {
             }
             views.setRemoteAdapter(android.R.id.list, serviceIntent) // @android:id/list 대신 R.id.list 사용
 
-            // 'check' 버튼 (button_left_icon) 클릭 시 모달 화면 띄우기
-            val modalIntent = Intent(context, ModalActivity::class.java)
-            val modalPendingIntent = PendingIntent.getActivity(context, 0, modalIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            views.setOnClickPendingIntent(R.id.button_left_icon, modalPendingIntent) // '+' 버튼 ID
+            // 'check' 버튼 (button_right_icon) 클릭 시 모달 화면 띄우기
+            val checkModalIntent = Intent(context, CheckModalActivity::class.java)
+            val checkModalPendingIntent = PendingIntent.getActivity(context, 0, checkModalIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            views.setOnClickPendingIntent(R.id.button_left_icon, checkModalPendingIntent)
 
-            // (선택 사항) 리스트가 비어있을 때 표시할 뷰 설정
-            // views.setEmptyView(android.R.id.list, R.id.empty_list_view_id)
-            // empty_list_view_id는 widget_layout.xml에 추가해야 합니다.
+            // 'plus' 버튼 (button_left_icon) 클릭 시 모달 화면 띄우기
+            val plusModalIntent = Intent(context, PlusModalActivity::class.java)
+            val plusModalPendingIntent = PendingIntent.getActivity(context, 0, plusModalIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            views.setOnClickPendingIntent(R.id.button_right_icon, plusModalPendingIntent)
+
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

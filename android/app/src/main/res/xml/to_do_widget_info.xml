@@ -5,4 +5,4 @@
     android:widgetCategory="home_screen"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
-    />
+    android:label="투두 위젯" />
