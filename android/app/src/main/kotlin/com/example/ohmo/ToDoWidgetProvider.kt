@@ -7,8 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri // Uri 임포트 추가
 import android.widget.RemoteViews
+import com.example.ohmo.service.ToDoWidgetRemoteViewsService
 
-class ToDoWidget : AppWidgetProvider() {
+class ToDoWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
@@ -20,7 +21,7 @@ class ToDoWidget : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widget_layout, appPendingIntent)
 
             // ListView에 RemoteViewsService 연결
-            val serviceIntent = Intent(context, WidgetRemoteViewsService::class.java).apply {
+            val serviceIntent = Intent(context, ToDoWidgetRemoteViewsService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 // 데이터 URI를 설정하여 PendingIntent가 고유하도록 만듭니다.
                 // 이는 ListView에서 여러 위젯 인스턴스를 처리할 때 중요합니다.

@@ -1,12 +1,12 @@
-package com.example.ohmo
+package com.example.ohmo.factory
 
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
-import java.util.ArrayList
+import com.example.ohmo.R
 
-class WidgetRemoteViewsFactory(private val context: Context, intent: Intent) : RemoteViewsService.RemoteViewsFactory {
+class ToDoWidgetRemoteViewsFactory(private val context: Context, intent: Intent) : RemoteViewsService.RemoteViewsFactory {
 
     private val mWidgetItems: MutableList<String> = ArrayList()
 

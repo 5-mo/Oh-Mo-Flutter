@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:id="@+id/text_month"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ㄴㄴㄴㄴ"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        android:layout_marginTop="18dp"
+        android:layout_marginStart="20dp" />
+
+
+    <!-- 요일 헤더 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="7"
+        android:layout_marginTop="5dp"
+        android:gravity="center_vertical">
+
+        <TextView style="@style/WeeklyCalendarDayHeader" android:text="S" />
+        <TextView style="@style/WeeklyCalendarDayHeader" android:text="M" />
+        <TextView style="@style/WeeklyCalendarDayHeader" android:text="T" />
+        <TextView style="@style/WeeklyCalendarDayHeader" android:text="W" />
+        <TextView style="@style/WeeklyCalendarDayHeader" android:text="T" />
+        <TextView style="@style/WeeklyCalendarDayHeader" android:text="F" />
+        <TextView style="@style/WeeklyCalendarDayHeader" android:text="S" />
+    </LinearLayout>
+
+    <!-- 날짜 표시 영역 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="7"
+        android:layout_marginTop="10dp">
+
+        <LinearLayout
+            android:id="@+id/date_0_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView android:id="@+id/date_0" style="@style/WeeklyCalendarDate" />
+
+            <ListView
+                android:id="@+id/date_0_event_list"
+                android:layout_width="wrap_content"
+                android:layout_height="90dp"
+                android:scrollbars="none"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="0dp"
+                android:layout_marginTop="5dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/date_1_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView android:id="@+id/date_1" style="@style/WeeklyCalendarDate" />
+
+            <ListView
+                android:id="@+id/date_1_event_list"
+                android:layout_width="match_parent"
+                android:layout_height="90dp"
+                android:scrollbars="none"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="0dp"
+                android:layout_marginTop="5dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/date_2_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView android:id="@+id/date_2" style="@style/WeeklyCalendarDate" /> <!-- 화요일 날짜 -->
+
+            <ListView
+                android:id="@+id/date_2_event_list"
+                android:layout_width="match_parent"
+                android:layout_height="90dp"
+                android:scrollbars="none"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="0dp"
+                android:layout_marginTop="5dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/date_3_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView android:id="@+id/date_3" style="@style/WeeklyCalendarDate" /> <!-- 수요일 날짜 -->
+
+            <ListView
+                android:id="@+id/date_3_event_list"
+                android:layout_width="match_parent"
+                android:layout_height="90dp"
+                android:scrollbars="none"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="0dp"
+                android:layout_marginTop="5dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/date_4_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView android:id="@+id/date_4" style="@style/WeeklyCalendarDate" /> <!-- 목요일 날짜 -->
+
+            <ListView
+                android:id="@+id/date_4_event_list"
+                android:layout_width="match_parent"
+                android:layout_height="90dp"
+                android:scrollbars="none"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="0dp"
+                android:layout_marginTop="5dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/date_5_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView android:id="@+id/date_5" style="@style/WeeklyCalendarDate" /> <!-- 금요일 날짜 -->
+
+            <ListView
+                android:id="@+id/date_5_event_list"
+                android:layout_width="match_parent"
+                android:layout_height="90dp"
+                android:scrollbars="none"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="0dp"
+                android:layout_marginTop="5dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/date_6_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView android:id="@+id/date_6" style="@style/WeeklyCalendarDate" /> <!-- 토요일 날짜 -->
+
+            <ListView
+                android:id="@+id/date_6_event_list"
+                android:layout_width="match_parent"
+                android:layout_height="90dp"
+                android:scrollbars="none"
+                android:divider="@android:color/transparent"
+                android:dividerHeight="0dp"
+                android:layout_marginTop="5dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>
