@@ -27,9 +27,51 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+
+        <activity android:name=".CheckModalActivity"
+            android:theme="@style/NoDimDialogTheme"
+            android:exported="false" />
+
+        <activity android:name=".PlusModalActivity"
+            android:theme="@style/NoDimDialogTheme"
+            android:exported="false" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <receiver
+            android:name=".ToDoWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/to_do_widget_info" />
+        </receiver>
+
+        <service android:name=".service.ToDoWidgetRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+
+        <receiver
+            android:name=".WeeklyCalendarWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weekly_calendar_widget_info" />
+        </receiver>
+
+        <service android:name=".service.CalendarWidgetRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+
+
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -42,4 +84,6 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+
+
 </manifest>
