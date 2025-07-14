@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -120,14 +120,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		8848D3972E158545008B8C9D /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 8848D37C2E158530008B8C9D /* HomeWidgetExtensionExtension */;
-		};
-		88C1E23C2E23F283004F487B /* Exceptions for "TodayWidgetExtension" folder in "TodayWidgetExtensionExtension" target */ = {
+		88C1E23C2E23F283004F487B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -137,30 +130,8 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8848D3822E158531008B8C9D /* HomeWidgetExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				8848D3972E158545008B8C9D /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = HomeWidgetExtension;
-			sourceTree = "<group>";
-		};
-		88C1E22A2E23F27E004F487B /* TodayWidgetExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				88C1E23C2E23F283004F487B /* Exceptions for "TodayWidgetExtension" folder in "TodayWidgetExtensionExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = TodayWidgetExtension;
-			sourceTree = "<group>";
-		};
+		8848D3822E158531008B8C9D /* HomeWidgetExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HomeWidgetExtension; sourceTree = "<group>"; };
+		88C1E22A2E23F27E004F487B /* TodayWidgetExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (88C1E23C2E23F283004F487B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TodayWidgetExtension; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -518,9 +489,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
