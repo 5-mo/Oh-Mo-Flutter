@@ -339,7 +339,7 @@ struct HomeWidgetExtension: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
             HomeWidgetExtensionEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(Color.white, for: .widget)
         }
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }

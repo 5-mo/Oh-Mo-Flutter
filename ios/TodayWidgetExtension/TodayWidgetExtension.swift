@@ -201,7 +201,7 @@ struct TodayWidgetExtension: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             if #available(iOS 17.0, *) {
                 TodayWidgetExtensionEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
+                    .containerBackground(Color.white, for: .widget)
             } else {
                 TodayWidgetExtensionEntryView(entry: entry)
                     .padding()
