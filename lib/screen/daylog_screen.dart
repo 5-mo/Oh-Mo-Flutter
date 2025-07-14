@@ -11,11 +11,13 @@ class DaylogScreen extends StatefulWidget {
   final String? date;
   final Function(int) onTabChange;
   final ValueNotifier<DateTime> selectedDateNotifier;
+  final bool showTodoSheet;
 
   DaylogScreen({
     required this.onTabChange,
     this.date,
     required this.selectedDateNotifier,
+    this.showTodoSheet=false,
   });
 
   @override
@@ -37,7 +39,23 @@ class _DaylogScreenState extends State<DaylogScreen> {
   void initState() {
     super.initState();
     _focusedDay = widget.selectedDateNotifier.value;
-
+    if (widget.showTodoSheet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          isDismissible: true,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(59),
+              topLeft: Radius.circular(59),
+            ),
+          ),
+          builder: (_) => TodoBottomSheet(),
+        );
+      });
+    }
     widget.selectedDateNotifier.addListener(() {
       if(!mounted) return;
       if (_focusedDay != widget.selectedDateNotifier.value) {
