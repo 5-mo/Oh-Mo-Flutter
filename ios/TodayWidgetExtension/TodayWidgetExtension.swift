@@ -79,11 +79,12 @@ struct TodayWidgetExtensionEntryView: View {
             smallView
         case .systemMedium:
             mediumView
+        case .accessoryRectangular:
+            rectangularView
         default:
             smallView
         }
     }
-
     var smallView: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Routine")
@@ -172,6 +173,18 @@ struct TodayWidgetExtensionEntryView: View {
                                 }
                             }
                         }
+    
+    var rectangularView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            // 여기선 투두를 표시하도록 예시
+            ForEach(entry.todoList.prefix(3), id: \.self) { item in
+                Text("● \(item)")
+                    .font(.footnote)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+    }
 
     func monthYearString(from date: Date) -> String {
         let formatter = DateFormatter()
@@ -197,7 +210,7 @@ struct TodayWidgetExtension: Widget {
         }
         .configurationDisplayName("Today Routine & Todo")
         .description("오늘의 루틴과 투두를 확인하세요.")
-        .supportedFamilies([.systemSmall,.systemMedium])
+        .supportedFamilies([.systemSmall,.systemMedium,.accessoryRectangular])
     }
 }
 
