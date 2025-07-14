@@ -1,41 +1,60 @@
 PODS:
+  - app_links (0.0.2):
+    - Flutter
   - emoji_picker_flutter (0.0.1):
     - Flutter
   - Flutter (1.0.0)
   - fluttertoast (0.0.2):
     - Flutter
+  - home_widget (0.0.1):
+    - Flutter
   - image_picker_ios (0.0.1):
     - Flutter
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
 
 DEPENDENCIES:
+  - app_links (from `.symlinks/plugins/app_links/ios`)
   - emoji_picker_flutter (from `.symlinks/plugins/emoji_picker_flutter/ios`)
   - Flutter (from `Flutter`)
   - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
+  - home_widget (from `.symlinks/plugins/home_widget/ios`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
 
 EXTERNAL SOURCES:
+  app_links:
+    :path: ".symlinks/plugins/app_links/ios"
   emoji_picker_flutter:
     :path: ".symlinks/plugins/emoji_picker_flutter/ios"
   Flutter:
     :path: Flutter
   fluttertoast:
     :path: ".symlinks/plugins/fluttertoast/ios"
+  home_widget:
+    :path: ".symlinks/plugins/home_widget/ios"
   image_picker_ios:
     :path: ".symlinks/plugins/image_picker_ios/ios"
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
 
 SPEC CHECKSUMS:
+  app_links: f3e17e4ee5e357b39d8b95290a9b2c299fca71c6
   emoji_picker_flutter: 8e50ec5caac456a23a78637e02c6293ea0ac8771
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   fluttertoast: 21eecd6935e7064cc1fcb733a4c5a428f3f24f0f
+  home_widget: 0434835a4c9a75704264feff6be17ea40e0f0d57
   image_picker_ios: c560581cceedb403a6ff17f2f816d7fea1421fc1
+  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   shared_preferences_foundation: fcdcbc04712aee1108ac7fda236f363274528f78
 
-PODFILE CHECKSUM: 20e260c9bb3f61194c661a4ba028da86e4f3ed96
+PODFILE CHECKSUM: e12a44bfbe6566274fc503e0214a10015ae303bc
 
 COCOAPODS: 1.16.2

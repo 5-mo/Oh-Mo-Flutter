@@ -8,26 +8,39 @@ import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:ohmo/shared_data.dart';
+import 'package:home_widget/home_widget.dart';
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final int initialTabIndex;
+
+  const HomeScreen({Key? key, this.initialTabIndex = 0}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-  final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
-    DateTime.now(),
-  );
+  late int _selectedIndex;
+  final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(DateTime.now());
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+
+    HomeWidget.setAppGroupId('group.ohmo');
+    saveTodayRoutineAndTodo();
+
+    // for test
+    testCalendarEventSave();
+
+    _selectedIndex = widget.initialTabIndex;
+
     _screens = [
-      HomeScreenBody(),
+      HomeScreenBody(
+        onDataChanged: saveTodayRoutineAndTodo,
+      ),
       DaylogScreen(
         onTabChange: _onTabChange,
         selectedDateNotifier: _selectedDateNotifier,
@@ -45,6 +58,21 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> saveTodayRoutineAndTodo() async {
+    final routineContents = routines.map((e) => e.content).toList();
+    final todoContents = todos.map((e) => e.content.trim()).where((e) => e.isNotEmpty).toList();
+
+    await HomeWidget.saveWidgetData('today_routine', jsonEncode(routineContents));
+    await HomeWidget.saveWidgetData('today_todo', jsonEncode(todoContents));
+
+
+
+    await HomeWidget.updateWidget(
+      name: 'TodayWidgetExtension',
+      iOSName: 'TodayWidgetExtension',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,6 +86,10 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class HomeScreenBody extends StatefulWidget {
+  final VoidCallback? onDataChanged;
+
+  const HomeScreenBody({Key? key, this.onDataChanged}) : super(key: key);
+
   @override
   _HomeScreenBodyState createState() => _HomeScreenBodyState();
 }
@@ -96,11 +128,10 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                       content: routine.content,
                       onEdit: (newContent) {
                         setState(() {
-                          final target = routines.firstWhere(
-                            (item) => item.id == routine.id,
-                          );
+                          final target = routines.firstWhere((item) => item.id == routine.id);
                           target.content = newContent;
                         });
+                        widget.onDataChanged?.call();
                       },
                     );
                   }),
@@ -112,11 +143,10 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                       content: todo.content,
                       onEdit: (newContent) {
                         setState(() {
-                          final target = todos.firstWhere(
-                            (item) => item.id == todo.id,
-                          );
+                          final target = todos.firstWhere((item) => item.id == todo.id);
                           target.content = newContent;
                         });
+                        widget.onDataChanged?.call();
                       },
                     );
                   }),

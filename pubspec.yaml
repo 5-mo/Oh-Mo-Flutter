@@ -23,6 +23,10 @@ dependencies:
   http: ^1.0.0
   emoji_picker_flutter: ^4.3.0
   flutter_slidable: 4.0.0
+  home_widget: ^0.8.0
+  app_links: ^6.4.0
+  shared_preferences: ^2.2.2
+
 
 
 dev_dependencies:
