@@ -13,8 +13,9 @@ import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
+  final bool showTodoSheetForDaylog;
 
-  const HomeScreen({Key? key, this.initialTabIndex = 0}) : super(key: key);
+  const HomeScreen({Key? key, this.initialTabIndex = 0,this.showTodoSheetForDaylog = false,}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -29,13 +30,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
-    HomeWidget.setAppGroupId('group.ohmo');
+    _selectedIndex = widget.initialTabIndex;
     saveTodayRoutineAndTodo();
 
     // for test
     testCalendarEventSave();
 
-    _selectedIndex = widget.initialTabIndex;
+
 
     _screens = [
       HomeScreenBody(
@@ -44,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
       DaylogScreen(
         onTabChange: _onTabChange,
         selectedDateNotifier: _selectedDateNotifier,
+        showTodoSheet: widget.showTodoSheetForDaylog,
       ),
       MyScreen(
         onTabChange: _onTabChange,
@@ -70,6 +72,11 @@ class _HomeScreenState extends State<HomeScreen> {
     await HomeWidget.updateWidget(
       name: 'TodayWidgetExtension',
       iOSName: 'TodayWidgetExtension',
+    );
+
+    await HomeWidget.updateWidget(
+      name: 'HomeWidgetExtension',
+      iOSName: 'HomeWidgetExtension',
     );
   }
 

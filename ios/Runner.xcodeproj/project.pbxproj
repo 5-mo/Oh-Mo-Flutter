@@ -120,7 +120,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		883276F32E24DD8200198441 /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */ = {
+		88A2B47F2E26596D00B27477 /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -140,7 +140,7 @@
 		8848D3822E158531008B8C9D /* HomeWidgetExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				883276F32E24DD8200198441 /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */,
+				88A2B47F2E26596D00B27477 /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */,
 			);
 			explicitFileTypes = {
 			};

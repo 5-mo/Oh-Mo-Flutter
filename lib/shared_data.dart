@@ -41,6 +41,11 @@ Future<void> saveMultipleDays(Map<String,List<CategoryItem>> itemsByDate) async{
     name: 'HomeWidgetExtension',
     iOSName: 'HomeWidgetExtension',
   );
+
+  await HomeWidget.updateWidget(
+    name: 'TodayWidgetExtension',
+    iOSName: 'TodayWidgetExtension',
+  );
 }
 
 //for test

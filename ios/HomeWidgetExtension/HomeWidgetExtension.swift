@@ -136,7 +136,7 @@ struct HomeWidgetExtensionEntryView: View {
                 Link(destination: URL(string: "ohmoapp://daylog/todo")!) {
                     Image("ohmo")
                         .resizable()
-                        .frame(width: 40, height: 45)
+                        .frame(width: 70, height: 70)
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottomTrailing)
                 .padding(4)
