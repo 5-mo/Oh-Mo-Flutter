@@ -20,7 +20,7 @@ class PlusModalActivity: AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE) // 반드시 super.onCreate 이전에 호출
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.plus_todo_modal_layout)
+        setContentView(R.layout.plus_todo_modal)
 
         // 크기 설정
         val displayMetrics = DisplayMetrics()
