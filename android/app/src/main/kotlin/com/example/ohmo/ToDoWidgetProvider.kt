@@ -13,7 +13,7 @@ class ToDoWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
-            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+            val views = RemoteViews(context.packageName, R.layout.widget_todo)
 
             // 앱 위젯 클릭 시 앱 실행 Intent 설정 (플러터 앱 메인 액티비티)
             val appIntent = Intent(context, MainActivity::class.java)

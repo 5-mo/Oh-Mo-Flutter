@@ -49,11 +49,6 @@ class WeeklyCalendarWidgetProvider : AppWidgetProvider() {
         calendar.firstDayOfWeek = Calendar.SUNDAY // 주의 시작을 일요일로 설정
         calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
 
-        // 월 이름을 영문 약어로 표시 (예: Jan, Feb)
-        val monthFormat = SimpleDateFormat("MMM", Locale.getDefault())
-        val monthName = monthFormat.format(calendar.time).uppercase(Locale.getDefault())
-        views.setTextViewText(R.id.text_month, monthName)
-
         val dateFormat = SimpleDateFormat("dd", Locale.getDefault()) // 날짜만 표시 (예: 01, 15)
 
         // 각 요일의 날짜를 TextView에 설정
