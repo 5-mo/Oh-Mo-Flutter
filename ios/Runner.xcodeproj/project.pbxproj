@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -14,7 +14,7 @@
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		8848D37F2E158531008B8C9D /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8848D37E2E158530008B8C9D /* WidgetKit.framework */; };
 		8848D3812E158531008B8C9D /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8848D3802E158531008B8C9D /* SwiftUI.framework */; };
-		8848D3922E158545008B8C9D /* HomeWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8848D37D2E158530008B8C9D /* HomeWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		8848D3922E158545008B8C9D /* HomeWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8848D37D2E158530008B8C9D /* HomeWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		88B9F53F2E1D78180070A3D1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		88C1E2282E23F27D004F487B /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8848D37E2E158530008B8C9D /* WidgetKit.framework */; };
 		88C1E2292E23F27D004F487B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8848D3802E158531008B8C9D /* SwiftUI.framework */; };
@@ -62,7 +62,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				88C1E2382E23F283004F487B /* TodayWidgetExtensionExtension.appex in Embed Foundation Extensions */,
-				8848D3922E158545008B8C9D /* HomeWidgetExtensionExtension.appex in Embed Foundation Extensions */,
+				8848D3922E158545008B8C9D /* HomeWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -95,7 +95,7 @@
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		837ED62A008FF92D55CCA48C /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
-		8848D37D2E158530008B8C9D /* HomeWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HomeWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8848D37D2E158530008B8C9D /* HomeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HomeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8848D37E2E158530008B8C9D /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		8848D3802E158531008B8C9D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		8848D3992E1586A6008B8C9D /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
@@ -120,14 +120,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		88A2B47F2E26596D00B27477 /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */ = {
+		88A2B47F2E26596D00B27477 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 8848D37C2E158530008B8C9D /* HomeWidgetExtensionExtension */;
+			target = 8848D37C2E158530008B8C9D /* HomeWidgetExtension */;
 		};
-		88C1E23C2E23F283004F487B /* Exceptions for "TodayWidgetExtension" folder in "TodayWidgetExtensionExtension" target */ = {
+		88C1E23C2E23F283004F487B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -137,30 +137,8 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8848D3822E158531008B8C9D /* HomeWidgetExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				88A2B47F2E26596D00B27477 /* Exceptions for "HomeWidgetExtension" folder in "HomeWidgetExtensionExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = HomeWidgetExtension;
-			sourceTree = "<group>";
-		};
-		88C1E22A2E23F27E004F487B /* TodayWidgetExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				88C1E23C2E23F283004F487B /* Exceptions for "TodayWidgetExtension" folder in "TodayWidgetExtensionExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = TodayWidgetExtension;
-			sourceTree = "<group>";
-		};
+		8848D3822E158531008B8C9D /* HomeWidgetExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (88A2B47F2E26596D00B27477 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = HomeWidgetExtension; sourceTree = "<group>"; };
+		88C1E22A2E23F27E004F487B /* TodayWidgetExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (88C1E23C2E23F283004F487B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TodayWidgetExtension; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -260,7 +238,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
-				8848D37D2E158530008B8C9D /* HomeWidgetExtensionExtension.appex */,
+				8848D37D2E158530008B8C9D /* HomeWidgetExtension.appex */,
 				88C1E2272E23F27D004F487B /* TodayWidgetExtensionExtension.appex */,
 			);
 			name = Products;
@@ -317,9 +295,9 @@
 			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		8848D37C2E158530008B8C9D /* HomeWidgetExtensionExtension */ = {
+		8848D37C2E158530008B8C9D /* HomeWidgetExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8848D3982E158545008B8C9D /* Build configuration list for PBXNativeTarget "HomeWidgetExtensionExtension" */;
+			buildConfigurationList = 8848D3982E158545008B8C9D /* Build configuration list for PBXNativeTarget "HomeWidgetExtension" */;
 			buildPhases = (
 				D74D644918362079EFFDF8C5 /* [CP] Check Pods Manifest.lock */,
 				8848D3792E158530008B8C9D /* Sources */,
@@ -333,9 +311,9 @@
 			fileSystemSynchronizedGroups = (
 				8848D3822E158531008B8C9D /* HomeWidgetExtension */,
 			);
-			name = HomeWidgetExtensionExtension;
+			name = HomeWidgetExtension;
 			productName = HomeWidgetExtensionExtension;
-			productReference = 8848D37D2E158530008B8C9D /* HomeWidgetExtensionExtension.appex */;
+			productReference = 8848D37D2E158530008B8C9D /* HomeWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		88C1E2262E23F27D004F487B /* TodayWidgetExtensionExtension */ = {
@@ -425,7 +403,7 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
-				8848D37C2E158530008B8C9D /* HomeWidgetExtensionExtension */,
+				8848D37C2E158530008B8C9D /* HomeWidgetExtension */,
 				88C1E2262E23F27D004F487B /* TodayWidgetExtensionExtension */,
 			);
 		};
@@ -518,9 +496,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -630,7 +612,7 @@
 		};
 		8848D3912E158544008B8C9D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 8848D37C2E158530008B8C9D /* HomeWidgetExtensionExtension */;
+			target = 8848D37C2E158530008B8C9D /* HomeWidgetExtension */;
 			targetProxy = 8848D3902E158544008B8C9D /* PBXContainerItemProxy */;
 		};
 		88C1E2372E23F283004F487B /* PBXTargetDependency */ = {
@@ -1202,7 +1184,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		8848D3982E158545008B8C9D /* Build configuration list for PBXNativeTarget "HomeWidgetExtensionExtension" */ = {
+		8848D3982E158545008B8C9D /* Build configuration list for PBXNativeTarget "HomeWidgetExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8848D3942E158545008B8C9D /* Debug */,
