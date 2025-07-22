@@ -9,6 +9,9 @@ import 'package:ohmo/component/todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import '../component/color_palette_bottom_sheet.dart';
+import 'package:ohmo/services/category_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -18,15 +21,79 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
+  List<CategoryItem> routines = [];
+  List<CategoryItem> todos = [];
+  int? selectedCategoryId;
+
   String _newEmoji = '🙂';
   TextEditingController _newQuestionController = TextEditingController();
+  TextEditingController _newRoutineController = TextEditingController();
+  TextEditingController _newTodoController = TextEditingController();
+
   bool _isAddingNewQuestion = false;
+  bool _isAddingNewRoutine = false;
+  bool _isAddingNewTodo = false;
   final GlobalKey<ExpansionTileCardState> _daylogTileKey = GlobalKey();
+  final GlobalKey<ExpansionTileCardState> _todoCardKey = GlobalKey();
+  final GlobalKey<ExpansionTileCardState> _routineTileKey = GlobalKey();
 
   bool _isRoutineDeleted = false;
   bool _isTodoDeleted = false;
   bool _isDaylogDeleted = false;
   bool _isDiaryDeleted = false;
+
+  ColorType _selectedColorType = ColorType.pinkLight;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+    _loadTodoCategories();
+  }
+
+  void _loadCategories() async {
+    try {
+      final accessToken = await getAccessToken();
+      if (accessToken == null) {
+        print('토큰 없음');
+        return;
+      }
+      final fetched = await CategoryService.fetchCategories(
+        scheduleType: 'ROUTINE',
+        accessToken: accessToken,
+      );
+
+      setState(() {
+        routines = fetched;
+
+        if (routines.isNotEmpty) {
+          selectedCategoryId = routines.first.id;
+        }
+      });
+    } catch (e) {
+      print('카테고리 로드 실패: $e');
+    }
+  }
+
+  void _loadTodoCategories() async {
+    try {
+      final accessToken = await getAccessToken();
+      if (accessToken == null) {
+        print('토큰 없음');
+        return;
+      }
+      final todofetched = await CategoryService.fetchCategories(
+        scheduleType: 'TO_DO',
+        accessToken: accessToken,
+      );
+
+      setState(() {
+        todos = todofetched;
+      });
+    } catch (e) {
+      print('카테고리 로드 실패: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +186,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
           ],
         ),
-
         child: Theme(
           data: Theme.of(context).copyWith(
             splashColor: Colors.transparent,
@@ -127,13 +193,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
             hoverColor: Colors.transparent,
           ),
           child: ExpansionTileCard(
+            key: _routineTileKey,
             elevation: 0,
             baseColor: Colors.white,
             expandedColor: Colors.white,
             borderRadius: BorderRadius.circular(9),
             contentPadding: EdgeInsets.zero,
             trailing: SizedBox.shrink(),
-
             title: Container(
               decoration: BoxDecoration(
                 color: _isRoutineDeleted ? LIGHT_GREY_COLOR : Colors.white,
@@ -148,6 +214,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               padding: EdgeInsets.symmetric(horizontal: 16.0),
               height: 50,
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Routine',
@@ -156,6 +223,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       fontFamily: 'RubikSprayPaint',
                       color: Colors.black,
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.add_circle, color: Colors.black),
+                    onPressed: () {
+                      setState(() {
+                        _isAddingNewRoutine = true;
+                        _newRoutineController.clear();
+                        _selectedColorType = ColorType.pinkLight;
+                      });
+                      _routineTileKey.currentState?.expand();
+                    },
                   ),
                 ],
               ),
@@ -172,6 +250,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         return RoutineCard(
                           key: ValueKey(routine.id),
                           content: routine.content,
+                          colorType: ColorTypeExtension.fromString(
+                            routine.colorType,
+                          ),
                           showCheckbox: false,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
@@ -196,6 +277,77 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           },
                         );
                       }),
+
+                      if (_isAddingNewRoutine)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: 12,
+                            bottom: 12,
+                            right: 5,
+                          ),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => _openColorPicker(context),
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: ColorManager.getColor(
+                                      _selectedColorType,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: TextField(
+                                  controller: _newRoutineController,
+                                  decoration: InputDecoration(
+                                    hintText: '루틴을 입력하세요',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              IconButton(
+                                icon: Icon(Icons.check),
+                                onPressed: () async {
+                                  final newText =
+                                      _newRoutineController.text.trim();
+                                  if (newText.isEmpty) return;
+
+                                  final token = await getAccessToken();
+                                  if (token == null) return;
+
+                                  try {
+                                    final newItem =
+                                        await CategoryService.registerCategory(
+                                          name: newText,
+                                          color: _selectedColorType.name,
+                                          scheduleType: 'ROUTINE',
+                                          accessToken: token,
+                                        );
+                                    setState(() {
+                                      routines.add(newItem);
+                                      _isAddingNewRoutine = false;
+                                      _newRoutineController.clear();
+                                    });
+                                  } catch (e) {
+                                    print('루틴 등록 실패: $e');
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -265,13 +417,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
             hoverColor: Colors.transparent,
           ),
           child: ExpansionTileCard(
+            key: _todoCardKey,
             elevation: 0,
             baseColor: Colors.white,
             expandedColor: Colors.white,
             borderRadius: BorderRadius.circular(9),
             contentPadding: EdgeInsets.zero,
             trailing: SizedBox.shrink(),
-
             title: Container(
               decoration: BoxDecoration(
                 color: _isTodoDeleted ? LIGHT_GREY_COLOR : Colors.white,
@@ -295,14 +447,27 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       color: Colors.black,
                     ),
                   ),
+                  Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.add_circle, color: Colors.black),
+                    onPressed: () {
+                      setState(() {
+                        _isAddingNewTodo = true;
+                        _newTodoController.clear();
+                        _selectedColorType = ColorType.pinkLight;
+                      });
+                      _todoCardKey.currentState?.expand();
+                    },
+                  ),
                 ],
               ),
             ),
+
             children: <Widget>[
               Transform.translate(
                 offset: Offset(-22, 0),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -310,6 +475,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         return TodoCard(
                           key: ValueKey(todo.id),
                           content: todo.content,
+                        colorType: ColorTypeExtension.fromString(
+                        todo.colorType,
+                        ),
                           showCheckbox: false,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
@@ -334,6 +502,76 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           },
                         );
                       }),
+                      if (_isAddingNewTodo)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: 12,
+                            bottom: 12,
+                            right: 5,
+                          ),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => _openColorPicker(context),
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: ColorManager.getColor(
+                                      _selectedColorType,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: TextField(
+                                  controller: _newTodoController,
+                                  decoration: InputDecoration(
+                                    hintText: '투두를 입력하세요',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              IconButton(
+                                icon: Icon(Icons.check),
+                                onPressed: () async {
+                                  final newText =
+                                      _newTodoController.text.trim();
+                                  if (newText.isEmpty) return;
+
+                                  final token = await getAccessToken();
+                                  if (token == null) return;
+
+                                  try {
+                                    final newItem =
+                                        await CategoryService.registerCategory(
+                                          name: newText,
+                                          color: _selectedColorType.name,
+                                          scheduleType: 'TO_DO',
+                                          accessToken: token,
+                                        );
+                                    setState(() {
+                                      todos.add(newItem);
+                                      _isAddingNewTodo = false;
+                                      _newTodoController.clear();
+                                    });
+                                  } catch (e) {
+                                    print('루틴 등록 실패: $e');
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -594,7 +832,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   {
                                     setState(() {
                                       daylogQuestions.add(
-                                        CategoryItem(
+                                        ICategoryItem(
                                           id: uuid.v4(),
                                           content:
                                               '$_newEmoji ${_newQuestionController.text.trim()}',
@@ -694,6 +932,34 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<String?> getAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('accessToken');
+  }
+
+  void _openColorPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(59),
+          topRight: Radius.circular(59),
+        ),
+      ),
+      builder:
+          (context) => ColorPaletteBottomSheet(
+            selectedColorType: _selectedColorType,
+            onColorSelected: (colorType) {
+              setState(() {
+                _selectedColorType = colorType;
+              });
+            },
+          ),
     );
   }
 }

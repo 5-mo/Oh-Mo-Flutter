@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-const LIGHT_GREY_COLOR=Color(0xFFCDCDCD);
-const Middle_GREY_COLOR=Color(0xFFA5A5A5);
-const DARK_GREY_COLOR=Color(0xFF656464);
+const LIGHT_GREY_COLOR = Color(0xFFCDCDCD);
+const Middle_GREY_COLOR = Color(0xFFA5A5A5);
+const DARK_GREY_COLOR = Color(0xFF656464);
 
 enum ColorType {
   pinkLight,
@@ -35,6 +35,15 @@ enum ColorType {
   goldenYellow,
   forestGreen,
   sandBrown,
+}
+
+extension ColorTypeExtension on ColorType {
+  static ColorType fromString(String colorString) {
+    return ColorType.values.firstWhere(
+      (e) => e.name == colorString,
+      orElse: () => ColorType.pinkLight,
+    );
+  }
 }
 
 class ColorManager {

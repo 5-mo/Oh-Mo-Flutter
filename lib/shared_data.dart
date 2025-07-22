@@ -3,20 +3,27 @@ import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:home_widget/home_widget.dart';
 
-class CategoryItem {
+import 'const/colors.dart';
+
+class ICategoryItem {
   final String id;
   String content;
+  ColorType colorType;
 
-  CategoryItem({required this.id, required this.content});
+  ICategoryItem({required this.id, required this.content,this.colorType=ColorType.pinkLight});
 }
 
 var uuid = Uuid();
 
-List<CategoryItem> routines = [
-  CategoryItem(id: uuid.v4(), content: '오모 회의'),
-  CategoryItem(id: uuid.v4(), content: '데이트'),
+List<ICategoryItem> routines = [
+  ICategoryItem(id: uuid.v4(), content: '오모 회의'),
+  ICategoryItem(id: uuid.v4(), content: '데이트'),
 ];
 
+List<ICategoryItem> todos = [
+  ICategoryItem(id: uuid.v4(), content: '오모 회의'),
+  ICategoryItem(id: uuid.v4(), content: '데이트'),
+];
 String getTodayDateKey(){
   final now=DateTime.now();
   return "${now.year.toString().padLeft(4,'0')}-"
@@ -24,7 +31,7 @@ String getTodayDateKey(){
       "${now.day.toString().padLeft(2,'0')}";
 }
 
-Future<void> saveMultipleDays(Map<String,List<CategoryItem>> itemsByDate) async{
+Future<void> saveMultipleDays(Map<String,List<ICategoryItem>> itemsByDate) async{
   final prefs=await SharedPreferences.getInstance();
 
  Map<String,List<String>> encoded={
@@ -57,29 +64,18 @@ void testCalendarEventSave() async {
 
   await saveMultipleDays({
     today: [
-      CategoryItem(id: '1', content: '위젯 회의'),
-      CategoryItem(id: '2', content: '개발 일정'),
+      ICategoryItem(id: '1', content: '위젯 회의'),
+      ICategoryItem(id: '2', content: '개발 일정'),
     ],
     tomorrowKey: [
-      CategoryItem(id: '3', content: '미팅'),
-      CategoryItem(id: '4', content: '헬스장'),
+      ICategoryItem(id: '3', content: '미팅'),
+      ICategoryItem(id: '4', content: '헬스장'),
     ],
   });
 }
 
 
-List<CategoryItem> todos = [
-  CategoryItem(id: uuid.v4(), content: '코딩하기코딩하기코딩하기'),
-  CategoryItem(id: uuid.v4(), content: '회의'),
-  CategoryItem(id: uuid.v4(), content: '코딩하기코딩하기코딩하기'),
-  CategoryItem(id: uuid.v4(), content: '회의'),
-  CategoryItem(id: uuid.v4(), content: '코딩하기코딩하기코딩하기'),
-  CategoryItem(id: uuid.v4(), content: '회의'),
-  CategoryItem(id: uuid.v4(), content: '코딩하기코딩하기코딩하기'),
-  CategoryItem(id: uuid.v4(), content: '회의'),
-];
-
-List<CategoryItem> daylogQuestions = [
-  CategoryItem(id: uuid.v4(), content: '💰 오늘의 소비는?'),
-  CategoryItem(id: uuid.v4(), content: '😊 오늘의 내가 감사했던 일은?'),
+List<ICategoryItem> daylogQuestions = [
+  ICategoryItem(id: uuid.v4(), content: '💰 오늘의 소비는?'),
+  ICategoryItem(id: uuid.v4(), content: '😊 오늘의 내가 감사했던 일은?'),
 ];

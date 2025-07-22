@@ -3,16 +3,19 @@ import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
 import 'alarm_bottom_sheet.dart';
 import 'delete_popup.dart';
+import 'color_palette_bottom_sheet.dart';
 
 class RoutineCard extends StatefulWidget {
   final String content;
   final Function(String) onEdit;
   final bool showCheckbox;
   final Widget Function(BuildContext)? deletePopupBuilder;
+  final ColorType colorType;
 
   const RoutineCard({
     required this.content,
     required this.onEdit,
+    required this.colorType,
     this.showCheckbox = true,
     this.deletePopupBuilder,
     Key? key,
@@ -27,10 +30,14 @@ class _RoutineCardState extends State<RoutineCard> {
   bool _isEditing = false;
   late TextEditingController _controller;
 
+  ColorType _selectedColorType = ColorType.pinkLight;
+
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.content);
+
+    _selectedColorType = widget.colorType;
   }
 
   @override
@@ -54,12 +61,15 @@ class _RoutineCardState extends State<RoutineCard> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.red,
+            GestureDetector(
+              onTap: () => _openColorPicker(context),
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ColorManager.getColor(_selectedColorType),
+                ),
               ),
             ),
             const SizedBox(width: 30.0),
@@ -96,14 +106,14 @@ class _RoutineCardState extends State<RoutineCard> {
 
             GestureDetector(
               onTap: () {
-                final popupWidget=widget.deletePopupBuilder?.call(context);
-               if(popupWidget is DeletePopup){
-                 showDialog(
-                   context: context,
-                   barrierColor: Colors.black.withOpacity(0.4),
-                   builder: (_) => popupWidget,
-                 );
-                }else {
+                final popupWidget = widget.deletePopupBuilder?.call(context);
+                if (popupWidget is DeletePopup) {
+                  showDialog(
+                    context: context,
+                    barrierColor: Colors.black.withOpacity(0.4),
+                    builder: (_) => popupWidget,
+                  );
+                } else {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
@@ -116,8 +126,8 @@ class _RoutineCardState extends State<RoutineCard> {
                       ),
                     ),
                     builder:
-                    widget.deletePopupBuilder ??
-                            (context) => RoutineAlarm(),
+                        widget.deletePopupBuilder ??
+                        (context) => RoutineAlarm(),
                   );
                 }
               },
@@ -148,6 +158,29 @@ class _RoutineCardState extends State<RoutineCard> {
           ],
         ),
       ),
+    );
+  }
+
+  void _openColorPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(59),
+          topLeft: Radius.circular(59),
+        ),
+      ),
+      builder:
+          (context) => ColorPaletteBottomSheet(
+            selectedColorType: _selectedColorType,
+            onColorSelected: (colorType) {
+              setState(() {
+                _selectedColorType = colorType;
+              });
+            },
+          ),
     );
   }
 }

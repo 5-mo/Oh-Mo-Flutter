@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:ohmo/profile_data_provider.dart';
+import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/category_screen.dart';
 
 class MyScreen extends StatefulWidget {
