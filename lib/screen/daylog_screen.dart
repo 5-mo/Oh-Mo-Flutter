@@ -4,8 +4,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
+import 'package:ohmo/models/routine.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/shared_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/todo.dart';
+import '../services/routine_service.dart';
+import '../services/todo_service.dart';
 
 class DaylogScreen extends StatefulWidget {
   final String? date;
@@ -13,13 +19,17 @@ class DaylogScreen extends StatefulWidget {
   final ValueNotifier<DateTime> selectedDateNotifier;
   final bool showTodoSheet;
   final DateTime selectedDate;
+  final List<Routine> routines;
+  final List<Todo> todos;
 
   DaylogScreen({
     required this.onTabChange,
     this.date,
     required this.selectedDateNotifier,
-    this.showTodoSheet=false,
-    required this.selectedDate
+    this.showTodoSheet = false,
+    required this.selectedDate,
+    required this.routines,
+    required this.todos,
   });
 
   @override
@@ -37,11 +47,21 @@ class _DaylogScreenState extends State<DaylogScreen> {
   bool _sosoActive = false;
   bool _badActive = false;
 
+  late List<Routine> routines;
+  late List<Todo> todos;
+  List<Routine> filteredRoutines = [];
+  List<Todo> filteredTodos = [];
 
   @override
   void initState() {
     super.initState();
+
+    routines = widget.routines;
+    todos = widget.todos;
     _focusedDay = widget.selectedDateNotifier.value;
+
+    _filterRoutinesByDate(_focusedDay);
+
     if (widget.showTodoSheet) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         showModalBottomSheet(
@@ -60,27 +80,95 @@ class _DaylogScreenState extends State<DaylogScreen> {
       });
     }
     widget.selectedDateNotifier.addListener(() {
-      if(!mounted) return;
+      if (!mounted) return;
       if (_focusedDay != widget.selectedDateNotifier.value) {
         setState(() {
           _focusedDay = widget.selectedDateNotifier.value;
+          _filterRoutinesByDate(_focusedDay);
         });
       }
     });
+    _loadRoutines();
+    _loadTodos();
   }
 
-  void _onLeftChevronPressed() {
+  Future<void> _loadRoutines() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken') ?? '';
+    final service = RoutineService();
+    final result = await service.getRoutines(_focusedDay, _focusedDay, token);
+
+    setState(() {
+      routines = result;
+      _filterRoutinesByDate(_focusedDay);
+    });
+  }
+
+  void _filterRoutinesByDate(DateTime date) {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    filteredRoutines =
+        routines.where((routine) {
+          final startOnly = DateTime(
+            routine.startDate.year,
+            routine.startDate.month,
+            routine.startDate.day,
+          );
+          final endOnly = DateTime(
+            routine.endDate.year,
+            routine.endDate.month,
+            routine.endDate.day,
+          );
+          final isInRange =
+              !dateOnly.isBefore(startOnly) && !dateOnly.isAfter(endOnly);
+          final isOnWeekday = routine.daysOfWeek.contains(dateOnly.weekday);
+
+          return isInRange && isOnWeekday;
+        }).toList();
+  }
+
+  Future<void> _loadTodos() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken') ?? '';
+    final service = TodoService();
+    final result = await service.getTodos(_focusedDay, token);
+
+    setState(() {
+      todos = result;
+      _filterTodosByDate(_focusedDay);
+    });
+  }
+
+  void _filterTodosByDate(DateTime date) {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    filteredTodos =
+        todos.where((todo) {
+          final todoDateOnly = DateTime(
+            todo.Date.year,
+            todo.Date.month,
+            todo.Date.day,
+          );
+          return todoDateOnly == dateOnly&&todo.isDone==true;
+        }).toList();
+  }
+
+  void _onLeftChevronPressed() async {
     setState(() {
       _focusedDay = _focusedDay.subtract(Duration(days: 1));
       _resetIconState();
     });
+    await _loadRoutines();
+    await _loadTodos();
   }
 
-  void _onRightChevronPressed() {
+  void _onRightChevronPressed() async {
     setState(() {
       _focusedDay = _focusedDay.add(Duration(days: 1));
       _resetIconState();
     });
+    await _loadRoutines();
+    await _loadTodos();
   }
 
   void _resetIconState() {
@@ -109,6 +197,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print("DaylogScreen initState routines length: ${routines.length}");
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -117,11 +206,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
               _buildHeader(),
               _buildRoutineBanner(),
               _buildRoutineSection(),
+              SizedBox(height: 30),
               _buildDoneBanner(),
               _buildDoneSection(),
+              SizedBox(height: 30),
               _buildProgressBanner(),
               _buildProgressSection(),
-              _buildFeedbackSection(),
               _buildQuestionBanner(),
               _buildQuestionButtons(),
               if (selectedQuestion != null)
@@ -235,7 +325,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
     return Container(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0),
+        padding: EdgeInsets.symmetric(horizontal: 40.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -249,28 +339,74 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildRoutineSection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 0.0),
       child: Column(
         children: [
-          Center(
-            child: Text(
-              "이번 주 루틴 현황을 보여드립니다.",
-              style: TextStyle(
-                fontSize: 10,
-                fontFamily: 'PretendardSemiBold',
-                color: DARK_GREY_COLOR,
+          if (routines.isEmpty) ...[
+            Center(
+              child: Text(
+                "이번 주 루틴 현황을 보여드립니다.",
+                style: TextStyle(
+                  fontSize: 10,
+                  fontFamily: 'PretendardSemiBold',
+                  color: DARK_GREY_COLOR,
+                ),
               ),
             ),
-          ),
-          SizedBox(height: 16),
-          Center(child: _buildRoutineButton()),
-          SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(width: 320, child: Divider(color: Colors.grey)),
-            ],
-          ),
+            SizedBox(height: 16),
+            Center(child: _buildRoutineButton()),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(width: 320, child: Divider(color: Colors.grey)),
+              ],
+            ),
+          ] else ...[
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: filteredRoutines.length,
+              itemBuilder: (context, index) {
+                final routine = filteredRoutines[index];
+                print(
+                  "DaylogScreen initState routines length: ${routines.length}",
+                );
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 3.0,
+                    horizontal: 5.0,
+                  ),
+                  child: Container(
+                    padding: EdgeInsets.all(6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 5),
+                        Text(
+                          "      •",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            routine.content,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'PretendardRegular',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -334,23 +470,72 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildDoneSection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 0.0),
       child: Column(
         children: [
-          Center(
-            child: Text(
-              "오늘 끝낸 to-do 리스트를 보여드립니다.",
-              style: TextStyle(
-                fontSize: 10,
-                fontFamily: 'PretendardSemiBold',
-                color: DARK_GREY_COLOR,
+          if (todos.isEmpty) ...[
+            Center(
+              child: Text(
+                "오늘 끝낸 to-do 리스트를 보여드립니다.",
+                style: TextStyle(
+                  fontSize: 10,
+                  fontFamily: 'PretendardSemiBold',
+                  color: DARK_GREY_COLOR,
+                ),
               ),
             ),
-          ),
-          SizedBox(height: 16),
-          Center(child: _buildTodoButton()),
-          SizedBox(height: 16),
-          Row(mainAxisAlignment: MainAxisAlignment.center),
+            SizedBox(height: 16),
+            Center(child: _buildTodoButton()),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(width: 320, child: Divider(color: Colors.grey)),
+              ],
+            ),
+          ] else ...[
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: filteredTodos.length,
+              itemBuilder: (context, index) {
+                final todo = filteredTodos[index];
+                print("DaylogScreen initState todos length: ${todos.length}");
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 3.0,
+                    horizontal: 5.0,
+                  ),
+                  child: Container(
+                    padding: EdgeInsets.all(6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 5),
+                        Text(
+                          "      •",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            todo.content,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'PretendardRegular',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -519,29 +704,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
-  Widget _buildFeedbackSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        children: [
-          Center(
-            child: Text(
-              "데일리 일정 달성률에 따른 피드백을 드립니다.\n계획적인 삶에 한 발 짝 다가가는 당신을 응원할게요:)",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10,
-                fontFamily: 'PretendardSemiBold',
-                color: DARK_GREY_COLOR,
-              ),
-            ),
-          ),
-          SizedBox(height: 16),
-          Row(mainAxisAlignment: MainAxisAlignment.center),
-        ],
-      ),
-    );
-  }
-
   Widget _buildQuestionBanner() {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
     return Container(
@@ -566,11 +728,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
         clipBehavior: Clip.none,
         child: Row(
           children: [
-            ...daylogQuestions.map((q)=>Row(
-              children: [
-                _buildQuestionButton(q.content),
-              ],
-            ))
+            ...daylogQuestions.map(
+              (q) => Row(children: [_buildQuestionButton(q.content)]),
+            ),
           ],
         ),
       ),

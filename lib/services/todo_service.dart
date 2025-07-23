@@ -96,4 +96,23 @@ class TodoService {
       return false;
     }
   }
+
+  Future<void> toggleTodoStatus(int scheduleId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken') ?? '';
+
+    final url = Uri.parse('$baseUrl/api/schedule/$scheduleId');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('상태 변경 실패: ${response.statusCode}');
+    }
+  }
 }

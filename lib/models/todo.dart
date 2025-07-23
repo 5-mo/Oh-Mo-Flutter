@@ -7,6 +7,7 @@ class Todo {
   final DateTime Date;
   final String? time;
   final bool alarm;
+  bool isDone;
 
   Todo({
     required this.id,
@@ -15,6 +16,7 @@ class Todo {
     required this.Date,
     this.time,
     required this.alarm,
+    required this.isDone,
   });
 
   factory Todo.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Todo {
       Date: DateTime.parse(json['date']),
       time: json['time'] ?? '',
       alarm: json['alarm'] ?? false,
+      isDone: json['status'],
     );
   }
 

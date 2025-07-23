@@ -8,11 +8,16 @@ class RoutineService {
   final String baseUrl = 'http://43.201.188.84:8080';
 
   Future<List<Routine>> getRoutines(DateTime startDate, DateTime endDate, String token) async {
+    final formattedStart = startDate.toIso8601String().split("T").first;
+    final formattedEnd = endDate.toIso8601String().split("T").first;
+
     final url = Uri.parse(
-      'http://43.201.188.84:8080/api/schedule/routine/status'
-          '?start-date=${startDate.toIso8601String().split("T").first}'
-          '&end-date=${endDate.toIso8601String().split("T").first}',
+      '$baseUrl/api/schedule/routine/status?start-date=$formattedStart&end-date=$formattedEnd',
     );
+
+    print('루틴 요청 URL: $url');
+    print('보내는 날짜 형식 확인: start=$formattedStart, end=$formattedEnd');
+
 
     final response = await http.get(
       url,
@@ -41,6 +46,10 @@ class RoutineService {
             }
           }
         }
+
+        for (var r in routines) {
+          print("루틴 내용: ${r.content}, 시작 날짜: ${r.startDate},끝 날짜: ${r.endDate}" );
+          }
         return routines;
       } else {
         throw Exception('API 실패: ${jsonData['message']}');
@@ -97,6 +106,25 @@ class RoutineService {
     } catch (e) {
       print('루틴 등록 요청 중 예외 발생: $e');
       return false;
+    }
+  }
+
+  Future<void> toggleRoutineStatus(int scheduleId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken') ?? '';
+
+    final url = Uri.parse('$baseUrl/api/schedule/$scheduleId');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('상태 변경 실패: ${response.statusCode}');
     }
   }
 }

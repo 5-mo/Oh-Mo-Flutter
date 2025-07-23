@@ -9,6 +9,7 @@ class Routine {
   final List<int> daysOfWeek;
   final String? time;
   final bool alarm;
+  bool isDone;
 
   Routine({
     required this.id,
@@ -19,6 +20,7 @@ class Routine {
     required this.daysOfWeek,
     this.time,
     required this.alarm,
+    this.isDone = false,
   });
 
   factory Routine.fromJson(Map<String, dynamic> json) {

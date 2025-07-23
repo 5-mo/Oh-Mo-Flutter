@@ -19,7 +19,11 @@ class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
   final bool showTodoSheetForDaylog;
 
-  const HomeScreen({Key? key, this.initialTabIndex = 0,this.showTodoSheetForDaylog = false,}) : super(key: key);
+  const HomeScreen({
+    Key? key,
+    this.initialTabIndex = 0,
+    this.showTodoSheetForDaylog = false,
+  }) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -27,33 +31,51 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late int _selectedIndex;
-  final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(DateTime.now());
+  final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
+    DateTime.now(),
+  );
   List<Routine> routines = [];
   List<Todo> todos = [];
-
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialTabIndex;
-    fetchRoutines();
-    fetchTodos();
+    final today = DateTime.now();
+    fetchRoutines(today);
+    fetchTodos(today);
     saveTodayRoutineAndTodo();
   }
 
-  Future<void> fetchRoutines() async {
+  void _onDateChanged(DateTime newDate) async {
+    _selectedDateNotifier.value = newDate;
+
+    await fetchRoutines(newDate);
+    await fetchTodos(newDate);
+    await saveTodayRoutineAndTodo();
+  }
+
+  Future<void> fetchRoutines(DateTime date) async {
     final token = await getAccessToken();
     if (token == null) {
-      print('토큰 없음. 로그인 필요.');
       return;
     }
 
-    final startDate = DateTime.now();
-    final endDate = startDate.add(Duration(days: 7));
+    final startDate = date;
+    final endDate = date;
 
     try {
-      final fetched = await RoutineService().getRoutines(startDate, endDate, token);
-      print('루틴 데이터 받아옴: ${fetched.length}개');
+      final fetched = await RoutineService().getRoutines(
+        startDate,
+        endDate,
+        token,
+      );
+      final completedIds = await loadCompletedRoutineIds();
+
+      for (var routine in fetched) {
+        routine.isDone = completedIds.contains(routine.id);
+      }
+
       if (!mounted) return;
       setState(() {
         routines = fetched;
@@ -63,57 +85,84 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> fetchTodos() async {
+  Future<List<int>> loadCompletedRoutineIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('completedRoutineIds');
+    if (list == null) return [];
+    return list.map(int.parse).toList();
+  }
+
+  Future<void> saveCompletedRoutinesLocally(List<Routine> routines) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<int> completedIds =
+        routines.where((t) => t.isDone).map((t) => t.id).toList();
+    await prefs.setStringList(
+      'completedRoutineIds',
+      completedIds.map((e) => e.toString()).toList(),
+    );
+  }
+
+  Future<List<int>> loadCompletedTodoIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('completedTodoIds');
+    if (list == null) return [];
+    return list.map(int.parse).toList();
+  }
+
+  Future<void> saveCompletedTodosLocally(List<Todo> todos) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<int> completedIds =
+        todos.where((t) => t.isDone).map((t) => t.id).toList();
+    await prefs.setStringList(
+      'completedTodoIds',
+      completedIds.map((e) => e.toString()).toList(),
+    );
+  }
+
+  Future<void> fetchTodos(DateTime date) async {
     final token = await getAccessToken();
     if (token == null) {
       print('토큰 없음. 로그인 필요.');
       return;
     }
-
-    final date = DateTime.now();
+    print('✅ [fetchTodos] 실행됨, 날짜: $date');
 
     try {
       final fetched = await TodoService().getTodos(date, token);
-      print('투두 데이터 받아옴: ${fetched.length}개');
+      final completedIds = await loadCompletedTodoIds();
+
+      print('✅ 불러온 완료된 ID 목록: $completedIds');
+
+      for (var todo in fetched) {
+        todo.isDone = completedIds.contains(todo.id);
+      }
+
       if (!mounted) return;
       setState(() {
         todos = fetched;
       });
+      print(
+        '✅ Todos 상태 업데이트 완료. 현재 체크된 투두: ${todos.where((e) => e.isDone).map((e) => e.id).toList()}',
+      );
     } catch (e) {
-
       print('투두 불러오기 오류: $e');
     }
   }
 
-  bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
-    final inRange = !selectedDate.isBefore(routine.startDate) &&
-        !selectedDate.isAfter(routine.endDate);
-    final isMatchingDay = routine.daysOfWeek.contains(selectedDate.weekday);
-    print('루틴 "${routine.content}" 날짜 필터 - inRange: $inRange, isMatchingDay: $isMatchingDay, selectedDate: $selectedDate');
-    return inRange && isMatchingDay;
-  }
-
-  bool isTodoVisibleOnDate(Todo todo, DateTime selectedDate) {
-    final todoDate = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
-    final selected = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    return todoDate == selected;
-  }
-
-  void _onTabChange(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   Future<void> saveTodayRoutineAndTodo() async {
     final today = DateTime.now();
-    final routineContents = routines
-        .where((r) => isRoutineVisibleOnDate(r, today))
-        .map((e) => e.content)
-        .toList();
-    final todoContents = todos.map((e) => e.content.trim()).where((e) => e.isNotEmpty).toList();
+    final routineContents =
+        routines
+            .where((r) => isRoutineVisibleOnDate(r, today))
+            .map((e) => e.content)
+            .toList();
+    final todoContents =
+        todos.map((e) => e.content.trim()).where((e) => e.isNotEmpty).toList();
 
-    await HomeWidget.saveWidgetData('today_routine', jsonEncode(routineContents));
+    await HomeWidget.saveWidgetData(
+      'today_routine',
+      jsonEncode(routineContents),
+    );
     await HomeWidget.saveWidgetData('today_todo', jsonEncode(todoContents));
 
     await HomeWidget.updateWidget(
@@ -127,23 +176,56 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<String?> getAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('accessToken');
+  }
+
+  void _onTabChange(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
+    final inRange =
+        !selectedDate.isBefore(routine.startDate) &&
+        !selectedDate.isAfter(routine.endDate);
+    final isMatchingDay = routine.daysOfWeek.contains(selectedDate.weekday);
+    print(
+      '루틴 "${routine.content}" 날짜 필터 - inRange: $inRange, isMatchingDay: $isMatchingDay, selectedDate: $selectedDate',
+    );
+    return inRange && isMatchingDay;
+  }
+
+  bool isTodoVisibleOnDate(Todo todo, DateTime selectedDate) {
+    final todoDate = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
+    final selected = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    return todoDate == selected;
+  }
+
   @override
   Widget build(BuildContext context) {
     final _screens = [
       HomeScreenBody(
         onDataChanged: saveTodayRoutineAndTodo,
         routines: routines,
-        onRoutineAdded: fetchRoutines,
-        todos:todos,
-        onTodoAdded:fetchTodos
-
+        onRoutineAdded: () => fetchRoutines(_selectedDateNotifier.value),
+        todos: todos,
+        onTodoAdded: () => fetchTodos(_selectedDateNotifier.value),
+        onDateChanged: _onDateChanged,
       ),
       DaylogScreen(
         onTabChange: _onTabChange,
         selectedDateNotifier: _selectedDateNotifier,
         showTodoSheet: widget.showTodoSheetForDaylog,
         selectedDate: _selectedDateNotifier.value,
-
+        routines: routines,
+        todos: todos,
       ),
       MyScreen(
         onTabChange: _onTabChange,
@@ -158,11 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('accessToken');
-  }
 }
 
 class HomeScreenBody extends StatefulWidget {
@@ -170,9 +247,18 @@ class HomeScreenBody extends StatefulWidget {
   final VoidCallback? onRoutineAdded;
   final VoidCallback? onTodoAdded;
   final List<Routine> routines;
-  final List<Todo>todos;
-  const HomeScreenBody({Key? key, this.onDataChanged,this.onRoutineAdded, required this.routines,this.onTodoAdded,required this.todos}) : super(key: key);
+  final List<Todo> todos;
+  final ValueChanged<DateTime>? onDateChanged;
 
+  const HomeScreenBody({
+    Key? key,
+    this.onDataChanged,
+    this.onRoutineAdded,
+    required this.routines,
+    this.onTodoAdded,
+    required this.todos,
+    this.onDateChanged,
+  }) : super(key: key);
 
   @override
   _HomeScreenBodyState createState() => _HomeScreenBodyState();
@@ -185,10 +271,30 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
     DateTime.now().day,
   );
 
+  void onDaySelected(DateTime selectedDate, DateTime focusedDate) async {
+    print('날짜 선택됨: $selectedDate');
+    setState(() {
+      this.selectedDate = selectedDate;
+    });
+    widget.onDateChanged?.call(selectedDate);
+  }
+
   bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
-    final dateOnly = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    final startOnly = DateTime(routine.startDate.year, routine.startDate.month, routine.startDate.day);
-    final endOnly = DateTime(routine.endDate.year, routine.endDate.month, routine.endDate.day);
+    final dateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    final startOnly = DateTime(
+      routine.startDate.year,
+      routine.startDate.month,
+      routine.startDate.day,
+    );
+    final endOnly = DateTime(
+      routine.endDate.year,
+      routine.endDate.month,
+      routine.endDate.day,
+    );
 
     final inRange = !dateOnly.isBefore(startOnly) && !dateOnly.isAfter(endOnly);
     final isMatchingDay = routine.daysOfWeek.contains(dateOnly.weekday);
@@ -198,10 +304,13 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
 
   bool isTodoVisibleOnDate(Todo todo, DateTime selectedDate) {
     final todoDate = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
-    final selected = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final selected = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
     return todoDate == selected;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -223,42 +332,94 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
               padding: const EdgeInsets.symmetric(horizontal: 30.0),
               child: Column(
                 children: [
-                  RoutineBanner(
-                    onRoutineAdded: widget.onRoutineAdded ?? () {},
-                  ),
+                  RoutineBanner(onRoutineAdded: widget.onRoutineAdded ?? () {}),
                   ...widget.routines
-                      .where((routine) => isRoutineVisibleOnDate(routine, selectedDate))
+                      .where(
+                        (routine) =>
+                            isRoutineVisibleOnDate(routine, selectedDate),
+                      )
                       .map((routine) {
-                    return RoutineCard(
-                      content: routine.content,
-                      colorType: routine.colorType,
-                      onEdit: (newContent) {
-                        setState(() {
-                          final target = widget.routines.firstWhere((item) => item.id == routine.id);
-                          target.content = newContent;
-                        });
-                        widget.onDataChanged?.call();
-                      },
-                    );
-                  }),
+                        return RoutineCard(
+                          content: routine.content,
+                          colorType: routine.colorType,
+                          scheduleId: routine.id,
+                          isDone: routine.isDone,
+                          onEdit: (newContent) {
+                            setState(() {
+                              final target = widget.routines.firstWhere(
+                                (item) => item.id == routine.id,
+                              );
+                              target.content = newContent;
+                            });
+                            widget.onDataChanged?.call();
+                          },
+                          onStatusChanged: () async {
+                            setState(() {
+                              routine.isDone = !routine.isDone;
+                            });
+                            await SharedPreferences.getInstance().then((prefs) {
+                              List<int> completed =
+                                  widget.routines
+                                      .where((x) => x.isDone)
+                                      .map((x) => x.id)
+                                      .toList();
+                              prefs.setStringList(
+                                'completedRoutineIds',
+                                completed.map((e) => e.toString()).toList(),
+                              );
+                              print('✅ 저장된 완료된 Routine ID 목록: $completed');
+                            });
+                            widget.onDataChanged?.call();
+                          },
+                        );
+                      })
+                      .toList(),
+
                   SizedBox(height: 20.0),
                   const Divider(color: Colors.grey),
-                  TodoBanner(onTodoAdded:widget.onTodoAdded??(){}, selectedDate: selectedDate,),
+
+                  TodoBanner(
+                    onTodoAdded: widget.onTodoAdded ?? () {},
+                    selectedDate: selectedDate,
+                  ),
                   ...widget.todos
-                      .where((todo) => isTodoVisibleOnDate(todo,selectedDate))
+                      .where((todo) => isTodoVisibleOnDate(todo, selectedDate))
                       .map((todo) {
-                    return TodoCard(
-                      content: todo.content,
-                      colorType: todo.colorType,
-                      onEdit: (newContent) {
-                        setState(() {
-                          final target = widget.todos.firstWhere((item) => item.id == todo.id);
-                          target.content = newContent;
-                        });
-                        widget.onDataChanged?.call();
-                      },
-                    );
-                  }),
+                        return TodoCard(
+                          content: todo.content,
+                          colorType: todo.colorType,
+                          scheduleId: todo.id,
+                          isDone: todo.isDone,
+                          onEdit: (newContent) {
+                            setState(() {
+                              final target = widget.todos.firstWhere(
+                                (item) => item.id == todo.id,
+                              );
+                              target.content = newContent;
+                            });
+                            widget.onDataChanged?.call();
+                          },
+                          onStatusChanged: () async {
+                            setState(() {
+                              todo.isDone = !todo.isDone;
+                            });
+                            await SharedPreferences.getInstance().then((prefs) {
+                              List<int> completed =
+                                  widget.todos
+                                      .where((x) => x.isDone)
+                                      .map((x) => x.id)
+                                      .toList();
+                              prefs.setStringList(
+                                'completedTodoIds',
+                                completed.map((e) => e.toString()).toList(),
+                              );
+                              print('✅ 저장된 완료된 Todo ID 목록: $completed');
+                            });
+                            widget.onDataChanged?.call();
+                          },
+                        );
+                      })
+                      .toList(),
                 ],
               ),
             ),
@@ -267,13 +428,4 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
       ),
     );
   }
-
-  void onDaySelected(DateTime selectedDate, DateTime focusedDate) {
-    print('날짜 선택됨: $selectedDate');
-    setState(() {
-      this.selectedDate = selectedDate;
-    });
-  }
-
-
 }

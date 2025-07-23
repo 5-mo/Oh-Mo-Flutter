@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
+import '../services/routine_service.dart';
 import 'alarm_bottom_sheet.dart';
 import 'delete_popup.dart';
 import 'color_palette_bottom_sheet.dart';
@@ -11,13 +12,19 @@ class RoutineCard extends StatefulWidget {
   final bool showCheckbox;
   final Widget Function(BuildContext)? deletePopupBuilder;
   final ColorType colorType;
+  final int scheduleId;
+  final bool isDone;
+  final Future<void> Function()? onStatusChanged;
 
   const RoutineCard({
     required this.content,
     required this.onEdit,
     required this.colorType,
+    required this.scheduleId,
     this.showCheckbox = true,
     this.deletePopupBuilder,
+    required this.isDone,
+    this.onStatusChanged,
     Key? key,
   }) : super(key: key);
 
@@ -26,7 +33,7 @@ class RoutineCard extends StatefulWidget {
 }
 
 class _RoutineCardState extends State<RoutineCard> {
-  bool _isChecked = false;
+  late bool _isChecked;
   bool _isEditing = false;
   late TextEditingController _controller;
 
@@ -35,8 +42,8 @@ class _RoutineCardState extends State<RoutineCard> {
   @override
   void initState() {
     super.initState();
+    _isChecked = widget.isDone;
     _controller = TextEditingController(text: widget.content);
-
     _selectedColorType = widget.colorType;
   }
 
@@ -145,10 +152,25 @@ class _RoutineCardState extends State<RoutineCard> {
                     vertical: VisualDensity.minimumDensity,
                   ),
                   value: _isChecked,
-                  onChanged: (bool? value) {
+                  onChanged: (bool? value) async {
                     setState(() {
                       _isChecked = value ?? false;
                     });
+
+                    try {
+                      await RoutineService().toggleRoutineStatus(
+                        widget.scheduleId,
+                      );
+                      if (widget.onStatusChanged != null) {
+                        await widget.onStatusChanged!();
+                      }
+                      print('루틴 상태 변경 성공');
+                    } catch (e) {
+                      print('루틴 상태 변경 실패: $e');
+                      setState(() {
+                        _isChecked = !(_isChecked);
+                      });
+                    }
                   },
                   activeColor: Colors.black,
                   checkColor: Colors.white,

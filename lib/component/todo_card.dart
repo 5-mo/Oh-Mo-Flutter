@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:flutter_svg/svg.dart';
+import '../services/todo_service.dart';
 import 'alarm_bottom_sheet.dart';
 import 'color_palette_bottom_sheet.dart';
 import 'delete_popup.dart';
@@ -11,6 +12,9 @@ class TodoCard extends StatefulWidget {
   final bool showCheckbox;
   final Widget Function(BuildContext context)? deletePopupBuilder;
   final ColorType colorType;
+  final int scheduleId;
+  final bool isDone;
+  final Future<void> Function()? onStatusChanged;
 
   const TodoCard({
     required this.content,
@@ -18,6 +22,9 @@ class TodoCard extends StatefulWidget {
     required this.colorType,
     this.showCheckbox = true,
     this.deletePopupBuilder,
+    required this.scheduleId,
+    required this.isDone,
+    this.onStatusChanged,
     Key? key,
   }) : super(key: key);
 
@@ -26,7 +33,7 @@ class TodoCard extends StatefulWidget {
 }
 
 class _TodoCardState extends State<TodoCard> {
-  bool _isChecked = false;
+  late bool _isChecked;
   bool _isEditing = false;
   late TextEditingController _controller;
 
@@ -35,6 +42,7 @@ class _TodoCardState extends State<TodoCard> {
   @override
   void initState() {
     super.initState();
+    _isChecked = widget.isDone;
     _controller = TextEditingController(text: widget.content);
     _selectedColorType = widget.colorType;
   }
@@ -124,8 +132,7 @@ class _TodoCardState extends State<TodoCard> {
                       ),
                     ),
                     builder:
-                    widget.deletePopupBuilder ??
-                            (context) => TodoAlarm(),
+                        widget.deletePopupBuilder ?? (context) => TodoAlarm(),
                   );
                 }
               },
@@ -140,10 +147,23 @@ class _TodoCardState extends State<TodoCard> {
                     vertical: VisualDensity.minimumDensity,
                   ),
                   value: _isChecked,
-                  onChanged: (bool? value) {
+                  onChanged: (bool? value) async {
                     setState(() {
                       _isChecked = value ?? false;
                     });
+
+                    try {
+                      await TodoService().toggleTodoStatus(widget.scheduleId);
+                      if (widget.onStatusChanged != null) {
+                        await widget.onStatusChanged!();
+                      }
+                      print('투두 상태 변경 성공');
+                    } catch (e) {
+                      print('투 상태 변경 실패: $e');
+                      setState(() {
+                        _isChecked = !(_isChecked);
+                      });
+                    }
                   },
                   activeColor: Colors.black,
                   checkColor: Colors.white,
@@ -155,6 +175,7 @@ class _TodoCardState extends State<TodoCard> {
       ),
     );
   }
+
   void _openColorPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -168,13 +189,13 @@ class _TodoCardState extends State<TodoCard> {
       ),
       builder:
           (context) => ColorPaletteBottomSheet(
-        selectedColorType: _selectedColorType,
-        onColorSelected: (colorType) {
-          setState(() {
-            _selectedColorType = colorType;
-          });
-        },
-      ),
+            selectedColorType: _selectedColorType,
+            onColorSelected: (colorType) {
+              setState(() {
+                _selectedColorType = colorType;
+              });
+            },
+          ),
     );
   }
 }

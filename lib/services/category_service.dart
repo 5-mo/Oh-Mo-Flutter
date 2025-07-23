@@ -8,6 +8,7 @@ class CategoryItem {
   final String colorType;
   final String scheduleType;
 
+
   CategoryItem({
     required this.id,
     required this.categoryName,

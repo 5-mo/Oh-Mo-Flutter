@@ -252,8 +252,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           content: routine.content,
                           colorType: ColorTypeExtension.fromString(
                             routine.colorType,
+
                           ),
                           showCheckbox: false,
+                          isDone: false,
+                          scheduleId: routine.id,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
                               onDelete: () {
@@ -475,6 +478,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         return TodoCard(
                           key: ValueKey(todo.id),
                           content: todo.content,
+                          scheduleId: todo.id,
                         colorType: ColorTypeExtension.fromString(
                         todo.colorType,
                         ),
@@ -499,7 +503,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               );
                               target.content = newContent;
                             });
-                          },
+                          }, isDone: false,
                         );
                       }),
                       if (_isAddingNewTodo)
