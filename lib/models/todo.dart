@@ -1,0 +1,40 @@
+import 'package:ohmo/const/colors.dart';
+
+class Todo {
+  final int id;
+  String content;
+  final ColorType colorType;
+  final DateTime Date;
+  final String? time;
+  final bool alarm;
+
+  Todo({
+    required this.id,
+    required this.content,
+    required this.colorType,
+    required this.Date,
+    this.time,
+    required this.alarm,
+  });
+
+  factory Todo.fromJson(Map<String, dynamic> json) {
+    final category = json['category'] ?? {};
+    final colorStr = category['color'] ?? 'pinkLight';
+    final colorType = ColorTypeExtension.fromString(colorStr);
+
+    return Todo(
+      id: json['scheduleId'] ?? 0,
+      content: json['content'] ?? '',
+      colorType: colorType,
+      Date: DateTime.parse(json['date']),
+      time: json['time'] ?? '',
+      alarm: json['alarm'] ?? false,
+    );
+  }
+
+
+
+
+
+
+}

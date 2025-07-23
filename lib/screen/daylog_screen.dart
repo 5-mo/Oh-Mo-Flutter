@@ -12,12 +12,14 @@ class DaylogScreen extends StatefulWidget {
   final Function(int) onTabChange;
   final ValueNotifier<DateTime> selectedDateNotifier;
   final bool showTodoSheet;
+  final DateTime selectedDate;
 
   DaylogScreen({
     required this.onTabChange,
     this.date,
     required this.selectedDateNotifier,
     this.showTodoSheet=false,
+    required this.selectedDate
   });
 
   @override
@@ -34,6 +36,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
   bool _happyActive = false;
   bool _sosoActive = false;
   bool _badActive = false;
+
 
   @override
   void initState() {
@@ -52,7 +55,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               topLeft: Radius.circular(59),
             ),
           ),
-          builder: (_) => TodoBottomSheet(),
+          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
         );
       });
     }
@@ -367,7 +370,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               topLeft: Radius.circular(59),
             ),
           ),
-          builder: (_) => TodoBottomSheet(),
+          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
         );
       },
       child: Container(

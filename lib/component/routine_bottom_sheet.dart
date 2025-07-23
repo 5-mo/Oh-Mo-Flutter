@@ -505,7 +505,8 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
         if (selectedEndDate == null ||
             selectedTime == null ||
             contentController.text.isEmpty ||
-            selectedDays.isEmpty) {
+            selectedDays.isEmpty||
+            selectedCategoryId == null) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text("모든 필드를 입력해주세요")));

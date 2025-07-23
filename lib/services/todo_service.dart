@@ -2,17 +2,21 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/routine.dart';
+import '../models/todo.dart';
 
-class RoutineService {
+class TodoService {
   final String baseUrl = 'http://43.201.188.84:8080';
 
-  Future<List<Routine>> getRoutines(DateTime startDate, DateTime endDate, String token) async {
+  Future<List<Todo>> getTodos(DateTime date, String token) async {
+    final formattedDate = date.toIso8601String().split('T').first;
+
     final url = Uri.parse(
-      'http://43.201.188.84:8080/api/schedule/routine/status'
-          '?start-date=${startDate.toIso8601String().split("T").first}'
-          '&end-date=${endDate.toIso8601String().split("T").first}',
+      'http://43.201.188.84:8080/api/schedule/by-date'
+          '?date=$formattedDate&type=TO_DO',
     );
+
+    print('투두 요청 날짜: $formattedDate');
+    print('보내는 URL: $url');
 
     final response = await http.get(
       url,
@@ -25,23 +29,18 @@ class RoutineService {
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
       if (jsonData['isSuccess'] == true) {
-        final List<Routine> routines = [];
+        final List<Todo> todos = [];
         final results = jsonData['result'];
         if (results is List) {
           for (var item in results) {
-            final scheduleList = item['scheduleList'];
-            if (scheduleList is List) {
-              for (var schedule in scheduleList) {
-                try {
-                  routines.add(Routine.fromJson(schedule));
-                } catch (e) {
-                  print('루틴 파싱 실패: $e');
-                }
-              }
+            try {
+              todos.add(Todo.fromJson(item));
+            } catch (e) {
+              print('투두 파싱 실패: $e');
             }
           }
         }
-        return routines;
+        return todos;
       } else {
         throw Exception('API 실패: ${jsonData['message']}');
       }
@@ -50,13 +49,12 @@ class RoutineService {
     }
   }
 
-  Future<bool> registerRoutine({
+  Future<bool> registerTodo({
     required int categoryId,
     required String time,
     required bool alarm,
     required String content,
-    required String endDate,
-    required List<String> routineWeek,
+    required String date,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -67,7 +65,7 @@ class RoutineService {
         return false;
       }
 
-      final url = Uri.parse('$baseUrl/api/schedule/routine');
+      final url = Uri.parse('$baseUrl/api/schedule/todo');
 
       final response = await http.post(
         url,
@@ -80,13 +78,12 @@ class RoutineService {
           "time": time,
           "alarm": alarm,
           "content": content,
-          "endDate": endDate,
-          "routineWeek": routineWeek,
+          "date": date,
         }),
       );
 
-      print('루틴 등록 응답 코드: ${response.statusCode}');
-      print('루틴 등록 응답 바디: ${response.body}');
+      print('투두 등록 응답 코드: ${response.statusCode}');
+      print('투두 등록 응답 바디: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
@@ -95,7 +92,7 @@ class RoutineService {
         return false;
       }
     } catch (e) {
-      print('루틴 등록 요청 중 예외 발생: $e');
+      print('투두 등록 요청 중 예외 발생: $e');
       return false;
     }
   }

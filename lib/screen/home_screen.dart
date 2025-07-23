@@ -7,12 +7,13 @@ import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/component/bottom_navigation_bar.dart';
-import 'package:ohmo/shared_data.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/routine.dart';
+import '../models/todo.dart';
 import '../services/routine_service.dart';
+import '../services/todo_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late int _selectedIndex;
   final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(DateTime.now());
   List<Routine> routines = [];
+  List<Todo> todos = [];
 
 
   @override
@@ -35,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _selectedIndex = widget.initialTabIndex;
     fetchRoutines();
+    fetchTodos();
     saveTodayRoutineAndTodo();
   }
 
@@ -60,12 +63,40 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> fetchTodos() async {
+    final token = await getAccessToken();
+    if (token == null) {
+      print('토큰 없음. 로그인 필요.');
+      return;
+    }
+
+    final date = DateTime.now();
+
+    try {
+      final fetched = await TodoService().getTodos(date, token);
+      print('투두 데이터 받아옴: ${fetched.length}개');
+      if (!mounted) return;
+      setState(() {
+        todos = fetched;
+      });
+    } catch (e) {
+
+      print('투두 불러오기 오류: $e');
+    }
+  }
+
   bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
     final inRange = !selectedDate.isBefore(routine.startDate) &&
         !selectedDate.isAfter(routine.endDate);
     final isMatchingDay = routine.daysOfWeek.contains(selectedDate.weekday);
     print('루틴 "${routine.content}" 날짜 필터 - inRange: $inRange, isMatchingDay: $isMatchingDay, selectedDate: $selectedDate');
     return inRange && isMatchingDay;
+  }
+
+  bool isTodoVisibleOnDate(Todo todo, DateTime selectedDate) {
+    final todoDate = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
+    final selected = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    return todoDate == selected;
   }
 
   void _onTabChange(int index) {
@@ -103,11 +134,16 @@ class _HomeScreenState extends State<HomeScreen> {
         onDataChanged: saveTodayRoutineAndTodo,
         routines: routines,
         onRoutineAdded: fetchRoutines,
+        todos:todos,
+        onTodoAdded:fetchTodos
+
       ),
       DaylogScreen(
         onTabChange: _onTabChange,
         selectedDateNotifier: _selectedDateNotifier,
         showTodoSheet: widget.showTodoSheetForDaylog,
+        selectedDate: _selectedDateNotifier.value,
+
       ),
       MyScreen(
         onTabChange: _onTabChange,
@@ -132,8 +168,10 @@ class _HomeScreenState extends State<HomeScreen> {
 class HomeScreenBody extends StatefulWidget {
   final VoidCallback? onDataChanged;
   final VoidCallback? onRoutineAdded;
+  final VoidCallback? onTodoAdded;
   final List<Routine> routines;
-  const HomeScreenBody({Key? key, this.onDataChanged,this.onRoutineAdded, required this.routines,}) : super(key: key);
+  final List<Todo>todos;
+  const HomeScreenBody({Key? key, this.onDataChanged,this.onRoutineAdded, required this.routines,this.onTodoAdded,required this.todos}) : super(key: key);
 
 
   @override
@@ -158,10 +196,16 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
     return inRange && isMatchingDay;
   }
 
+  bool isTodoVisibleOnDate(Todo todo, DateTime selectedDate) {
+    final todoDate = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
+    final selected = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    return todoDate == selected;
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final visibleRoutines = widget.routines.where((routine) => isRoutineVisibleOnDate(routine, selectedDate)).toList();
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset : 0),
@@ -199,14 +243,16 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                   }),
                   SizedBox(height: 20.0),
                   const Divider(color: Colors.grey),
-                  TodoBanner(),
-                  ...todos.map((todo) {
+                  TodoBanner(onTodoAdded:widget.onTodoAdded??(){}, selectedDate: selectedDate,),
+                  ...widget.todos
+                      .where((todo) => isTodoVisibleOnDate(todo,selectedDate))
+                      .map((todo) {
                     return TodoCard(
                       content: todo.content,
                       colorType: todo.colorType,
                       onEdit: (newContent) {
                         setState(() {
-                          final target = todos.firstWhere((item) => item.id == todo.id);
+                          final target = widget.todos.firstWhere((item) => item.id == todo.id);
                           target.content = newContent;
                         });
                         widget.onDataChanged?.call();
