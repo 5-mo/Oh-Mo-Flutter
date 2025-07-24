@@ -33,7 +33,11 @@ class RoutineBanner extends StatelessWidget {
                         topLeft: Radius.circular(59),
                       ),
                     ),
-                    builder: (_) => RoutineBottomSheet(),
+                    builder: (_) => RoutineBottomSheet(
+                      onRoutineAdded: () async {
+                        onRoutineAdded();
+                      },
+                    ),
                   );
 
                   if (result == true) {

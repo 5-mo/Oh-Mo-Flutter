@@ -8,11 +8,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/category_service.dart';
 
 class RoutineBottomSheet extends StatefulWidget {
-  const RoutineBottomSheet({Key? key}) : super(key: key);
+  final Future<void> Function()? onRoutineAdded;
+  final Future<void> Function()? onDataChanged;
+
+  const RoutineBottomSheet({
+    Key? key,
+    this.onRoutineAdded,
+    this.onDataChanged,
+  }) : super(key: key);
 
   @override
   State<RoutineBottomSheet> createState() => _RoutineBottomSheetState();
 }
+
 
 class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -524,14 +532,13 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           );
 
           if (success) {
+            await widget.onRoutineAdded?.call();
+
+            await widget.onDataChanged?.call();
+
             Navigator.pop(context, true);
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text("루틴 등록 완료!")));
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text("루틴 등록 실패!")));
+
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("루틴 등록 완료!")));
           }
         } catch (e) {
           print('루틴 등록 중 예외 발생:$e');

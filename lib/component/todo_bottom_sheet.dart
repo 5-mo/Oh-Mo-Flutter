@@ -10,7 +10,10 @@ import '../services/todo_service.dart';
 
 class TodoBottomSheet extends StatefulWidget {
   final DateTime selectedDate;
-  const TodoBottomSheet({Key? key,required this.selectedDate,}) : super(key: key);
+  final Future<void> Function()? onTodoAdded;
+  final Future<void> Function()? onDataChanged;
+  const TodoBottomSheet({Key? key,required this.selectedDate,this.onTodoAdded,
+    this.onDataChanged,}) : super(key: key);
 
   @override
   State<TodoBottomSheet> createState() => _TodoBottomSheetState();
@@ -399,15 +402,13 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             date: "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
           );
 
-          if (success) {
-            Navigator.pop(context, true);
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text("투두 등록 완료!")));
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text("투두 등록 실패!")));
+          if (success) {await widget.onTodoAdded?.call();
+
+          await widget.onDataChanged?.call();
+
+          Navigator.pop(context, true);
+
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("루틴 등록 완료!")));
           }
         } catch (e) {
           print('투두 등록 중 예외 발생:$e');

@@ -35,7 +35,9 @@ class TodoBanner extends StatelessWidget {
                         topLeft: Radius.circular(59),
                       ),
                     ),
-                    builder: (_) => TodoBottomSheet(selectedDate: selectedDate),
+                    builder: (_) => TodoBottomSheet(selectedDate: selectedDate, onTodoAdded: () async {
+                  onTodoAdded();
+                  },),
                   );
 
                   if(result==true){
