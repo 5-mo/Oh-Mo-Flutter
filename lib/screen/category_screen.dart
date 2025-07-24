@@ -13,6 +13,8 @@ import '../component/color_palette_bottom_sheet.dart';
 import 'package:ohmo/services/category_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../customize_category.dart';
+
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
 
@@ -150,11 +152,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   context: context,
                   builder:
                       (context) => DeletePopup(
-                        onDelete: () {
-                          setState(() {
-                            routines.clear();
-                            _isRoutineDeleted = true;
-                          });
+                        onDelete: () async {
+                          await RoutineVisibilityHelper.setVisibility(false);
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('isRoutineDeleted', true);
+                          Navigator.pop(context, true);
                         },
                         messageHeader: '루틴 삭제',
                         message: '해당 카테고리를 삭제하시겠습니까?\n삭제 후 다시 추가할 수 있습니다.',
@@ -175,10 +177,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
           extentRatio: 0.25,
           children: [
             SlidableAction(
-              onPressed: (_) {
-                setState(() {
-                  _isRoutineDeleted = false;
-                });
+              onPressed: (_) async {
+                await RoutineVisibilityHelper.setVisibility(true);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isRoutineDeleted', false);
+                Navigator.pop(context, true);
               },
               foregroundColor: Colors.green,
               icon: Icons.restore,
@@ -377,11 +380,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   context: context,
                   builder:
                       (context) => DeletePopup(
-                        onDelete: () {
-                          setState(() {
-                            todos.clear();
-                            _isTodoDeleted = true;
-                          });
+                        onDelete: () async {
+                          await TodoVisibilityHelper.setVisibility(false);
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('isTodoDeleted', true);
+                          Navigator.pop(context, true);
                         },
                         messageHeader: '투두리스트 삭제',
                         message: '해당 카테고리를 삭제하시겠습니까?\n삭제 후 다시 추가할 수 있습니다.',
@@ -402,10 +405,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
           extentRatio: 0.25,
           children: [
             SlidableAction(
-              onPressed: (_) {
-                setState(() {
-                  _isTodoDeleted = false;
-                });
+              onPressed: (_) async {
+                await TodoVisibilityHelper.setVisibility(true);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isTodoDeleted', false);
+                Navigator.pop(context, true);
               },
               foregroundColor: Colors.green,
               icon: Icons.restore,
@@ -602,11 +606,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   context: context,
                   builder:
                       (context) => DeletePopup(
-                        onDelete: () {
-                          setState(() {
-                            daylogQuestions.clear();
-                            _isDaylogDeleted = true;
-                          });
+                        onDelete: () async {
+                          await QuestionVisibilityHelper.setVisibility(false);
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('isQuestionDeleted', true);
+                          Navigator.pop(context, true);
                         },
                         messageHeader: 'Day log 질문 삭제',
                         message: '해당 카테고리를 삭제하시겠습니까?\n삭제 후 다시 추가할 수 있습니다.',
@@ -627,10 +631,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
           extentRatio: 0.25,
           children: [
             SlidableAction(
-              onPressed: (_) {
-                setState(() {
-                  _isDaylogDeleted = false;
-                });
+              onPressed: (_) async {
+                await QuestionVisibilityHelper.setVisibility(true);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isQuestionDeleted', false);
+                Navigator.pop(context, true);
               },
               foregroundColor: Colors.green,
               icon: Icons.restore,
@@ -876,10 +881,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   context: context,
                   builder:
                       (context) => DeletePopup(
-                        onDelete: () {
-                          setState(() {
-                            _isDiaryDeleted = true;
-                          });
+                        onDelete: () async {
+                          await DiaryVisibilityHelper.setVisibility(false);
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('isDiaryDeleted', true);
+                          Navigator.pop(context, true);
                         },
                         messageHeader: '일기 삭제',
                         message: '해당 카테고리를 삭제하시겠습니까?\n삭제 후 다시 추가할 수 있습니다.',
@@ -900,10 +906,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
           extentRatio: 0.25,
           children: [
             SlidableAction(
-              onPressed: (_) {
-                setState(() {
-                  _isDiaryDeleted = false;
-                });
+              onPressed: (_) async {
+                await DiaryVisibilityHelper.setVisibility(true);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isDiaryDeleted', false);
+                Navigator.pop(context, true);
               },
               padding: EdgeInsets.only(right: 0),
               foregroundColor: Colors.green,

@@ -89,6 +89,7 @@ struct TodayWidgetExtensionEntryView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Routine")
                 .font(.custom("RubikSprayPaint-Regular",size:14))
+                .foregroundColor(.black)
             ForEach(entry.routineList.prefix(2), id: \.self) { line in
                 Text("• \(line)")
                     .font(.system(size: 12))
@@ -100,6 +101,7 @@ struct TodayWidgetExtensionEntryView: View {
 
             Text("To-do list")
                 .font(.custom("RubikSprayPaint-Regular",size:14))
+                .foregroundColor(.black)
             ForEach(entry.todoList.prefix(2), id: \.self) { line in
                 Text("• \(line)")
                     .font(.system(size: 12))
