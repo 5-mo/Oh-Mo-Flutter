@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -5,8 +7,8 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
-import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/shared_data.dart';
+import 'package:ohmo/temporary_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../customize_category.dart';
@@ -41,8 +43,8 @@ class DaylogScreen extends StatefulWidget {
 class _DaylogScreenState extends State<DaylogScreen> {
   bool isPressed = false;
   String? selectedQuestion;
-  String? answer;
-  String? diary;
+  String? answer='';
+  String? diary='';
 
   late DateTime _focusedDay;
   bool _happyActive = false;
@@ -55,18 +57,27 @@ class _DaylogScreenState extends State<DaylogScreen> {
   List<Todo> filteredTodos = [];
 
   bool _hideRoutineUI = false;
-  bool _hideTodoUI=false;
-  bool _hideQuestionUI=false;
-  bool _hideDiaryUI=false;
+  bool _hideTodoUI = false;
+  bool _hideQuestionUI = false;
+  bool _hideDiaryUI = false;
 
+  late TextEditingController _answerController;
+  late TextEditingController _diaryController;
 
   @override
   void initState() {
     super.initState();
 
+    _focusedDay = widget.selectedDateNotifier.value;
+
+
+    _answerController = TextEditingController();
+    _diaryController = TextEditingController();
+
+    _loadSavedData();
+
     routines = widget.routines;
     todos = widget.todos;
-    _focusedDay = widget.selectedDateNotifier.value;
 
     _loadRoutineDeletionStatus();
     _loadTodoDeletionStatus();
@@ -104,6 +115,33 @@ class _DaylogScreenState extends State<DaylogScreen> {
     _loadRoutines();
     _loadTodos();
   }
+
+  @override
+  void dispose() {
+    _answerController.dispose();
+    _diaryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSavedData() async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(_focusedDay);
+    final loadedAnswer = await LocalStorage.loadAnswer(dateStr);
+    final loadedDiary = await LocalStorage.loadDiary(dateStr);
+
+    setState(() {
+      answer = loadedAnswer;
+      diary = loadedDiary;
+      _answerController.text = answer!;
+      _diaryController.text = diary!;
+    });
+  }
+
+  void _saveData() async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(_focusedDay);
+    await LocalStorage.saveAnswer(dateStr, _answerController.text);
+    await LocalStorage.saveDiary(dateStr, _diaryController.text);
+  }
+
 
   Future<void> _loadRoutineDeletionStatus() async {
     final visible = await RoutineVisibilityHelper.getVisibility();
@@ -159,7 +197,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
       _filterRoutinesByDate(_focusedDay); // 당일 필터링은 유지
     });
   }
-
 
   void _filterRoutinesByDate(DateTime date) {
     final dateOnly = DateTime(date.year, date.month, date.day);
@@ -217,12 +254,14 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
     await _loadRoutines();
     await _loadTodos();
+    await _loadSavedData();
   }
 
   void _onRightChevronPressed() async {
-    setState(() {
+    setState(() async {
       _focusedDay = _focusedDay.add(Duration(days: 1));
       _resetIconState();
+      await _loadSavedData();
     });
     await _loadRoutines();
     await _loadTodos();
@@ -290,32 +329,38 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print("DaylogScreen initState routines length: ${routines.length}");
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeader(),
-              if (!_hideRoutineUI) _buildRoutineBanner(),
-              if (!_hideRoutineUI) _buildRoutineSection(),
-              if (!_hideTodoUI) SizedBox(height: 30),
-              if (!_hideTodoUI)_buildDoneBanner(),
-              if (!_hideTodoUI)_buildDoneSection(),
-              if (!_hideTodoUI)SizedBox(height: 30),
-              if (!_hideTodoUI)_buildProgressBanner(),
-              if (!_hideTodoUI)_buildProgressSection(),
-              if (!_hideQuestionUI)_buildQuestionBanner(),
-              if (!_hideQuestionUI)_buildQuestionButtons(),
-              if (selectedQuestion != null)
-                if (!_hideQuestionUI)_buildAnswerField(selectedQuestion!),
-              if (!_hideDiaryUI)SizedBox(height: 30),
-              if (!_hideDiaryUI)_buildDiaryBanner(),
-              if (!_hideDiaryUI)_buildDiaryField(),
-              SizedBox(height: 20),
-              _buildDaylogSaveButton(),
-              SizedBox(height: 50),
-            ],
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus(); // 키보드 내리기
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeader(),
+                if (!_hideRoutineUI) _buildRoutineBanner(),
+                if (!_hideRoutineUI) _buildRoutineSection(),
+                if (!_hideTodoUI) SizedBox(height: 30),
+                if (!_hideTodoUI) _buildDoneBanner(),
+                if (!_hideTodoUI) _buildDoneSection(),
+                if (!_hideTodoUI) SizedBox(height: 30),
+                if (!_hideTodoUI) _buildProgressBanner(),
+                if (!_hideTodoUI) SizedBox(height: 20),
+                if (!_hideTodoUI) _buildProgressSection(),
+                if (!_hideQuestionUI) SizedBox(height: 20),
+                if (!_hideQuestionUI) _buildQuestionBanner(),
+                if (!_hideQuestionUI) _buildQuestionButtons(),
+                if (selectedQuestion != null)
+                  if (!_hideQuestionUI) _buildAnswerField(selectedQuestion!),
+                if (!_hideDiaryUI) SizedBox(height: 30),
+                if (!_hideDiaryUI) _buildDiaryBanner(),
+                if (!_hideDiaryUI) _buildDiaryField(),
+                SizedBox(height: 20),
+                _buildDaylogSaveButton(),
+                SizedBox(height: 50),
+              ],
+            ),
           ),
         ),
       ),
@@ -518,9 +563,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
                         Text(
                           "${routine.completedDays}/${routine.totalDaysThisWeek}",
                           style: TextStyle(
-                          fontSize: 14,
+                            fontSize: 14,
                             fontFamily: 'RubikSprayPaint',
-                        ),
+                          ),
                         ),
                       ],
                     ),
@@ -719,8 +764,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
-  Widget _buildProgressBox() {
+  Widget _buildProgressSection() {
     int daysInMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0).day;
+
+    // 랜덤으로 칠할 사각형 개수
+    int blackSquaresCount = 5; // 예: 5개
+
+    int seed = int.parse(DateFormat('yyyyMMdd').format(_focusedDay));
+    final random = Random(seed);
+    final blackIndices = <int>{};
+    while (blackIndices.length < blackSquaresCount) {
+      blackIndices.add(random.nextInt(daysInMonth));
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 40.0),
@@ -737,9 +792,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
           ),
           itemCount: daysInMonth,
           itemBuilder: (context, index) {
+            final isBlack = blackIndices.contains(index);
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isBlack ? Colors.black : Colors.white,
                 borderRadius: BorderRadius.circular(6),
                 boxShadow: [
                   BoxShadow(
@@ -756,46 +812,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
-  Widget _buildProgressSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          _buildProgressBox(),
-          Transform.translate(
-            offset: Offset(0, 10),
-            child: Container(
-              width: 350,
-              height: 110,
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: Text(
-                      "이번 달 to-do 달성률을 보여드립니다.\n퍼센트에 따라 색깔을 달리 표현합니다.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontFamily: 'PretendardSemiBold',
-                        color: DARK_GREY_COLOR,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Center(child: _buildCalendarButton()),
-                  Row(mainAxisAlignment: MainAxisAlignment.center),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalendarButton() {
+  /*Widget _buildCalendarButton() {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -825,6 +842,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
       ),
     );
   }
+
+   */
 
   Widget _buildQuestionBanner() {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
@@ -925,6 +944,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 16.0),
                     child: TextField(
+                      controller: _answerController,
                       decoration: InputDecoration(border: InputBorder.none),
                       onChanged: (value) {
                         setState(() {
@@ -961,6 +981,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: TextField(
+          controller: _diaryController,
           maxLines: null,
           minLines: 10,
           decoration: InputDecoration(
@@ -991,8 +1012,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Widget _buildDaylogSaveButton() {
     return GestureDetector(
       onTap: () {
-        print('일기 저장하기');
-        print('answer: $answer, diary: $diary');
+        _saveData();
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('데이로그가 저장되었습니다.')),
+        );
       },
       child: Container(
         width: 334,
