@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/CompletedRoutine.dart';
 import '../models/routine.dart';
 
 class RoutineService {
@@ -127,4 +128,48 @@ class RoutineService {
       throw Exception('상태 변경 실패: ${response.statusCode}');
     }
   }
+
+  Future<List<CompletedRoutine>> getCompletedRoutinesThisWeek(String token) async {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // 월요일
+    final endOfWeek = startOfWeek.add(Duration(days: 6)); // 일요일
+
+    final url = Uri.parse(
+      '$baseUrl/api/schedule/routine/status?start-date=${startOfWeek.toIso8601String().split('T').first}&end-date=${endOfWeek.toIso8601String().split('T').first}',
+    );
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List<dynamic> result = data['result'];
+
+      final List<CompletedRoutine> completedRoutines = [];
+
+      for (var item in result) {
+        final List<dynamic> scheduleList = item['scheduleList'];
+        for (var scheduleJson in scheduleList) {
+          final isDone = scheduleJson['status'] ?? false;
+          if (isDone) {
+            completedRoutines.add(
+              CompletedRoutine(
+                routineId: scheduleJson['scheduleId'],
+                date: DateTime.parse(scheduleJson['date']),
+              ),
+            );
+          }
+        }
+      }
+
+      return completedRoutines;
+    } else {
+      throw Exception('루틴 상태 불러오기 실패');
+    }
+  }
+
 }

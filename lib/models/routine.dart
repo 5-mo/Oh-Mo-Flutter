@@ -11,6 +11,9 @@ class Routine {
   final bool alarm;
   bool isDone;
 
+  int completedDays;
+  int totalDaysThisWeek;
+
   Routine({
     required this.id,
     required this.content,
@@ -21,6 +24,8 @@ class Routine {
     this.time,
     required this.alarm,
     this.isDone = false,
+    this.completedDays = 0,
+    this.totalDaysThisWeek = 0,
   });
 
   factory Routine.fromJson(Map<String, dynamic> json) {
@@ -28,13 +33,16 @@ class Routine {
     final colorStr = category['color'] ?? 'pinkLight';
     final colorType = ColorTypeExtension.fromString(colorStr);
 
+    final routineDate = DateTime.parse(json['date']);
+    final weekday = routineDate.weekday;
+
     return Routine(
       id: json['scheduleId'] ?? 0,
       content: json['content'] ?? '',
       colorType: colorType,
-      startDate: DateTime.parse(json['date']),
-      endDate: DateTime.parse(json['date']),
-      daysOfWeek: [DateTime.parse(json['date']).weekday],
+      startDate: routineDate,
+      endDate: routineDate,
+      daysOfWeek: [weekday],
       time: json['time'] ?? '',
       alarm: json['alarm'] ?? false,
     );

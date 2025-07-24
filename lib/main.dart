@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:ohmo/screen/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
@@ -13,6 +14,7 @@ Future<void> clearTokens() async {
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  await HomeWidget.setAppGroupId('group.ohmo');
   await clearTokens();
   runApp(
     MultiProvider(

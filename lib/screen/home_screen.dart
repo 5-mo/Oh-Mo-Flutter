@@ -42,9 +42,11 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _selectedIndex = widget.initialTabIndex;
     final today = DateTime.now();
-    fetchRoutines(today);
-    fetchTodos(today);
-    saveTodayRoutineAndTodo();
+    fetchRoutines(today).then((_) {
+      fetchTodos(today).then((_) {
+        saveTodayRoutineAndTodo();
+      });
+    });
   }
 
   void _onDateChanged(DateTime newDate) async {
@@ -125,13 +127,10 @@ class _HomeScreenState extends State<HomeScreen> {
       print('토큰 없음. 로그인 필요.');
       return;
     }
-    print('✅ [fetchTodos] 실행됨, 날짜: $date');
 
     try {
       final fetched = await TodoService().getTodos(date, token);
       final completedIds = await loadCompletedTodoIds();
-
-      print('✅ 불러온 완료된 ID 목록: $completedIds');
 
       for (var todo in fetched) {
         todo.isDone = completedIds.contains(todo.id);
@@ -141,9 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         todos = fetched;
       });
-      print(
-        '✅ Todos 상태 업데이트 완료. 현재 체크된 투두: ${todos.where((e) => e.isDone).map((e) => e.id).toList()}',
-      );
     } catch (e) {
       print('투두 불러오기 오류: $e');
     }
@@ -151,18 +147,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> saveTodayRoutineAndTodo() async {
     final today = DateTime.now();
-    final routineContents =
-        routines
-            .where((r) => isRoutineVisibleOnDate(r, today))
-            .map((e) => e.content)
-            .toList();
-    final todoContents =
-        todos.map((e) => e.content.trim()).where((e) => e.isNotEmpty).toList();
 
-    await HomeWidget.saveWidgetData(
-      'today_routine',
-      jsonEncode(routineContents),
-    );
+    final routineContents = routines
+        .where((r) => isRoutineVisibleOnDate(r, today))
+        .map((e) => e.content.trim())
+        .toList();
+
+    final todoContents = todos
+        .map((e) => e.content.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('todayRoutineContents', routineContents);
+    await prefs.setStringList('todayTodoContents', todoContents);
+
+    await HomeWidget.saveWidgetData('today_routine', jsonEncode(routineContents));
     await HomeWidget.saveWidgetData('today_todo', jsonEncode(todoContents));
 
     await HomeWidget.updateWidget(
@@ -174,7 +174,11 @@ class _HomeScreenState extends State<HomeScreen> {
       name: 'HomeWidgetExtension',
       iOSName: 'HomeWidgetExtension',
     );
+
+    print('🟦 저장할 루틴: $routineContents');
   }
+
+
 
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();

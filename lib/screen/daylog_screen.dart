@@ -9,6 +9,7 @@ import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/shared_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/CompletedRoutine.dart';
 import '../models/todo.dart';
 import '../services/routine_service.dart';
 import '../services/todo_service.dart';
@@ -96,13 +97,25 @@ class _DaylogScreenState extends State<DaylogScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken') ?? '';
     final service = RoutineService();
-    final result = await service.getRoutines(_focusedDay, _focusedDay, token);
+
+    // ✅ 주차 범위 계산
+    final now = _focusedDay;
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(Duration(days: 6));
+
+    // ✅ 주차 전체 루틴을 가져옴
+    final result = await service.getRoutines(startOfWeek, endOfWeek, token);
+
+    // ✅ 완료 루틴 가져옴
+    final completedList = await service.getCompletedRoutinesThisWeek(token);
 
     setState(() {
       routines = result;
-      _filterRoutinesByDate(_focusedDay);
+      updateRoutineProgress(routines, completedList);
+      _filterRoutinesByDate(_focusedDay); // 당일 필터링은 유지
     });
   }
+
 
   void _filterRoutinesByDate(DateTime date) {
     final dateOnly = DateTime(date.year, date.month, date.day);
@@ -149,7 +162,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
             todo.Date.month,
             todo.Date.day,
           );
-          return todoDateOnly == dateOnly&&todo.isDone==true;
+          return todoDateOnly == dateOnly && todo.isDone == true;
         }).toList();
   }
 
@@ -193,6 +206,42 @@ class _DaylogScreenState extends State<DaylogScreen> {
         _sosoActive = false;
       }
     });
+  }
+
+  void updateRoutineProgress(
+    List<Routine> routines,
+    List<CompletedRoutine> completedRoutineList,
+  ) {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(Duration(days: 6));
+
+    for (var routine in routines) {
+      int total = 0;
+      int done = 0;
+
+      for (int i = 0; i < 7; i++) {
+        final date = startOfWeek.add(Duration(days: i));
+        if (routine.daysOfWeek.contains(date.weekday)) {
+          total++;
+
+          final isCompleted = completedRoutineList.any(
+            (completed) =>
+                completed.routineId == routine.id &&
+                completed.date.year == date.year &&
+                completed.date.month == date.month &&
+                completed.date.day == date.day,
+          );
+
+          if (isCompleted) {
+            done++;
+          }
+        }
+      }
+
+      routine.totalDaysThisWeek = total;
+      routine.completedDays = done;
+    }
   }
 
   @override
@@ -323,16 +372,14 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildRoutineBanner() {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
-    return Container(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 40.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Routine', style: textStyle),
-            Transform.translate(offset: Offset(5, 0)),
-          ],
-        ),
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 40.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Routine', style: textStyle),
+          Transform.translate(offset: Offset(5, 0)),
+        ],
       ),
     );
   }
@@ -399,6 +446,37 @@ class _DaylogScreenState extends State<DaylogScreen> {
                               fontFamily: 'PretendardRegular',
                             ),
                           ),
+                        ),
+
+                        Container(
+                          width: 60,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(3),
+                            color: Colors.grey[300],
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor:
+                                routine.daysOfWeek.isEmpty
+                                    ? 0.0
+                                    : routine.completedDays /
+                                        routine.daysOfWeek.length,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(3),
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          "${routine.completedDays}/${routine.totalDaysThisWeek}",
+                          style: TextStyle(
+                          fontSize: 14,
+                            fontFamily: 'RubikSprayPaint',
+                        ),
                         ),
                       ],
                     ),
