@@ -174,8 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
       name: 'HomeWidgetExtension',
       iOSName: 'HomeWidgetExtension',
     );
-
-    print('🟦 저장할 루틴: $routineContents');
   }
 
 
@@ -192,13 +190,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
-    final inRange =
-        !selectedDate.isBefore(routine.startDate) &&
-        !selectedDate.isAfter(routine.endDate);
-    final isMatchingDay = routine.daysOfWeek.contains(selectedDate.weekday);
+    final dateOnly = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final startOnly = DateTime(routine.startDate.year, routine.startDate.month, routine.startDate.day);
+    final endOnly = DateTime(routine.endDate.year, routine.endDate.month, routine.endDate.day);
+
+    final inRange = !dateOnly.isBefore(startOnly) && !dateOnly.isAfter(endOnly);
+    final isMatchingDay = routine.daysOfWeek.contains(dateOnly.weekday);
+
     print(
-      '루틴 "${routine.content}" 날짜 필터 - inRange: $inRange, isMatchingDay: $isMatchingDay, selectedDate: $selectedDate',
+      '루틴 "${routine.content}" 날짜 필터 - inRange: $inRange, isMatchingDay: $isMatchingDay, selectedDate: $dateOnly',
     );
+
     return inRange && isMatchingDay;
   }
 
