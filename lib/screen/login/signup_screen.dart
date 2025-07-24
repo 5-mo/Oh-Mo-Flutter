@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ohmo/profile_data_provider.dart';
+import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/services/auth_service.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';

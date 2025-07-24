@@ -3,7 +3,10 @@ import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 
 class TodoBanner extends StatelessWidget {
-  const TodoBanner({Key? key}) : super(key: key);
+  final VoidCallback onTodoAdded;
+  final DateTime selectedDate;
+
+  const TodoBanner({Key? key,required this.selectedDate,required this.onTodoAdded}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -20,8 +23,8 @@ class TodoBanner extends StatelessWidget {
               offset: Offset(5, 0),
               child: IconButton(
                 icon: SvgPicture.asset('android/assets/images/plus2.svg'),
-                onPressed: () {
-                  showModalBottomSheet(
+                onPressed: ()async {
+                  final result=await showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
                     isDismissible: true,
@@ -32,8 +35,14 @@ class TodoBanner extends StatelessWidget {
                         topLeft: Radius.circular(59),
                       ),
                     ),
-                    builder: (_) => TodoBottomSheet(),
+                    builder: (_) => TodoBottomSheet(selectedDate: selectedDate, onTodoAdded: () async {
+                  onTodoAdded();
+                  },),
                   );
+
+                  if(result==true){
+                    onTodoAdded();
+                  }
                 },
               ),
             ),

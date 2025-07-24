@@ -4,7 +4,7 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/screen/login/signup_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
-import '../../profile_data_provider.dart';
+import '../../models/profile_data_provider.dart';
 import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {

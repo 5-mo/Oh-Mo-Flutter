@@ -121,7 +121,7 @@ struct HomeWidgetExtensionEntryView: View {
                         Text("할 일을\n추가해보세요 :)")
                             .font(.system(size: 14))
                     } else {
-                        ForEach(entry.todoList.prefix(4), id: \.self) { line in
+                        ForEach(entry.todoList.prefix(2), id: \.self) { line in
                             Text("● \(line)")
                                 .font(.system(size: 14))
                                 .foregroundColor(.black)
@@ -181,9 +181,9 @@ struct HomeWidgetExtensionEntryView: View {
                                 }
                             )
                         
-                        if !events.isEmpty {
+                        if !events.isEmpty || (isToday && !entry.todoList.isEmpty) {
                             VStack(alignment: .leading, spacing: 2) {
-                                ForEach(events.prefix(4)) { event in
+                                ForEach(events.prefix(2)) { event in
                                     HStack(spacing: 4) {
                                         Circle()
                                             .fill(event.color)
@@ -194,11 +194,26 @@ struct HomeWidgetExtensionEntryView: View {
                                             .foregroundColor(.black)
                                     }
                                 }
+
+                                if isToday {
+                                    ForEach(entry.todoList.prefix(2), id: \.self) { todo in
+                                        HStack(spacing: 4) {
+                                            Circle()
+                                                .fill(Color.black)
+                                                .frame(width: 6, height: 6)
+                                            Text(String(todo.prefix(10)))
+                                                .font(.system(size: 9))
+                                                .lineLimit(1)
+                                                .foregroundColor(.black)
+                                        }
+                                    }
+                                }
                             }
                         } else {
                             Spacer()
                                 .frame(height: 20)
                         }
+
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -277,7 +292,7 @@ struct HomeWidgetExtensionEntryView: View {
                                                     }
                                                 }
                                             )
-                                        if !events.isEmpty {
+                                        if !events.isEmpty || (isToday && !entry.todoList.isEmpty) {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 ForEach(events.prefix(3)) { event in
                                                     HStack(spacing: 3) {
@@ -290,11 +305,26 @@ struct HomeWidgetExtensionEntryView: View {
                                                             .foregroundColor(.black)
                                                     }
                                                 }
+
+                                                if isToday {
+                                                    ForEach(entry.todoList.prefix(2), id: \.self) { todo in
+                                                        HStack(spacing: 3) {
+                                                            Circle()
+                                                                .fill(Color.black)
+                                                                .frame(width: 5, height: 5)
+                                                            Text(String(todo.prefix(8)))
+                                                                .font(.system(size: 8))
+                                                                .lineLimit(1)
+                                                                .foregroundColor(.black)
+                                                        }
+                                                    }
+                                                }
                                             }
                                         } else {
                                             Spacer()
                                                 .frame(height: (5 + 2) * 3)
                                         }
+
                                     }
                                     .frame(maxWidth: .infinity)
                                 }
