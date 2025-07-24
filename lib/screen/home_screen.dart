@@ -10,6 +10,7 @@ import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../const/colors.dart';
 import '../models/routine.dart';
 import '../models/todo.dart';
 import '../services/routine_service.dart';
@@ -47,6 +48,8 @@ class _HomeScreenState extends State<HomeScreen> {
         saveTodayRoutineAndTodo();
       });
     });
+
+    fetchTodosByMonth(today);
   }
 
   void _onDateChanged(DateTime newDate) async {
@@ -84,6 +87,49 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       print('루틴 불러오기 오류: $e');
+    }
+  }
+
+  Future<void> fetchTodosByMonth(DateTime month) async {
+    final token = await getAccessToken();
+    if (token == null) {
+      return;
+    }
+
+    final yearMonth =
+        "${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}";
+
+    try {
+      final fetched = await TodoService().getTodosByMonth(yearMonth, token);
+      final completedIds = await loadCompletedTodoIds();
+
+      List<Todo> todosFromApi = [];
+      for (var dayData in fetched) {
+        final date = DateTime.parse(dayData['date']);
+        final categoryList = dayData['categoryList'] as List<dynamic>;
+
+        for (var category in categoryList) {
+          if (category['scheduleType'] == "TO_DO") {
+            final todo = Todo(
+              id: category['id'],
+              content: category['categoryName'],
+              Date: date,
+              colorType: parseColorType(category['color']),
+              isDone: completedIds.contains(category['id']),
+              alarm: false,
+            );
+            todosFromApi.add(todo);
+          }
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        todos = todosFromApi;
+      });
+    } catch (e) {
+      print('월별 투두 불러오기 오류: $e');
     }
   }
 
@@ -145,24 +191,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  ColorType parseColorType(String colorString) {
+    try {
+      return ColorTypeExtension.fromString(colorString);
+    } catch (e) {
+      return ColorType.pinkLight;
+    }
+  }
+
   Future<void> saveTodayRoutineAndTodo() async {
     final today = DateTime.now();
 
-    final routineContents = routines
-        .where((r) => isRoutineVisibleOnDate(r, today))
-        .map((e) => e.content.trim())
-        .toList();
+    final routineContents =
+        routines
+            .where((r) => isRoutineVisibleOnDate(r, today))
+            .map((e) => e.content.trim())
+            .toList();
 
-    final todoContents = todos
-        .map((e) => e.content.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    final todoContents =
+        todos.map((e) => e.content.trim()).where((e) => e.isNotEmpty).toList();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('todayRoutineContents', routineContents);
     await prefs.setStringList('todayTodoContents', todoContents);
 
-    await HomeWidget.saveWidgetData('today_routine', jsonEncode(routineContents));
+    await HomeWidget.saveWidgetData(
+      'today_routine',
+      jsonEncode(routineContents),
+    );
     await HomeWidget.saveWidgetData('today_todo', jsonEncode(todoContents));
 
     await HomeWidget.updateWidget(
@@ -176,8 +232,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('accessToken');
@@ -190,9 +244,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
-    final dateOnly = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    final startOnly = DateTime(routine.startDate.year, routine.startDate.month, routine.startDate.day);
-    final endOnly = DateTime(routine.endDate.year, routine.endDate.month, routine.endDate.day);
+    final dateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    final startOnly = DateTime(
+      routine.startDate.year,
+      routine.startDate.month,
+      routine.startDate.day,
+    );
+    final endOnly = DateTime(
+      routine.endDate.year,
+      routine.endDate.month,
+      routine.endDate.day,
+    );
 
     final inRange = !dateOnly.isBefore(startOnly) && !dateOnly.isAfter(endOnly);
     final isMatchingDay = routine.daysOfWeek.contains(dateOnly.weekday);
@@ -373,7 +439,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                 'completedRoutineIds',
                                 completed.map((e) => e.toString()).toList(),
                               );
-                              print('✅ 저장된 완료된 Routine ID 목록: $completed');
                             });
                             widget.onDataChanged?.call();
                           },
@@ -419,7 +484,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                 'completedTodoIds',
                                 completed.map((e) => e.toString()).toList(),
                               );
-                              print('✅ 저장된 완료된 Todo ID 목록: $completed');
                             });
                             widget.onDataChanged?.call();
                           },

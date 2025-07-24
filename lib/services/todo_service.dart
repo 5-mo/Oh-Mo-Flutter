@@ -115,4 +115,31 @@ class TodoService {
       throw Exception('상태 변경 실패: ${response.statusCode}');
     }
   }
+
+  Future<List<dynamic>> getTodosByMonth(String yearMonth, String token) async {
+    final url = Uri.parse('$baseUrl/api/schedule/by-month?year-month=$yearMonth');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data['isSuccess'] == true) {
+        return data['result'] as List<dynamic>;
+      } else {
+        throw Exception('API 실패: ${data['message']}');
+      }
+    } else {
+      throw Exception('HTTP 에러: ${response.statusCode}');
+    }
+  }
+
+
+
+
 }

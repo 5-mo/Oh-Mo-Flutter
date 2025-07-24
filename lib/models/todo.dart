@@ -35,9 +35,16 @@ class Todo {
     );
   }
 
-
-
-
-
-
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'content': content,
+      'colorType': colorType.toString().split('.').last,
+      'date': Date.toIso8601String(),
+      'time': time,
+      'alarm': alarm,
+      'isDone': isDone,
+    };
+  }
 }
+
