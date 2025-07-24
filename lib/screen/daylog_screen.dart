@@ -9,6 +9,7 @@ import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/shared_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../customize_category.dart';
 import '../models/CompletedRoutine.dart';
 import '../models/todo.dart';
 import '../services/routine_service.dart';
@@ -53,6 +54,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
   List<Routine> filteredRoutines = [];
   List<Todo> filteredTodos = [];
 
+  bool _hideRoutineUI = false;
+  bool _hideTodoUI=false;
+  bool _hideQuestionUI=false;
+  bool _hideDiaryUI=false;
+
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +67,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
     routines = widget.routines;
     todos = widget.todos;
     _focusedDay = widget.selectedDateNotifier.value;
+
+    _loadRoutineDeletionStatus();
+    _loadTodoDeletionStatus();
+    _loadQuestionDeletionStatus();
+    _loadDiaryDeletionStatus();
 
     _filterRoutinesByDate(_focusedDay);
 
@@ -91,6 +103,38 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
     _loadRoutines();
     _loadTodos();
+  }
+
+  Future<void> _loadRoutineDeletionStatus() async {
+    final visible = await RoutineVisibilityHelper.getVisibility();
+    if (!mounted) return;
+    setState(() {
+      _hideRoutineUI = !visible;
+    });
+  }
+
+  Future<void> _loadTodoDeletionStatus() async {
+    final visible = await TodoVisibilityHelper.getVisibility();
+    if (!mounted) return;
+    setState(() {
+      _hideTodoUI = !visible;
+    });
+  }
+
+  Future<void> _loadQuestionDeletionStatus() async {
+    final visible = await QuestionVisibilityHelper.getVisibility();
+    if (!mounted) return;
+    setState(() {
+      _hideQuestionUI = !visible;
+    });
+  }
+
+  Future<void> _loadDiaryDeletionStatus() async {
+    final visible = await DiaryVisibilityHelper.getVisibility();
+    if (!mounted) return;
+    setState(() {
+      _hideDiaryUI = !visible;
+    });
   }
 
   Future<void> _loadRoutines() async {
@@ -253,21 +297,21 @@ class _DaylogScreenState extends State<DaylogScreen> {
           child: Column(
             children: [
               _buildHeader(),
-              _buildRoutineBanner(),
-              _buildRoutineSection(),
-              SizedBox(height: 30),
-              _buildDoneBanner(),
-              _buildDoneSection(),
-              SizedBox(height: 30),
-              _buildProgressBanner(),
-              _buildProgressSection(),
-              _buildQuestionBanner(),
-              _buildQuestionButtons(),
+              if (!_hideRoutineUI) _buildRoutineBanner(),
+              if (!_hideRoutineUI) _buildRoutineSection(),
+              if (!_hideTodoUI) SizedBox(height: 30),
+              if (!_hideTodoUI)_buildDoneBanner(),
+              if (!_hideTodoUI)_buildDoneSection(),
+              if (!_hideTodoUI)SizedBox(height: 30),
+              if (!_hideTodoUI)_buildProgressBanner(),
+              if (!_hideTodoUI)_buildProgressSection(),
+              if (!_hideQuestionUI)_buildQuestionBanner(),
+              if (!_hideQuestionUI)_buildQuestionButtons(),
               if (selectedQuestion != null)
-                _buildAnswerField(selectedQuestion!),
-              SizedBox(height: 30),
-              _buildDiaryBanner(),
-              _buildDiaryField(),
+                if (!_hideQuestionUI)_buildAnswerField(selectedQuestion!),
+              if (!_hideDiaryUI)SizedBox(height: 30),
+              if (!_hideDiaryUI)_buildDiaryBanner(),
+              if (!_hideDiaryUI)_buildDiaryField(),
               SizedBox(height: 20),
               _buildDaylogSaveButton(),
               SizedBox(height: 50),

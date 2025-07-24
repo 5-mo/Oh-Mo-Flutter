@@ -11,6 +11,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../const/colors.dart';
+import '../customize_category.dart';
 import '../models/routine.dart';
 import '../models/todo.dart';
 import '../services/routine_service.dart';
@@ -37,10 +38,14 @@ class _HomeScreenState extends State<HomeScreen> {
   );
   List<Routine> routines = [];
   List<Todo> todos = [];
+  bool _hideRoutineUI = false;
+  bool _hideTodoUI = false;
 
   @override
   void initState() {
     super.initState();
+    _loadRoutineDeletionStatus();
+    _loadTodoDeletionStatus();
     _selectedIndex = widget.initialTabIndex;
     final today = DateTime.now();
     fetchRoutines(today).then((_) {
@@ -237,10 +242,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return prefs.getString('accessToken');
   }
 
-  void _onTabChange(int index) {
+  Future<void> _onTabChange(int index) async {
     setState(() {
       _selectedIndex = index;
     });
+
+    await _loadRoutineDeletionStatus();
+    await _loadTodoDeletionStatus();
   }
 
   bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
@@ -280,6 +288,20 @@ class _HomeScreenState extends State<HomeScreen> {
     return todoDate == selected;
   }
 
+  Future<void> _loadRoutineDeletionStatus() async {
+    final isVisible = await RoutineVisibilityHelper.getVisibility();
+    setState(() {
+      _hideRoutineUI = !isVisible;
+    });
+  }
+
+  Future<void> _loadTodoDeletionStatus() async {
+    final isVisible = await TodoVisibilityHelper.getVisibility();
+    setState(() {
+      _hideTodoUI = !isVisible;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final _screens = [
@@ -290,6 +312,8 @@ class _HomeScreenState extends State<HomeScreen> {
         todos: todos,
         onTodoAdded: () => fetchTodos(_selectedDateNotifier.value),
         onDateChanged: _onDateChanged,
+        hideRoutineUI: _hideRoutineUI,
+        hideTodoUI: _hideTodoUI,
       ),
       DaylogScreen(
         onTabChange: _onTabChange,
@@ -321,6 +345,8 @@ class HomeScreenBody extends StatefulWidget {
   final List<Routine> routines;
   final List<Todo> todos;
   final ValueChanged<DateTime>? onDateChanged;
+  final bool hideRoutineUI;
+  final bool hideTodoUI;
 
   const HomeScreenBody({
     Key? key,
@@ -330,6 +356,8 @@ class HomeScreenBody extends StatefulWidget {
     this.onTodoAdded,
     required this.todos,
     this.onDateChanged,
+    this.hideRoutineUI = false,
+    this.hideTodoUI = false,
   }) : super(key: key);
 
   @override
@@ -404,92 +432,106 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
               padding: const EdgeInsets.symmetric(horizontal: 30.0),
               child: Column(
                 children: [
-                  RoutineBanner(onRoutineAdded: widget.onRoutineAdded ?? () {}),
-                  ...widget.routines
-                      .where(
-                        (routine) =>
-                            isRoutineVisibleOnDate(routine, selectedDate),
-                      )
-                      .map((routine) {
-                        return RoutineCard(
-                          content: routine.content,
-                          colorType: routine.colorType,
-                          scheduleId: routine.id,
-                          isDone: routine.isDone,
-                          onEdit: (newContent) {
-                            setState(() {
-                              final target = widget.routines.firstWhere(
-                                (item) => item.id == routine.id,
-                              );
-                              target.content = newContent;
-                            });
-                            widget.onDataChanged?.call();
-                          },
-                          onStatusChanged: () async {
-                            setState(() {
-                              routine.isDone = !routine.isDone;
-                            });
-                            await SharedPreferences.getInstance().then((prefs) {
-                              List<int> completed =
-                                  widget.routines
-                                      .where((x) => x.isDone)
-                                      .map((x) => x.id)
-                                      .toList();
-                              prefs.setStringList(
-                                'completedRoutineIds',
-                                completed.map((e) => e.toString()).toList(),
-                              );
-                            });
-                            widget.onDataChanged?.call();
-                          },
-                        );
-                      })
-                      .toList(),
+                  if (!widget.hideRoutineUI)
+                    RoutineBanner(
+                      onRoutineAdded: widget.onRoutineAdded ?? () {},
+                    ),
 
-                  SizedBox(height: 20.0),
-                  const Divider(color: Colors.grey),
+                  if (!widget.hideRoutineUI)
+                    ...widget.routines
+                        .where(
+                          (routine) =>
+                              isRoutineVisibleOnDate(routine, selectedDate),
+                        )
+                        .map((routine) {
+                          return RoutineCard(
+                            content: routine.content,
+                            colorType: routine.colorType,
+                            scheduleId: routine.id,
+                            isDone: routine.isDone,
+                            onEdit: (newContent) {
+                              setState(() {
+                                final target = widget.routines.firstWhere(
+                                  (item) => item.id == routine.id,
+                                );
+                                target.content = newContent;
+                              });
+                              widget.onDataChanged?.call();
+                            },
+                            onStatusChanged: () async {
+                              setState(() {
+                                routine.isDone = !routine.isDone;
+                              });
+                              await SharedPreferences.getInstance().then((
+                                prefs,
+                              ) {
+                                List<int> completed =
+                                    widget.routines
+                                        .where((x) => x.isDone)
+                                        .map((x) => x.id)
+                                        .toList();
+                                prefs.setStringList(
+                                  'completedRoutineIds',
+                                  completed.map((e) => e.toString()).toList(),
+                                );
+                              });
+                              widget.onDataChanged?.call();
+                            },
+                          );
+                        })
+                        .toList(),
 
-                  TodoBanner(
-                    onTodoAdded: widget.onTodoAdded ?? () {},
-                    selectedDate: selectedDate,
-                  ),
-                  ...widget.todos
-                      .where((todo) => isTodoVisibleOnDate(todo, selectedDate))
-                      .map((todo) {
-                        return TodoCard(
-                          content: todo.content,
-                          colorType: todo.colorType,
-                          scheduleId: todo.id,
-                          isDone: todo.isDone,
-                          onEdit: (newContent) {
-                            setState(() {
-                              final target = widget.todos.firstWhere(
-                                (item) => item.id == todo.id,
-                              );
-                              target.content = newContent;
-                            });
-                            widget.onDataChanged?.call();
-                          },
-                          onStatusChanged: () async {
-                            setState(() {
-                              todo.isDone = !todo.isDone;
-                            });
-                            await SharedPreferences.getInstance().then((prefs) {
-                              List<int> completed =
-                                  widget.todos
-                                      .where((x) => x.isDone)
-                                      .map((x) => x.id)
-                                      .toList();
-                              prefs.setStringList(
-                                'completedTodoIds',
-                                completed.map((e) => e.toString()).toList(),
-                              );
-                            });
-                            widget.onDataChanged?.call();
-                          },
-                        );
-                      })
-                      .toList(),
+
+
+                  if (!widget.hideTodoUI) ...[
+                    SizedBox(height: 20.0),
+                    const Divider(color: Colors.grey),
+                    TodoBanner(
+                      onTodoAdded: widget.onTodoAdded ?? () {},
+                      selectedDate: selectedDate,
+                    ),
+                    ...widget.todos
+                        .where(
+                          (todo) => isTodoVisibleOnDate(todo, selectedDate),
+                        )
+                        .map(
+                          (todo) => TodoCard(
+                            content: todo.content,
+                            colorType: todo.colorType,
+                            scheduleId: todo.id,
+                            isDone: todo.isDone,
+                            onEdit: (newContent) {
+                              setState(() {
+                                final target = widget.todos.firstWhere(
+                                  (item) => item.id == todo.id,
+                                );
+                                target.content = newContent;
+                              });
+                              widget.onDataChanged?.call();
+                            },
+                            onStatusChanged: () async {
+                              setState(() {
+                                todo.isDone = !todo.isDone;
+                              });
+                              await SharedPreferences.getInstance().then((
+                                prefs,
+                              ) {
+                                List<int> completed =
+                                    widget.todos
+                                        .where((x) => x.isDone)
+                                        .map((x) => x.id)
+                                        .toList();
+                                prefs.setStringList(
+                                  'completedTodoIds',
+                                  completed.map((e) => e.toString()).toList(),
+                                );
+                              });
+                              widget.onDataChanged?.call();
+                            },
+                          ),
+                        )
+                        .toList(),
+                  ],
                 ],
               ),
             ),
