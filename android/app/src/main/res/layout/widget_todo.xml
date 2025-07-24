@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:gravity="center"
     android:padding="8dp"
-    android:background="#FFFFFF">
+    android:background="@drawable/rounded_white_button_bg">
 
     <ImageView
         android:id="@+id/ohmo_logo"

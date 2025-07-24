@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="8dp"
-    android:background="#FFFFFF">
+    android:background="@drawable/rounded_white_button_bg">
 
     <ImageView
         android:id="@+id/text_month"
