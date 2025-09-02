@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
-import 'package:ohmo/screen/splash_screen.dart';
+import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,7 +23,7 @@ void main() async{
       ],
       child: MaterialApp(
         theme: ThemeData(scaffoldBackgroundColor: Colors.white),
-        home: Splash(),
+        home: HomeScreen(),
         debugShowCheckedModeBanner: false,
       ),
     ),

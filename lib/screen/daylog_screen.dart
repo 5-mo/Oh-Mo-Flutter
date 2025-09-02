@@ -14,7 +14,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../customize_category.dart';
 import '../models/CompletedRoutine.dart';
 import '../models/todo.dart';
-import '../services/routine_service.dart';
 import '../services/todo_service.dart';
 
 class DaylogScreen extends StatefulWidget {
@@ -178,22 +177,14 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Future<void> _loadRoutines() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken') ?? '';
-    final service = RoutineService();
 
     // ✅ 주차 범위 계산
     final now = _focusedDay;
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(Duration(days: 6));
 
-    // ✅ 주차 전체 루틴을 가져옴
-    final result = await service.getRoutines(startOfWeek, endOfWeek, token);
-
-    // ✅ 완료 루틴 가져옴
-    final completedList = await service.getCompletedRoutinesThisWeek(token);
 
     setState(() {
-      routines = result;
-      updateRoutineProgress(routines, completedList);
       _filterRoutinesByDate(_focusedDay); // 당일 필터링은 유지
     });
   }
@@ -204,9 +195,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
     filteredRoutines =
         routines.where((routine) {
           final startOnly = DateTime(
-            routine.startDate.year,
-            routine.startDate.month,
-            routine.startDate.day,
+            routine.endDate.year,
+            routine.endDate.month,
+            routine.endDate.day,
           );
           final endOnly = DateTime(
             routine.endDate.year,

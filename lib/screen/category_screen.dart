@@ -4,16 +4,16 @@ import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/component/delete_popup.dart';
 import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/const/colors.dart';
-import 'package:ohmo/shared_data.dart';
+import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../component/color_palette_bottom_sheet.dart';
-import 'package:ohmo/services/category_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../customize_category.dart';
+import 'package:uuid/uuid.dart';
+import 'package:ohmo/db/drift_database.dart' show LocalDatabase;
+import 'package:ohmo/models/category_item.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -25,6 +25,7 @@ class CategoryScreen extends StatefulWidget {
 class _CategoryScreenState extends State<CategoryScreen> {
   List<CategoryItem> routines = [];
   List<CategoryItem> todos = [];
+  List<DayLogQuestionItem> daylogQuestions = [];
   int? selectedCategoryId;
 
   String _newEmoji = '🙂';
@@ -46,55 +47,32 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   ColorType _selectedColorType = ColorType.pinkLight;
 
+  late LocalCategoryRepository _repository;
+  final uuid = Uuid();
+
   @override
   void initState() {
     super.initState();
-    _loadCategories();
-    _loadTodoCategories();
+    final database = LocalDatabase();
+    _repository = LocalCategoryRepository(database);
+    _loadLocalCategories();
   }
 
-  void _loadCategories() async {
-    try {
-      final accessToken = await getAccessToken();
-      if (accessToken == null) {
-        print('토큰 없음');
-        return;
-      }
-      final fetched = await CategoryService.fetchCategories(
-        scheduleType: 'ROUTINE',
-        accessToken: accessToken,
-      );
+  void _loadLocalCategories() async {
+    final fetchedRoutines = await _repository.fetchCategories(
+      scheduleType: 'ROUTINE',
+    );
+    final fetchedTodos = await _repository.fetchCategories(
+      scheduleType: 'TO_DO',
+    );
+    final fetchedDaylogs = await _repository.fetchDayLogQuestions();
 
-      setState(() {
-        routines = fetched;
-
-        if (routines.isNotEmpty) {
-          selectedCategoryId = routines.first.id;
-        }
-      });
-    } catch (e) {
-      print('카테고리 로드 실패: $e');
-    }
-  }
-
-  void _loadTodoCategories() async {
-    try {
-      final accessToken = await getAccessToken();
-      if (accessToken == null) {
-        print('토큰 없음');
-        return;
-      }
-      final todofetched = await CategoryService.fetchCategories(
-        scheduleType: 'TO_DO',
-        accessToken: accessToken,
-      );
-
-      setState(() {
-        todos = todofetched;
-      });
-    } catch (e) {
-      print('카테고리 로드 실패: $e');
-    }
+    setState(() {
+      routines = fetchedRoutines;
+      todos = fetchedTodos;
+      daylogQuestions = fetchedDaylogs;
+      if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
+    });
   }
 
   @override
@@ -111,7 +89,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
         backgroundColor: Colors.white,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(top: 30, left: 35, bottom: 60),
         child: Column(
@@ -137,6 +114,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
+  // --- Routine Accordion (추가/삭제/수정에서 repository 사용) ---
   Widget _buildRoutineAccordion() {
     return Padding(
       padding: const EdgeInsets.only(right: 20),
@@ -154,8 +132,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       (context) => DeletePopup(
                         onDelete: () async {
                           await RoutineVisibilityHelper.setVisibility(false);
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('isRoutineDeleted', true);
                           Navigator.pop(context, true);
                         },
                         messageHeader: '루틴 삭제',
@@ -179,8 +155,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
             SlidableAction(
               onPressed: (_) async {
                 await RoutineVisibilityHelper.setVisibility(true);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('isRoutineDeleted', false);
                 Navigator.pop(context, true);
               },
               foregroundColor: Colors.green,
@@ -252,17 +226,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       ...routines.map((routine) {
                         return RoutineCard(
                           key: ValueKey(routine.id),
-                          content: routine.content,
+                          content: routine.categoryName,
                           colorType: ColorTypeExtension.fromString(
                             routine.colorType,
-
                           ),
                           showCheckbox: false,
                           isDone: false,
                           scheduleId: routine.id,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
-                              onDelete: () {
+                              onDelete: () async {
+                                await _repository.deleteCategory(routine.id);
                                 setState(() {
                                   routines.removeWhere(
                                     (item) => item.id == routine.id,
@@ -273,16 +247,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               message: '해당 목록을 삭제할까요?',
                             );
                           },
-                          onEdit: (newContent) {
+                          onEdit: (newContent) async {
+                            await _repository.updateCategoryName(
+                              routine.id,
+                              newContent,
+                            );
                             setState(() {
-                              final target = routines.firstWhere(
-                                (item) => item.id == routine.id,
-                              );
-                              target.content = newContent;
+                              routine.categoryName = newContent;
                             });
                           },
                         );
-                      }),
+                      }).toList(),
 
                       if (_isAddingNewRoutine)
                         Padding(
@@ -330,25 +305,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                       _newRoutineController.text.trim();
                                   if (newText.isEmpty) return;
 
-                                  final token = await getAccessToken();
-                                  if (token == null) return;
+                                  final newItem = await _repository
+                                      .insertCategory(
+                                        name: newText,
+                                        type: 'ROUTINE',
+                                        color: _selectedColorType.name,
+                                      );
+                                  setState(() {
+                                    routines.add(newItem);
+                                    _isAddingNewRoutine = false;
+                                    _newRoutineController.clear();
+                                  });
 
-                                  try {
-                                    final newItem =
-                                        await CategoryService.registerCategory(
-                                          name: newText,
-                                          color: _selectedColorType.name,
-                                          scheduleType: 'ROUTINE',
-                                          accessToken: token,
-                                        );
-                                    setState(() {
-                                      routines.add(newItem);
-                                      _isAddingNewRoutine = false;
-                                      _newRoutineController.clear();
-                                    });
-                                  } catch (e) {
-                                    print('루틴 등록 실패: $e');
-                                  }
                                 },
                               ),
                             ],
@@ -382,8 +350,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       (context) => DeletePopup(
                         onDelete: () async {
                           await TodoVisibilityHelper.setVisibility(false);
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('isTodoDeleted', true);
                           Navigator.pop(context, true);
                         },
                         messageHeader: '투두리스트 삭제',
@@ -407,8 +373,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
             SlidableAction(
               onPressed: (_) async {
                 await TodoVisibilityHelper.setVisibility(true);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('isTodoDeleted', false);
                 Navigator.pop(context, true);
               },
               foregroundColor: Colors.green,
@@ -469,7 +433,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ],
               ),
             ),
-
             children: <Widget>[
               Transform.translate(
                 offset: Offset(-22, 0),
@@ -481,15 +444,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       ...todos.map((todo) {
                         return TodoCard(
                           key: ValueKey(todo.id),
-                          content: todo.content,
+                          content: todo.categoryName,
                           scheduleId: todo.id,
-                        colorType: ColorTypeExtension.fromString(
-                        todo.colorType,
-                        ),
+                          colorType: ColorTypeExtension.fromString(
+                            todo.colorType,
+                          ),
                           showCheckbox: false,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
-                              onDelete: () {
+                              onDelete: () async {
+                                await _repository.deleteCategory(todo.id);
                                 setState(() {
                                   todos.removeWhere(
                                     (item) => item.id == todo.id,
@@ -500,16 +464,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               message: '해당 목록을 삭제할까요?',
                             );
                           },
-                          onEdit: (newContent) {
+                          onEdit: (newContent) async {
+                            await _repository.updateCategoryName(
+                              todo.id,
+                              newContent,
+                            );
                             setState(() {
-                              final target = todos.firstWhere(
-                                (item) => item.id == todo.id,
-                              );
-                              target.content = newContent;
+                              todo.categoryName = newContent;
                             });
-                          }, isDone: false,
+                          },
+                          isDone: false,
                         );
-                      }),
+                      }).toList(),
+
                       if (_isAddingNewTodo)
                         Padding(
                           padding: const EdgeInsets.only(
@@ -556,25 +523,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                       _newTodoController.text.trim();
                                   if (newText.isEmpty) return;
 
-                                  final token = await getAccessToken();
-                                  if (token == null) return;
-
-                                  try {
-                                    final newItem =
-                                        await CategoryService.registerCategory(
-                                          name: newText,
-                                          color: _selectedColorType.name,
-                                          scheduleType: 'TO_DO',
-                                          accessToken: token,
-                                        );
-                                    setState(() {
-                                      todos.add(newItem);
-                                      _isAddingNewTodo = false;
-                                      _newTodoController.clear();
-                                    });
-                                  } catch (e) {
-                                    print('루틴 등록 실패: $e');
-                                  }
+                                  final newItem = await _repository
+                                      .insertCategory(
+                                        name: newText,
+                                        type: 'TO_DO',
+                                        color: _selectedColorType.name,
+                                      );
+                                  setState(() {
+                                    todos.add(newItem);
+                                    _isAddingNewTodo = false;
+                                    _newTodoController.clear();
+                                  });
                                 },
                               ),
                             ],
@@ -608,8 +567,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       (context) => DeletePopup(
                         onDelete: () async {
                           await QuestionVisibilityHelper.setVisibility(false);
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('isQuestionDeleted', true);
                           Navigator.pop(context, true);
                         },
                         messageHeader: 'Day log 질문 삭제',
@@ -633,8 +590,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
             SlidableAction(
               onPressed: (_) async {
                 await QuestionVisibilityHelper.setVisibility(true);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('isQuestionDeleted', false);
                 Navigator.pop(context, true);
               },
               foregroundColor: Colors.green,
@@ -744,13 +699,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             children: [
                               Container(
                                 width: 260,
-                                child: Text(
-                                  question.content,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontFamily: 'PretendardRegular',
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      question.emoji,
+                                      style: TextStyle(fontSize: 20),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        question.question,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontFamily: 'PretendardRegular',
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               SizedBox(width: 10),
@@ -760,7 +726,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     context: context,
                                     builder: (context) {
                                       return DeletePopup(
-                                        onDelete: () {
+                                        onDelete: () async {
+                                          await _repository
+                                              .deleteDayLogQuestion(
+                                                question.id,
+                                              );
                                           setState(() {
                                             daylogQuestions.removeWhere(
                                               (item) => item.id == question.id,
@@ -837,19 +807,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               SizedBox(width: 8),
                               IconButton(
                                 icon: Icon(Icons.check),
-                                onPressed: () {
-                                  {
-                                    setState(() {
-                                      daylogQuestions.add(
-                                        ICategoryItem(
-                                          id: uuid.v4(),
-                                          content:
-                                              '$_newEmoji ${_newQuestionController.text.trim()}',
-                                        ),
-                                      );
-                                      _isAddingNewQuestion = false;
-                                    });
-                                  }
+                                onPressed: () async {
+                                  final newText =
+                                      _newQuestionController.text.trim();
+                                  if (newText.isEmpty) return;
+
+                                  final newItem = await _repository
+                                      .insertDayLogQuestion(newText, _newEmoji);
+                                  setState(() {
+                                    daylogQuestions.add(newItem);
+                                    _isAddingNewQuestion = false;
+                                    _newQuestionController.clear();
+                                  });
                                 },
                               ),
                             ],
@@ -883,8 +852,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       (context) => DeletePopup(
                         onDelete: () async {
                           await DiaryVisibilityHelper.setVisibility(false);
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('isDiaryDeleted', true);
                           Navigator.pop(context, true);
                         },
                         messageHeader: '일기 삭제',
@@ -908,8 +875,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
             SlidableAction(
               onPressed: (_) async {
                 await DiaryVisibilityHelper.setVisibility(true);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('isDiaryDeleted', false);
                 Navigator.pop(context, true);
               },
               padding: EdgeInsets.only(right: 0),
@@ -944,11 +909,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
       ),
     );
-  }
-
-  Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('accessToken');
   }
 
   void _openColorPicker(BuildContext context) {

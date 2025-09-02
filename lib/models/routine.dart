@@ -4,7 +4,7 @@ class Routine {
   final int id;
   String content;
   final ColorType colorType;
-  final DateTime startDate;
+  final DateTime? startDate;
   final DateTime endDate;
   final List<int> daysOfWeek;
   final String? time;
@@ -18,7 +18,7 @@ class Routine {
     required this.id,
     required this.content,
     required this.colorType,
-    required this.startDate,
+    this.startDate,
     required this.endDate,
     required this.daysOfWeek,
     this.time,
@@ -36,17 +36,25 @@ class Routine {
     final routineDate = DateTime.parse(json['date']);
     final weekday = routineDate.weekday;
 
+    DateTime? startDate;
+    if (json.containsKey('startDate') && json['startDate'] != null) {
+      startDate = DateTime.parse(json['startDate']);
+    } else {
+      startDate = DateTime.now();
+    }
+
     return Routine(
       id: json['scheduleId'] ?? 0,
       content: json['content'] ?? '',
       colorType: colorType,
-      startDate: routineDate,
+      startDate: startDate,
       endDate: routineDate,
       daysOfWeek: [weekday],
       time: json['time'] ?? '',
       alarm: json['alarm'] ?? false,
     );
   }
+
 
 
 

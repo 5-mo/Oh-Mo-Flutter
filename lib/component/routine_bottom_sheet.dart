@@ -1,34 +1,39 @@
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/screen/category_screen.dart';
-import 'package:ohmo/services/routine_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../services/category_service.dart';
+import '../models/category_item.dart';
 
 class RoutineBottomSheet extends StatefulWidget {
   final Future<void> Function()? onRoutineAdded;
   final Future<void> Function()? onDataChanged;
 
-  const RoutineBottomSheet({
-    Key? key,
-    this.onRoutineAdded,
-    this.onDataChanged,
-  }) : super(key: key);
+  const RoutineBottomSheet({Key? key, this.onRoutineAdded, this.onDataChanged})
+    : super(key: key);
 
   @override
   State<RoutineBottomSheet> createState() => _RoutineBottomSheetState();
 }
 
-
 class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
-  final RoutineService _routineService = RoutineService();
   List<CategoryItem> routines = [];
   int? selectedCategoryId;
+  List<String> selectedDays = [];
 
   final TextEditingController contentController = TextEditingController();
+  DateTime? selectedEndDate;
+  TimeOfDay? selectedTime;
+  bool isChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
   void toggleDay(String day) {
     setState(() {
@@ -40,10 +45,17 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadCategories();
+  List<String> getRoutineWeek() {
+    Map<String, String> dayMap = {
+      "월": "MONDAY",
+      "화": "TUESDAY",
+      "수": "WEDNESDAY",
+      "목": "THURSDAY",
+      "금": "FRIDAY",
+      "토": "SATURDAY",
+      "일": "SUNDAY",
+    };
+    return selectedDays.map((day) => dayMap[day]!).toList();
   }
 
   @override
@@ -85,66 +97,39 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   }
 
   Widget _buildRepeatDaysSection() {
-    List<String> days = ["월", "화", "수", "목", "금", "토", "일"];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "루틴 반복 요일",
-            style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
-          ),
-          SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children:
-                days.map((day) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: _buildDayButton(day),
-                  );
-                }).toList(),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "루틴 반복 요일",
+          style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
+        ),
+        SizedBox(height: 16),
+        Row(
+          children:
+              weekDays
+                  .map(
+                    (day) => Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: _buildDayButton(day),
+                    ),
+                  )
+                  .toList(),
+        ),
+      ],
     );
   }
 
-  List<String> getRoutineWeek() {
-    Map<String, String> dayMap = {
-      "월": "MONDAY",
-      "화": "TUESDAY",
-      "수": "WEDNESDAY",
-      "목": "THURSDAY",
-      "금": "FRIDAY",
-      "토": "SATURDAY",
-      "일": "SUNDAY",
-    };
-    return selectedDays.map((day) => dayMap[day]!).toList();
-  }
-
-  List<String> selectedDays = [];
-
   Widget _buildDayButton(String day) {
+    final selected = selectedDays.contains(day);
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (selectedDays.contains(day)) {
-            selectedDays.remove(day);
-          } else {
-            selectedDays.add(day);
-          }
-        });
-        print('$day 클릭');
-      },
+      onTap: () => toggleDay(day),
       child: Container(
         width: 32,
         height: 32,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: selectedDays.contains(day) ? Colors.black : Colors.white,
+          color: selected ? Colors.black : Colors.white,
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
           ],
@@ -155,7 +140,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
             style: TextStyle(
               fontSize: 13,
               fontFamily: 'PretendardBold',
-              color: selectedDays.contains(day) ? Colors.white : Colors.black,
+              color: selected ? Colors.white : Colors.black,
             ),
           ),
         ),
@@ -163,46 +148,29 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     );
   }
 
-  bool isChecked = false;
-
   Widget _buildAlarmToggleSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Text(
-                "알람",
-                style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
-              ),
-              Transform.scale(
-                scale: 1,
-                child: CupertinoSwitch(
-                  value: isChecked,
-                  onChanged: (value) {
-                    setState(() {
-                      isChecked = value;
-                    });
-                    print("알람 상태 : $value");
-                  },
-                  activeColor: Colors.black,
-                ),
-              ),
-            ],
+    return Row(
+      children: [
+        Text(
+          "알람",
+          style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+        ),
+        Transform.scale(
+          scale: 1,
+          child: CupertinoSwitch(
+            value: isChecked,
+            onChanged: (value) => setState(() => isChecked = value),
+            activeColor: Colors.black,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-
-  DateTime? selectedEndDate;
 
   Widget _buildRoutineClosingDateButton() {
     return GestureDetector(
       onTap: () async {
-        final DateTime? pickedDate = await showDatePicker(
+        final pickedDate = await showDatePicker(
           context: context,
           initialDate: selectedEndDate ?? DateTime.now(),
           firstDate: DateTime(2000),
@@ -223,18 +191,12 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
             );
           },
         );
-        if (pickedDate != null) {
-          setState(() {
-            selectedEndDate = pickedDate;
-          });
-          print("종료 날짜 선택됨 : ${selectedEndDate!.toLocal()}");
-        }
+        if (pickedDate != null) setState(() => selectedEndDate = pickedDate);
       },
       child: Container(
         width: 195,
         height: 37,
         decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
           boxShadow: [
@@ -242,25 +204,21 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           ],
         ),
         child: Center(
-          child: Center(
-            child: Text(
-              selectedEndDate != null
-                  ? "${selectedEndDate!.year}-${selectedEndDate!.month.toString().padLeft(2, '0')}-${selectedEndDate!.day.toString().padLeft(2, '0')}"
-                  : '종료 날짜 선택',
-              style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
-            ),
+          child: Text(
+            selectedEndDate != null
+                ? "${selectedEndDate!.year}-${selectedEndDate!.month.toString().padLeft(2, '0')}-${selectedEndDate!.day.toString().padLeft(2, '0')}"
+                : '종료 날짜 선택',
+            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
           ),
         ),
       ),
     );
   }
 
-  TimeOfDay? selectedTime;
-
   Widget _buildRoutineTimeButton() {
     return GestureDetector(
       onTap: () async {
-        TimeOfDay? pickedTime = await showTimePicker(
+        final pickedTime = await showTimePicker(
           context: context,
           initialTime: selectedTime ?? TimeOfDay.now(),
           builder: (BuildContext context, Widget? child) {
@@ -284,18 +242,12 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
             );
           },
         );
-
-        if (pickedTime != null) {
-          setState(() {
-            selectedTime = pickedTime;
-          });
-        }
+        if (pickedTime != null) setState(() => selectedTime = pickedTime);
       },
       child: Container(
         width: 195,
         height: 37,
         decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
           boxShadow: [
@@ -303,11 +255,9 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           ],
         ),
         child: Center(
-          child: Center(
-            child: Text(
-              selectedTime != null ? selectedTime!.format(context) : '시간 선택',
-              style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
-            ),
+          child: Text(
+            selectedTime != null ? selectedTime!.format(context) : '시간 선택',
+            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
           ),
         ),
       ),
@@ -315,54 +265,42 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   }
 
   Widget _buildCategorySelectionSection() {
-    final hasCategories = routines.isNotEmpty;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "카테고리",
-            style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
-          ),
-          SizedBox(height: 16),
-
-          if (!hasCategories) ...[
-            Center(
-              child: Text(
-                "루틴 카테고리를 설정해볼까요?",
-                style: TextStyle(
-                  fontSize: 10,
-                  fontFamily: 'PretendardSemiBold',
-                  color: DARK_GREY_COLOR,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "카테고리",
+          style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
+        ),
+        SizedBox(height: 16),
+        if (routines.isEmpty)
+          Center(
+            child: Text(
+              "루틴 카테고리를 설정해볼까요?",
+              style: TextStyle(
+                fontSize: 10,
+                fontFamily: 'PretendardSemiBold',
+                color: DARK_GREY_COLOR,
               ),
             ),
-            SizedBox(height: 16),
-          ] else ...[
-            _buildCategoryChoiceChips(),
-            SizedBox(height: 16),
-          ],
-          Center(child: _buildCategoryButton()),
-          SizedBox(height: 16),
-        ],
-      ),
+          )
+        else
+          _buildCategoryChoiceChips(),
+        SizedBox(height: 16),
+        Center(child: _buildCategoryButton()),
+      ],
     );
   }
 
   Widget _buildCategoryChoiceChips() {
     return SingleChildScrollView(
-      clipBehavior: Clip.none,
       scrollDirection: Axis.horizontal,
       child: Row(
         children:
             routines.map((category) {
               final isSelected = category.id == selectedCategoryId;
-
               final colorString = category.colorType ?? 'pinkLight';
               late Color circleColor;
-
               try {
                 final ColorType colorType = ColorTypeExtension.fromString(
                   colorString,
@@ -370,17 +308,11 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
                 circleColor = ColorManager.getColor(colorType);
               } catch (e) {
                 circleColor = Colors.grey;
-                print('Invalid color type: $colorString');
               }
               return Padding(
-                padding: const EdgeInsets.only(right: 4.0,left: 4.0),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(15),
-                  onTap: () {
-                    setState(() {
-                      selectedCategoryId = category.id;
-                    });
-                  },
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: GestureDetector(
+                  onTap: () => setState(() => selectedCategoryId = category.id),
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
@@ -434,15 +366,16 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => CategoryScreen()),
+          MaterialPageRoute(builder: (_) => CategoryScreen()),
         ).then((_) => _loadCategories());
+        if (widget.onDataChanged != null) {
+          widget.onDataChanged!();
+        }
       },
       child: Container(
         width: 97,
         height: 18,
-        clipBehavior: Clip.none,
         decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
@@ -450,11 +383,9 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           ],
         ),
         child: Center(
-          child: Center(
-            child: Text(
-              '카테고리 추가하기',
-              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
-            ),
+          child: Text(
+            '카테고리 추가하기',
+            style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
           ),
         ),
       ),
@@ -462,48 +393,31 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   }
 
   Widget _buildContentInputSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "내용",
-            style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
-          ),
-          SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Container(
-                  width: 320,
-                  height: 41,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: TextField(
-                      controller: contentController,
-                      decoration: InputDecoration(border: InputBorder.none),
-                    ),
-                  ),
-                ),
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "내용",
+          style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
+        ),
+        SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          height: 41,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
             ],
           ),
-        ],
-      ),
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: TextField(
+            controller: contentController,
+            decoration: InputDecoration(border: InputBorder.none),
+          ),
+        ),
+      ],
     );
   }
 
@@ -513,7 +427,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
         if (selectedEndDate == null ||
             selectedTime == null ||
             contentController.text.isEmpty ||
-            selectedDays.isEmpty||
+            selectedDays.isEmpty ||
             selectedCategoryId == null) {
           ScaffoldMessenger.of(
             context,
@@ -521,34 +435,58 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           return;
         }
         try {
-          final success = await _routineService.registerRoutine(
-            categoryId: selectedCategoryId!,
-            time: formatTime(selectedTime!),
-            alarm: isChecked,
-            content: contentController.text,
-            endDate:
-                "${selectedEndDate!.year}-${selectedEndDate!.month.toString().padLeft(2, '0')}-${selectedEndDate!.day.toString().padLeft(2, '0')}",
-            routineWeek: getRoutineWeek(),
+          final db = LocalDatabase();
+
+          final selectedCategory = routines.firstWhere(
+            (c) => c.id == selectedCategoryId,
           );
 
-          if (success) {
-            await widget.onRoutineAdded?.call();
-
-            await widget.onDataChanged?.call();
-
-            Navigator.pop(context, true);
-
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("루틴 등록 완료!")));
+          int colorIndex = 0;
+          if (selectedCategory.colorType != null) {
+            try {
+              colorIndex =
+                  ColorTypeExtension.fromString(
+                    selectedCategory.colorType!,
+                  ).index;
+            } catch (_) {}
           }
-        } catch (e) {
-          print('루틴 등록 중 예외 발생:$e');
+
+          final minutes = selectedTime!.hour * 60 + selectedTime!.minute;
+          final weekString = getRoutineWeek().join(',');
+
+          final startDate = DateTime.now();
+
+          final id = await db.insertRoutine(
+            RoutinesCompanion.insert(
+              content: contentController.text,
+              colorType: drift.Value(colorIndex),
+              isDone: drift.Value(false),
+              startDate: drift.Value(startDate),
+              endDate: drift.Value(selectedEndDate!),
+              timeMinutes: drift.Value(minutes),
+              weekDays: drift.Value(weekString),
+              categoryId: drift.Value(selectedCategoryId!),
+            ),
+          );
+
+          print('새 루틴 ID: $id');
+
+          if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+          if (widget.onDataChanged != null) await widget.onDataChanged!();
+
+          Navigator.of(context).pop();
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text("서버와 통신 중 오류가 발생했습니다.")));
+          ).showSnackBar(SnackBar(content: Text("루틴 등록 완료!")));
+        } catch (e) {
+          print('루틴 저장 실패: $e');
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('루틴 저장 실패')));
         }
       },
       child: Container(
-        width: 334,
+        width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
           color: Colors.black,
@@ -568,32 +506,21 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     );
   }
 
-  String formatTime(TimeOfDay timeOfDay) {
-    final hour = timeOfDay.hour.toString().padLeft(2, '0');
-    final minute = timeOfDay.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-
   void _loadCategories() async {
     try {
-      final accessToken = await getAccessToken();
-      if (accessToken == null) return;
+      final localDb = LocalDatabase();
+      final categoryRepo = LocalCategoryRepository(localDb);
 
-      final fetched = await CategoryService.fetchCategories(
+      final loadedRoutines = await categoryRepo.fetchCategories(
         scheduleType: 'ROUTINE',
-        accessToken: accessToken,
       );
 
       setState(() {
-        routines = fetched;
+        routines = loadedRoutines;
+        if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
       });
     } catch (e) {
       print('카테고리 로드 실패: $e');
     }
-  }
-
-  Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('accessToken');
   }
 }
