@@ -8,13 +8,9 @@ import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
 import 'package:ohmo/shared_data.dart';
-import 'package:ohmo/temporary_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../customize_category.dart';
-import '../models/CompletedRoutine.dart';
 import '../models/todo.dart';
-import '../services/todo_service.dart';
+import '../db/drift_database.dart' as db;
 
 class DaylogScreen extends StatefulWidget {
   final String? date;
@@ -42,8 +38,8 @@ class DaylogScreen extends StatefulWidget {
 class _DaylogScreenState extends State<DaylogScreen> {
   bool isPressed = false;
   String? selectedQuestion;
-  String? answer='';
-  String? diary='';
+  String? answer = '';
+  String? diary = '';
 
   late DateTime _focusedDay;
   bool _happyActive = false;
@@ -63,17 +59,19 @@ class _DaylogScreenState extends State<DaylogScreen> {
   late TextEditingController _answerController;
   late TextEditingController _diaryController;
 
+  List<Routine> weeklyRoutines = [];
+
   @override
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      logWeeklyData(DateTime.now());
+    });
+
     _focusedDay = widget.selectedDateNotifier.value;
-
-
     _answerController = TextEditingController();
     _diaryController = TextEditingController();
-
-    _loadSavedData();
 
     routines = widget.routines;
     todos = widget.todos;
@@ -82,8 +80,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
     _loadTodoDeletionStatus();
     _loadQuestionDeletionStatus();
     _loadDiaryDeletionStatus();
-
-    _filterRoutinesByDate(_focusedDay);
 
     if (widget.showTodoSheet) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -107,12 +103,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
       if (_focusedDay != widget.selectedDateNotifier.value) {
         setState(() {
           _focusedDay = widget.selectedDateNotifier.value;
-          _filterRoutinesByDate(_focusedDay);
         });
       }
     });
-    _loadRoutines();
-    _loadTodos();
   }
 
   @override
@@ -122,25 +115,131 @@ class _DaylogScreenState extends State<DaylogScreen> {
     super.dispose();
   }
 
-  Future<void> _loadSavedData() async {
-    final dateStr = DateFormat('yyyy-MM-dd').format(_focusedDay);
-    final loadedAnswer = await LocalStorage.loadAnswer(dateStr);
-    final loadedDiary = await LocalStorage.loadDiary(dateStr);
+  Future<void> logWeeklyData(DateTime date) async {
+    final year = date.year;
+    final month = date.month;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final weekday = date.weekday;
+    final weekStartDay = max(date.day - (weekday - 1), 1);
+    final weekEndDay = min(weekStartDay + 6, daysInMonth);
 
-    setState(() {
-      answer = loadedAnswer;
-      diary = loadedDiary;
-      _answerController.text = answer!;
-      _diaryController.text = diary!;
-    });
+    List<Routine> fetchedWeeklyRoutines = [];
+
+    for (int day = weekStartDay; day <= weekEndDay; day++) {
+      final currentDate = DateTime(year, month, day);
+
+      final dailyRoutines = await fetchRoutines(currentDate);
+      final visibleRoutines = dailyRoutines
+          .where((r) => isRoutineVisibleOnDate(r, currentDate))
+          .toList();
+
+      fetchedWeeklyRoutines.addAll(visibleRoutines);
+    }
+
+    if (mounted) {
+      setState(() {
+        weeklyRoutines = fetchedWeeklyRoutines;
+      });
+    }
   }
 
-  void _saveData() async {
-    final dateStr = DateFormat('yyyy-MM-dd').format(_focusedDay);
-    await LocalStorage.saveAnswer(dateStr, _answerController.text);
-    await LocalStorage.saveDiary(dateStr, _diaryController.text);
+  List<Map<String, int>> countRoutines(List<String> routines) {
+    final Map<String, int> counter = {};
+    for (var r in routines) {
+      counter[r] = (counter[r] ?? 0) + 1;
+    }
+    return counter.entries.map((e) => {e.key: e.value}).toList();
   }
 
+  bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
+    final dateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    final start = DateTime(
+      routine.startDate!.year,
+      routine.startDate!.month,
+      routine.startDate!.day,
+    );
+    final end = DateTime(
+      routine.endDate.year,
+      routine.endDate.month,
+      routine.endDate.day,
+    );
+    return !dateOnly.isBefore(start) &&
+        !dateOnly.isAfter(end) &&
+        routine.daysOfWeek.contains(dateOnly.weekday);
+  }
+
+  Future<List<Routine>> fetchRoutines(DateTime date) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final allRoutines = await database.getAllRoutines();
+    final completedIds = await database.getCompletedRoutineIds(date);
+
+    return allRoutines.map((r) {
+      return Routine(
+        id: r.id,
+        content: r.content,
+        colorType: ColorType.values[r.colorType],
+        isDone: completedIds.contains(r.id),
+        startDate: r.startDate ?? DateTime.now(),
+        endDate: r.endDate ?? DateTime.now(),
+        daysOfWeek: parseWeekDays(r.weekDays),
+        time: convertMinutesToTime(r.timeMinutes),
+        alarm: false,
+      );
+    }).toList();
+  }
+
+  Future<List<Todo>> fetchTodos(DateTime date) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final fetched = await database.getAllTodos();
+    return fetched.map((t) {
+      return Todo(
+        id: t.id,
+        content: t.content,
+        Date: t.date,
+        colorType: ColorType.values[t.colorType],
+        isDone: t.isDone,
+        alarm: false,
+      );
+    }).toList();
+  }
+
+  List<int> parseWeekDays(String? weekDaysStr) {
+    if (weekDaysStr == null || weekDaysStr.isEmpty) return [];
+
+    const dayMap = {
+      'MONDAY': 1,
+      'TUESDAY': 2,
+      'WEDNESDAY': 3,
+      'THURSDAY': 4,
+      'FRIDAY': 5,
+      'SATURDAY': 6,
+      'SUNDAY': 7,
+    };
+
+    try {
+      return weekDaysStr.split(',').map((e) {
+        final trimmed = e.trim();
+        final asInt = int.tryParse(trimmed);
+        if (asInt != null) {
+          return asInt;
+        }
+        return dayMap[trimmed.toUpperCase()] ?? 0;
+      }).where((e) => e != 0).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  String? convertMinutesToTime(int? minutes) {
+    if (minutes == null) return null;
+    final h = (minutes ~/ 60).toString().padLeft(2, '0');
+    final m = (minutes % 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
 
   Future<void> _loadRoutineDeletionStatus() async {
     final visible = await RoutineVisibilityHelper.getVisibility();
@@ -174,88 +273,28 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
   }
 
-  Future<void> _loadRoutines() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
-
-    // ✅ 주차 범위 계산
-    final now = _focusedDay;
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final endOfWeek = startOfWeek.add(Duration(days: 6));
-
-
-    setState(() {
-      _filterRoutinesByDate(_focusedDay); // 당일 필터링은 유지
-    });
-  }
-
-  void _filterRoutinesByDate(DateTime date) {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    filteredRoutines =
-        routines.where((routine) {
-          final startOnly = DateTime(
-            routine.endDate.year,
-            routine.endDate.month,
-            routine.endDate.day,
-          );
-          final endOnly = DateTime(
-            routine.endDate.year,
-            routine.endDate.month,
-            routine.endDate.day,
-          );
-          final isInRange =
-              !dateOnly.isBefore(startOnly) && !dateOnly.isAfter(endOnly);
-          final isOnWeekday = routine.daysOfWeek.contains(dateOnly.weekday);
-
-          return isInRange && isOnWeekday;
-        }).toList();
-  }
-
-  Future<void> _loadTodos() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
-    final service = TodoService();
-    final result = await service.getTodos(_focusedDay, token);
-
-    setState(() {
-      todos = result;
-      _filterTodosByDate(_focusedDay);
-    });
-  }
-
-  void _filterTodosByDate(DateTime date) {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    filteredTodos =
-        todos.where((todo) {
-          final todoDateOnly = DateTime(
-            todo.Date.year,
-            todo.Date.month,
-            todo.Date.day,
-          );
-          return todoDateOnly == dateOnly && todo.isDone == true;
-        }).toList();
-  }
-
   void _onLeftChevronPressed() async {
+    final newDate = _focusedDay.subtract(Duration(days: 1));
+    _resetIconState();
+
     setState(() {
-      _focusedDay = _focusedDay.subtract(Duration(days: 1));
-      _resetIconState();
+      _focusedDay = newDate;
+      widget.selectedDateNotifier.value = newDate;
     });
-    await _loadRoutines();
-    await _loadTodos();
-    await _loadSavedData();
+
+    await logWeeklyData(newDate);
   }
 
   void _onRightChevronPressed() async {
-    setState(() async {
-      _focusedDay = _focusedDay.add(Duration(days: 1));
-      _resetIconState();
-      await _loadSavedData();
+    final newDate = _focusedDay.add(Duration(days: 1));
+    _resetIconState();
+
+    setState(() {
+      _focusedDay = newDate;
+      widget.selectedDateNotifier.value = newDate;
     });
-    await _loadRoutines();
-    await _loadTodos();
+
+    await logWeeklyData(newDate);
   }
 
   void _resetIconState() {
@@ -282,47 +321,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
   }
 
-  void updateRoutineProgress(
-    List<Routine> routines,
-    List<CompletedRoutine> completedRoutineList,
-  ) {
-    final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final endOfWeek = startOfWeek.add(Duration(days: 6));
-
-    for (var routine in routines) {
-      int total = 0;
-      int done = 0;
-
-      for (int i = 0; i < 7; i++) {
-        final date = startOfWeek.add(Duration(days: i));
-        if (routine.daysOfWeek.contains(date.weekday)) {
-          total++;
-
-          final isCompleted = completedRoutineList.any(
-            (completed) =>
-                completed.routineId == routine.id &&
-                completed.date.year == date.year &&
-                completed.date.month == date.month &&
-                completed.date.day == date.day,
-          );
-
-          if (isCompleted) {
-            done++;
-          }
-        }
-      }
-
-      routine.totalDaysThisWeek = total;
-      routine.completedDays = done;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        FocusScope.of(context).unfocus(); // 키보드 내리기
+        FocusScope.of(context).unfocus();
       },
       child: Scaffold(
         body: SafeArea(
@@ -465,11 +468,21 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildRoutineSection() {
+
+    final Map<String, List<Routine>> groupedRoutines = {};
+
+    for (var routine in weeklyRoutines) {
+      if (groupedRoutines.containsKey(routine.content)) {
+        groupedRoutines[routine.content]!.add(routine);
+      } else {
+        groupedRoutines[routine.content] = [routine];
+      }
+    }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0.0),
+      padding: EdgeInsets.symmetric(horizontal: 33.0),
       child: Column(
         children: [
-          if (routines.isEmpty) ...[
+          if (groupedRoutines.isEmpty) ...[
             Center(
               child: Text(
                 "이번 주 루틴 현황을 보여드립니다.",
@@ -490,79 +503,73 @@ class _DaylogScreenState extends State<DaylogScreen> {
               ],
             ),
           ] else ...[
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: filteredRoutines.length,
-              itemBuilder: (context, index) {
-                final routine = filteredRoutines[index];
-                print(
-                  "DaylogScreen initState routines length: ${routines.length}",
-                );
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 3.0,
-                    horizontal: 5.0,
-                  ),
-                  child: Container(
-                    padding: EdgeInsets.all(6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(width: 5),
-                        Text(
-                          "      •",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            routine.content,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'PretendardRegular',
-                            ),
-                          ),
-                        ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: groupedRoutines.entries.map((entry) {
+                final routineContent = entry.key;
+                final routineInstances = entry.value;
 
-                        Container(
-                          width: 60,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(3),
-                            color: Colors.grey[300],
+                final totalCount = routineInstances.length;
+                final completedCount =
+                    routineInstances.where((r) => r.isDone).length;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        " • ",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          routineContent,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'PretendardRegular',
                           ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor:
-                                routine.daysOfWeek.isEmpty
-                                    ? 0.0
-                                    : routine.completedDays /
-                                        routine.daysOfWeek.length,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(3),
-                                color: Colors.black,
-                              ),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(
+                          totalCount,
+                              (index) => Container(
+                            width: 25,
+                            height: 6,
+                            margin: EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(
+                              color: index < completedCount
+                                  ? Colors.black
+                                  : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(5),
                             ),
                           ),
                         ),
-                        SizedBox(width: 6),
-                        Text(
-                          "${routine.completedDays}/${routine.totalDaysThisWeek}",
+                      ),
+                      Spacer(),
+                      Container(
+                        width: 40,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          "$completedCount/$totalCount",
                           style: TextStyle(
-                            fontSize: 14,
                             fontFamily: 'RubikSprayPaint',
+                            fontSize: 14.0,
+                            color: Colors.black,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
-              },
+              }).toList(),
             ),
           ],
         ],
@@ -758,8 +765,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Widget _buildProgressSection() {
     int daysInMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0).day;
 
-    // 랜덤으로 칠할 사각형 개수
-    int blackSquaresCount = 5; // 예: 5개
+    int blackSquaresCount = 5;
 
     int seed = int.parse(DateFormat('yyyyMMdd').format(_focusedDay));
     final random = Random(seed);
@@ -1003,10 +1009,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Widget _buildDaylogSaveButton() {
     return GestureDetector(
       onTap: () {
-        _saveData();
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('데이로그가 저장되었습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('데이로그가 저장되었습니다.')));
       },
       child: Container(
         width: 334,

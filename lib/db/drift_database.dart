@@ -17,12 +17,14 @@ LazyDatabase _openConnection() {
 }
 
 // ------------------ Drift Database ------------------
-@DriftDatabase(tables: [Categories, DayLogQuestions, Routines, Todos])
+@DriftDatabase(
+  tables: [Categories, DayLogQuestions, Routines, Todos, CompletedRoutines],
+)
 class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -116,6 +118,58 @@ class LocalDatabase extends _$LocalDatabase {
 
   Future<int> deleteRoutine(int id) =>
       (delete(routines)..where((t) => t.id.equals(id))).go();
+
+  Future<int> insertCompletedRoutine(CompletedRoutinesCompanion entry) =>
+      into(completedRoutines).insert(entry);
+
+  Future<int> deleteCompletedRoutineByRoutineAndDate(
+    int routineId,
+    DateTime date,
+  ) {
+    final d = DateTime(date.year, date.month, date.day);
+    return (delete(completedRoutines)
+      ..where((c) => c.routineId.equals(routineId) & c.date.equals(d))).go();
+  }
+
+  Future<List<CompletedRoutine>> getCompletedRoutinesBetween(
+    DateTime start,
+    DateTime end,
+  ) {
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    return (select(completedRoutines)
+      ..where((c) => c.date.isBetweenValues(s, e))).get();
+  }
+
+  Future<void> toggleRoutineCompletion(int routineId, DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    final existing = await (select(completedRoutines)
+      ..where((c) => c.routineId.equals(routineId) & c.date.equals(dateOnly)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      // 이미 체크되어 있으면 삭제
+      await deleteCompletedRoutineByRoutineAndDate(routineId, date);
+    } else {
+      // 체크 추가
+      await insertCompletedRoutine(
+        CompletedRoutinesCompanion(
+          routineId: Value(routineId),
+          date: Value(dateOnly),
+        ),
+      );
+    }
+  }
+
+  Future<List<int>> getCompletedRoutineIds(DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final list = await (select(completedRoutines)
+      ..where((c) => c.date.equals(dateOnly)))
+        .get();
+    return list.map((c) => c.routineId).toList();
+  }
+
 
   // ------------------ Todo ------------------
   Future<int> insertTodo(TodosCompanion entry) => into(todos).insert(entry);

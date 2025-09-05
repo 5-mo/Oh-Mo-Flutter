@@ -38,3 +38,9 @@ class Todos extends Table {
 
   DateTimeColumn get date => dateTime()();
 }
+
+class CompletedRoutines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get routineId => integer()();
+  DateTimeColumn get date => dateTime()();
+}

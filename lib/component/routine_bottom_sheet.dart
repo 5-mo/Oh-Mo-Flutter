@@ -46,16 +46,17 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   }
 
   List<String> getRoutineWeek() {
-    Map<String, String> dayMap = {
-      "월": "MONDAY",
-      "화": "TUESDAY",
-      "수": "WEDNESDAY",
-      "목": "THURSDAY",
-      "금": "FRIDAY",
-      "토": "SATURDAY",
-      "일": "SUNDAY",
+    Map<String, int> dayMap = {
+      "월": 1,
+      "화": 2,
+      "수": 3,
+      "목": 4,
+      "금": 5,
+      "토": 6,
+      "일": 7,
     };
-    return selectedDays.map((day) => dayMap[day]!).toList();
+    final weekNumbers = selectedDays.map((d) => dayMap[d]!.toString()).toList();
+    return weekNumbers;
   }
 
   @override
