@@ -11,6 +11,7 @@ import 'package:ohmo/shared_data.dart';
 import '../customize_category.dart';
 import '../models/todo.dart';
 import '../db/drift_database.dart' as db;
+import 'home_screen.dart';
 
 class DaylogScreen extends StatefulWidget {
   final String? date;
@@ -65,11 +66,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
   void initState() {
     super.initState();
 
+    _focusedDay = widget.selectedDateNotifier.value;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logWeeklyData(_focusedDay);
     });
 
-    _focusedDay = widget.selectedDateNotifier.value;
     _answerController = TextEditingController();
     _diaryController = TextEditingController();
 
@@ -155,9 +157,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
       final dailyRoutines = await fetchRoutines(currentDate);
       final visibleRoutines =
-          dailyRoutines
-              .where((r) => isRoutineVisibleOnDate(r, currentDate))
-              .toList();
+      dailyRoutines
+          .where((r) => isRoutineVisibleOnDate(r, currentDate))
+          .toList();
 
       fetchedWeeklyRoutines.addAll(visibleRoutines);
     }
@@ -250,13 +252,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
       return weekDaysStr
           .split(',')
           .map((e) {
-            final trimmed = e.trim();
-            final asInt = int.tryParse(trimmed);
-            if (asInt != null) {
-              return asInt;
-            }
-            return dayMap[trimmed.toUpperCase()] ?? 0;
-          })
+        final trimmed = e.trim();
+        final asInt = int.tryParse(trimmed);
+        if (asInt != null) {
+          return asInt;
+        }
+        return dayMap[trimmed.toUpperCase()] ?? 0;
+      })
           .where((e) => e != 0)
           .toList();
     } catch (e) {
@@ -368,7 +370,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
                 if (!_hideRoutineUI) _buildRoutineBanner(),
                 if (!_hideTodoUI) SizedBox(height: 13),
                 if (!_hideRoutineUI) _buildRoutineSection(),
-                if (!_hideTodoUI) SizedBox(height: 10),
+                if (!_hideTodoUI) SizedBox(height: 15),
                 if (!_hideTodoUI) _buildDoneBanner(),
                 if (!_hideTodoUI) _buildDoneSection(),
                 if (!_hideTodoUI) _buildProgressBanner(),
@@ -543,71 +545,71 @@ class _DaylogScreenState extends State<DaylogScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children:
               todaysRoutineEntries.map((entry) {
-                    final routineContent = entry.key;
-                    final routineInstances = groupedRoutines[routineContent]!;
+                final routineContent = entry.key;
+                final routineInstances = groupedRoutines[routineContent]!;
 
-                    final totalCount = routineInstances.length;
-                    final completedCount =
-                        routineInstances.where((r) => r.isDone).length;
+                final totalCount = routineInstances.length;
+                final completedCount =
+                    routineInstances.where((r) => r.isDone).length;
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            " • ",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              routineContent,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'PretendardRegular',
-                              ),
-                            ),
-                          ),
-                          SizedBox(width:3 ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(
-                              totalCount,
-                              (index) => Container(
-                                width: 20,
-                                height: 4,
-                                margin: EdgeInsets.symmetric(horizontal: 1),
-                                decoration: BoxDecoration(
-                                  color:
-                                      index < completedCount
-                                          ? Colors.black
-                                          : Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                              ),
-                            ),
-                          ),
-                       SizedBox(width: 20.0),
-                          Container(
-                            width: 40,
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              "$completedCount/$totalCount",
-                              style: TextStyle(
-                                fontFamily: 'RubikSprayPaint',
-                                fontSize: 14.0,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ],
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        " • ",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
-                    );
-                  }).toList(),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          routineContent,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'PretendardRegular',
+                          ),
+                        ),
+                      ),
+                      SizedBox(width:3 ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(
+                          totalCount,
+                              (index) => Container(
+                            width: 20,
+                            height: 4,
+                            margin: EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(
+                              color:
+                              index < completedCount
+                                  ? Colors.black
+                                  : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 20.0),
+                      Container(
+                        width: 40,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          "$completedCount/$totalCount",
+                          style: TextStyle(
+                            fontFamily: 'RubikSprayPaint',
+                            fontSize: 14.0,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
 
             ),
             SizedBox(height: 16),
@@ -697,13 +699,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
             ),
             SizedBox(height: 16),
             Center(child: _buildTodoButton()),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(width: 320, child: Divider(color: Colors.grey)),
-              ],
-            ),
           ] else ...[
             GridView.builder(
               shrinkWrap: true,
@@ -737,14 +732,28 @@ class _DaylogScreenState extends State<DaylogScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+
                   ],
+
                 );
+
               },
+
             ),
           ],
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(width: 320, child: Divider(color: Colors.grey)),
+            ],
+          ),
         ],
+
       ),
+
     );
+
   }
 
   Widget _buildTodoButton() {
@@ -803,54 +812,139 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
-  Widget _buildProgressSection() {
-    int daysInMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0).day;
+  Future<Map<int, double>> _calculateMonthlyProgress() async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final allTodosFromDb = await database.getAllTodos();
 
-    int blackSquaresCount = 5;
+    final Map<int, double> progressMap = {};
+    final year = _focusedDay.year;
+    final month = _focusedDay.month;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
 
-    int seed = int.parse(DateFormat('yyyyMMdd').format(_focusedDay));
-    final random = Random(seed);
-    final blackIndices = <int>{};
-    while (blackIndices.length < blackSquaresCount) {
-      blackIndices.add(random.nextInt(daysInMonth));
+    for (int day = 1; day <= daysInMonth; day++) {
+      final todosForDay = allTodosFromDb.where((todo) {
+        return todo.date.year == year &&
+            todo.date.month == month &&
+            todo.date.day == day;
+      }).toList();
+
+      if (todosForDay.isEmpty) {
+        progressMap[day] = -1.0;
+      } else {
+        final completedCount = todosForDay.where((todo) => todo.isDone).length;
+        final totalCount = todosForDay.length;
+        final percentage = (completedCount / totalCount) * 100.0;
+        progressMap[day] = percentage;
+      }
     }
+    return progressMap;
+  }
 
+  Color _getColorForPercentage(double? percentage) {
+    if (percentage == null || percentage <= 20) {
+      return Colors.white;
+    } else if (percentage < 60) {
+      return Colors.grey[300]!;
+    } else if (percentage < 80) {
+      return Colors.grey[500]!;
+    } else if (percentage < 100) {
+      return Colors.grey[700]!;
+    } else {
+      return Colors.black;
+    }
+  }
+
+
+  Widget _buildProgressSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 40.0),
-      child: Container(
-        constraints: BoxConstraints(maxHeight: 200),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 11,
-            crossAxisSpacing: 4.0,
-            mainAxisSpacing: 4.0,
-            childAspectRatio: 1.0,
-          ),
-          itemCount: daysInMonth,
-          itemBuilder: (context, index) {
-            final isBlack = blackIndices.contains(index);
+      child: FutureBuilder<Map<int, double>>(
+        future: _calculateMonthlyProgress(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return Container(
-              decoration: BoxDecoration(
-                color: isBlack ? Colors.black : Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 2,
-                  ),
-                ],
-              ),
-              alignment: Alignment.center,
+                height: 150,
+                child: Center(child: CircularProgressIndicator())
             );
-          },
-        ),
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('진행률을 불러오는 데 실패했습니다.'));
+          }
+          if (snapshot.hasData) {
+            final progressMap = snapshot.data!;
+            final bool hasTodosThisMonth = progressMap.values.any((progress) => progress >= 0);
+
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  constraints: BoxConstraints(maxHeight: 200),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 11,
+                      crossAxisSpacing: 4.0,
+                      mainAxisSpacing: 4.0,
+                      childAspectRatio: 1.0,
+                    ),
+                    itemCount: progressMap.length,
+                    itemBuilder: (context, index) {
+                      final day = index + 1;
+                      final percentage = progressMap[day];
+                      final color = _getColorForPercentage(percentage);
+
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                      );
+                    },
+                  ),
+                ),
+                if (!hasTodosThisMonth)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "이번 달 to-do 달성률을 보여드립니다.\n퍼센트에 따라 색깔을 달리 표현합니다.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontFamily: 'PretendardSemiBold',
+                              color: DARK_GREY_COLOR,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          _buildCalendarButton(),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }
+          return SizedBox.shrink();
+        },
       ),
     );
   }
 
-  /*Widget _buildCalendarButton() {
+  Widget _buildCalendarButton() {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -870,18 +964,16 @@ class _DaylogScreenState extends State<DaylogScreen> {
           ],
         ),
         child: Center(
-          child: Center(
-            child: Text(
-              '캘린더 보러 가기',
-              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
-            ),
+          child: Text(
+            '캘린더 보러 가기',
+            style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
           ),
         ),
       ),
     );
   }
 
-   */
+
 
   Widget _buildQuestionBanner() {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
@@ -908,7 +1000,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         child: Row(
           children: [
             ...daylogQuestions.map(
-              (q) => Row(children: [_buildQuestionButton(q.content)]),
+                  (q) => Row(children: [_buildQuestionButton(q.content)]),
             ),
           ],
         ),
@@ -1075,3 +1167,4 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 }
+
