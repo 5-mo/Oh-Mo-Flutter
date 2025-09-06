@@ -44,3 +44,9 @@ class CompletedRoutines extends Table {
   IntColumn get routineId => integer()();
   DateTimeColumn get date => dateTime()();
 }
+
+class CompletedTodos extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get todoId => integer()();
+  DateTimeColumn get date => dateTime()();
+}

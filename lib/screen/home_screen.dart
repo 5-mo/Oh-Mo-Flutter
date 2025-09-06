@@ -91,7 +91,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Todo>> fetchTodos(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final fetched = await database.getAllTodos();
+    final fetched = await database.getTodosByDate(date);
+    final completedIds = await database.getCompletedTodoIds(date);
+
     return fetched.map((t) {
       return Todo(
         id: t.id,
@@ -229,16 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onDateChanged(DateTime newDate) async {
     _selectedDateNotifier.value = newDate;
-
-    final allRoutines = await fetchRoutines(newDate);
-
-    final filteredRoutines =
-        allRoutines.where((r) => isRoutineVisibleOnDate(r, newDate)).toList();
-    _routinesNotifier.value = filteredRoutines;
-
-    if (mounted) {
-      setState(() {});
-    }
+    await _loadDataForDate(newDate);
   }
 
   @override
@@ -441,10 +434,14 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                             widget.onDataChanged?.call();
                                           },
                                           onStatusChanged: () async {
-                                            setState(
-                                              () => todo.isDone = !todo.isDone,
-                                            );
-                                            await _saveTodoStatus(todos);
+                                            await db
+                                                .LocalDatabaseSingleton
+                                                .instance
+                                                .toggleTodoCompletion(
+                                                  todo.id,
+                                                  selectedDate,
+                                                );
+
                                             widget.onDataChanged?.call();
                                           },
                                         ),
@@ -463,12 +460,5 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
         },
       ),
     );
-  }
-
-  Future<void> _saveTodoStatus(List<Todo> todos) async {
-    final prefs = await SharedPreferences.getInstance();
-    final completed =
-        todos.where((t) => t.isDone).map((t) => t.id.toString()).toList();
-    await prefs.setStringList('completedTodoIds', completed);
   }
 }

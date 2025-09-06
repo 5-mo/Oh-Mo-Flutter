@@ -18,13 +18,13 @@ LazyDatabase _openConnection() {
 
 // ------------------ Drift Database ------------------
 @DriftDatabase(
-  tables: [Categories, DayLogQuestions, Routines, Todos, CompletedRoutines],
+  tables: [Categories, DayLogQuestions, Routines, Todos, CompletedRoutines, CompletedTodos],
 )
 class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -32,8 +32,11 @@ class LocalDatabase extends _$LocalDatabase {
       await m.createAll();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      if (from == 1) {
+      if (from < 2) {
         await m.addColumn(routines, routines.scheduleType);
+      }
+      if (from < 5) {
+        await m.createTable(completedTodos);
       }
     },
   );
@@ -149,10 +152,8 @@ class LocalDatabase extends _$LocalDatabase {
         .getSingleOrNull();
 
     if (existing != null) {
-      // 이미 체크되어 있으면 삭제
       await deleteCompletedRoutineByRoutineAndDate(routineId, date);
     } else {
-      // 체크 추가
       await insertCompletedRoutine(
         CompletedRoutinesCompanion(
           routineId: Value(routineId),
@@ -182,14 +183,6 @@ class LocalDatabase extends _$LocalDatabase {
     return (update(todos)..where((t) => t.id.equals(id))).write(entry);
   }
 
-  Future<void> toggleTodoStatus(int id) async {
-    final existing =
-        await (select(todos)..where((t) => t.id.equals(id))).getSingle();
-    await (update(todos)..where(
-      (t) => t.id.equals(id),
-    )).write(TodosCompanion(isDone: Value(!existing.isDone)));
-  }
-
   Future<List<Todo>> getAllTodos({String scheduleType = 'TO_DO'}) {
     return (select(todos)
       ..where((t) => t.scheduleType.equals(scheduleType))).get();
@@ -209,6 +202,42 @@ class LocalDatabase extends _$LocalDatabase {
 
     return (select(todos)
       ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))).get();
+  }
+
+
+  Future<void> toggleTodoStatus(int id) async {
+    final existing =
+    await (select(todos)..where((t) => t.id.equals(id))).getSingle();
+    await (update(todos)..where(
+          (t) => t.id.equals(id),
+    )).write(TodosCompanion(isDone: Value(!existing.isDone)));
+  }
+
+  Future<void> toggleTodoCompletion(int todoId, DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    final existing = await (select(completedTodos)
+      ..where((c) => c.todoId.equals(todoId) & c.date.equals(dateOnly)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (delete(completedTodos)..where((c) => c.id.equals(existing.id))).go();
+    } else {
+      await into(completedTodos).insert(
+        CompletedTodosCompanion(
+          todoId: Value(todoId),
+          date: Value(dateOnly),
+        ),
+      );
+    }
+  }
+
+  // 특정 날짜에 완료된 투두 ID 목록을 가져오는 함수
+  Future<List<int>> getCompletedTodoIds(DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final list =
+    await (select(completedTodos)..where((c) => c.date.equals(dateOnly))).get();
+    return list.map((c) => c.todoId).toList();
   }
 }
 

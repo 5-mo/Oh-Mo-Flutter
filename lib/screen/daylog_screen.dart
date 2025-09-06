@@ -66,7 +66,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      logWeeklyData(DateTime.now());
+      logWeeklyData(_focusedDay);
     });
 
     _focusedDay = widget.selectedDateNotifier.value;
@@ -75,6 +75,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     routines = widget.routines;
     todos = widget.todos;
+
+    _filterTodosForSelectedDate();
 
     _loadRoutineDeletionStatus();
     _loadTodoDeletionStatus();
@@ -94,7 +96,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               topLeft: Radius.circular(59),
             ),
           ),
-          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
+          builder: (_) => TodoBottomSheet(selectedDate: _focusedDay),
         );
       });
     }
@@ -115,6 +117,29 @@ class _DaylogScreenState extends State<DaylogScreen> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(DaylogScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.routines != oldWidget.routines ||
+        widget.todos != oldWidget.todos) {
+      setState(() {
+        routines = widget.routines;
+        todos = widget.todos;
+        _filterTodosForSelectedDate();
+      });
+    }
+  }
+
+  void _filterTodosForSelectedDate() {
+    filteredTodos = todos.where((todo) {
+      final isCompleted = todo.isDone;
+      final isOnSelectedDay = todo.Date.year == _focusedDay.year &&
+          todo.Date.month == _focusedDay.month &&
+          todo.Date.day == _focusedDay.day;
+      return isCompleted && isOnSelectedDay;
+    }).toList();
+  }
+
   Future<void> logWeeklyData(DateTime date) async {
     final year = date.year;
     final month = date.month;
@@ -129,9 +154,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
       final currentDate = DateTime(year, month, day);
 
       final dailyRoutines = await fetchRoutines(currentDate);
-      final visibleRoutines = dailyRoutines
-          .where((r) => isRoutineVisibleOnDate(r, currentDate))
-          .toList();
+      final visibleRoutines =
+          dailyRoutines
+              .where((r) => isRoutineVisibleOnDate(r, currentDate))
+              .toList();
 
       fetchedWeeklyRoutines.addAll(visibleRoutines);
     }
@@ -221,14 +247,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
     };
 
     try {
-      return weekDaysStr.split(',').map((e) {
-        final trimmed = e.trim();
-        final asInt = int.tryParse(trimmed);
-        if (asInt != null) {
-          return asInt;
-        }
-        return dayMap[trimmed.toUpperCase()] ?? 0;
-      }).where((e) => e != 0).toList();
+      return weekDaysStr
+          .split(',')
+          .map((e) {
+            final trimmed = e.trim();
+            final asInt = int.tryParse(trimmed);
+            if (asInt != null) {
+              return asInt;
+            }
+            return dayMap[trimmed.toUpperCase()] ?? 0;
+          })
+          .where((e) => e != 0)
+          .toList();
     } catch (e) {
       return [];
     }
@@ -281,6 +311,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       _focusedDay = newDate;
       widget.selectedDateNotifier.value = newDate;
     });
+    _filterTodosForSelectedDate();
 
     await logWeeklyData(newDate);
   }
@@ -293,7 +324,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       _focusedDay = newDate;
       widget.selectedDateNotifier.value = newDate;
     });
-
+    _filterTodosForSelectedDate();
     await logWeeklyData(newDate);
   }
 
@@ -333,12 +364,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
             child: Column(
               children: [
                 _buildHeader(),
+                SizedBox(height: 20),
                 if (!_hideRoutineUI) _buildRoutineBanner(),
+                if (!_hideTodoUI) SizedBox(height: 13),
                 if (!_hideRoutineUI) _buildRoutineSection(),
-                if (!_hideTodoUI) SizedBox(height: 30),
+                if (!_hideTodoUI) SizedBox(height: 10),
                 if (!_hideTodoUI) _buildDoneBanner(),
                 if (!_hideTodoUI) _buildDoneSection(),
-                if (!_hideTodoUI) SizedBox(height: 30),
                 if (!_hideTodoUI) _buildProgressBanner(),
                 if (!_hideTodoUI) SizedBox(height: 20),
                 if (!_hideTodoUI) _buildProgressSection(),
@@ -468,7 +500,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildRoutineSection() {
-
     final Map<String, List<Routine>> groupedRoutines = {};
 
     for (var routine in weeklyRoutines) {
@@ -478,11 +509,16 @@ class _DaylogScreenState extends State<DaylogScreen> {
         groupedRoutines[routine.content] = [routine];
       }
     }
+    final todaysRoutineEntries = groupedRoutines.entries.where((entry) {
+      return entry.value.any((routineInstance) => isRoutineVisibleOnDate(routineInstance, _focusedDay));
+    }).toList();
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 33.0),
       child: Column(
         children: [
-          if (groupedRoutines.isEmpty) ...[
+          if (todaysRoutineEntries.isEmpty) ...[
+            SizedBox(height: 5),
             Center(
               child: Text(
                 "이번 주 루틴 현황을 보여드립니다.",
@@ -505,71 +541,81 @@ class _DaylogScreenState extends State<DaylogScreen> {
           ] else ...[
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: groupedRoutines.entries.map((entry) {
-                final routineContent = entry.key;
-                final routineInstances = entry.value;
+              children:
+              todaysRoutineEntries.map((entry) {
+                    final routineContent = entry.key;
+                    final routineInstances = groupedRoutines[routineContent]!;
 
-                final totalCount = routineInstances.length;
-                final completedCount =
-                    routineInstances.where((r) => r.isDone).length;
+                    final totalCount = routineInstances.length;
+                    final completedCount =
+                        routineInstances.where((r) => r.isDone).length;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        " • ",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          routineContent,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'PretendardRegular',
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(
-                          totalCount,
-                              (index) => Container(
-                            width: 25,
-                            height: 6,
-                            margin: EdgeInsets.symmetric(horizontal: 1),
-                            decoration: BoxDecoration(
-                              color: index < completedCount
-                                  ? Colors.black
-                                  : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(5),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            " • ",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
-                        ),
-                      ),
-                      Spacer(),
-                      Container(
-                        width: 40,
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          "$completedCount/$totalCount",
-                          style: TextStyle(
-                            fontFamily: 'RubikSprayPaint',
-                            fontSize: 14.0,
-                            color: Colors.black,
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              routineContent,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'PretendardRegular',
+                              ),
+                            ),
                           ),
-                        ),
+                          SizedBox(width:3 ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              totalCount,
+                              (index) => Container(
+                                width: 20,
+                                height: 4,
+                                margin: EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                  color:
+                                      index < completedCount
+                                          ? Colors.black
+                                          : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                            ),
+                          ),
+                       SizedBox(width: 20.0),
+                          Container(
+                            width: 40,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              "$completedCount/$totalCount",
+                              style: TextStyle(
+                                fontFamily: 'RubikSprayPaint',
+                                fontSize: 14.0,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              }).toList(),
+                    );
+                  }).toList(),
+
+            ),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(width: 320, child: Divider(color: Colors.grey)),
+              ],
             ),
           ],
         ],
@@ -635,10 +681,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildDoneSection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0.0),
+      padding: const EdgeInsets.symmetric(horizontal: 33.0, vertical: 15.0),
       child: Column(
         children: [
-          if (todos.isEmpty) ...[
+          if (filteredTodos.isEmpty) ...[
             Center(
               child: Text(
                 "오늘 끝낸 to-do 리스트를 보여드립니다.",
@@ -659,44 +705,39 @@ class _DaylogScreenState extends State<DaylogScreen> {
               ],
             ),
           ] else ...[
-            ListView.builder(
+            GridView.builder(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
               itemCount: filteredTodos.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                childAspectRatio: 6 / 1,
+              ),
               itemBuilder: (context, index) {
                 final todo = filteredTodos[index];
-                print("DaylogScreen initState todos length: ${todos.length}");
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 3.0,
-                    horizontal: 5.0,
-                  ),
-                  child: Container(
-                    padding: EdgeInsets.all(6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(width: 5),
-                        Text(
-                          "      •",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            todo.content,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'PretendardRegular',
-                            ),
-                          ),
-                        ),
-                      ],
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      " • ",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                    SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        todo.content,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'PretendardRegular',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -720,7 +761,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               topLeft: Radius.circular(59),
             ),
           ),
-          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
+          builder: (_) => TodoBottomSheet(selectedDate: _focusedDay),
         );
       },
       child: Container(

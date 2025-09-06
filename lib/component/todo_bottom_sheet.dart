@@ -26,13 +26,11 @@ class TodoBottomSheet extends StatefulWidget {
 
 class _TodoBottomSheetState extends State<TodoBottomSheet> {
   bool isChecked = false;
-
   DateTime get selectedDate => widget.selectedDate;
 
   List<CategoryItem> todos = [];
   int? selectedCategoryId;
   final TextEditingController contentController = TextEditingController();
-
   TimeOfDay? selectedTime;
 
   @override
@@ -44,6 +42,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    String selectedDateStr = DateFormat('M월 d일').format(selectedDate);
 
     return SafeArea(
       child: Container(
@@ -53,9 +52,27 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDateSection(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "날짜 및 시간",
+                    style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
+                  ),
+                  _buildAlarmToggleSection(),
+                ],
+              ),
               SizedBox(height: 16),
-              _buildTodoTimeButton(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    selectedDateStr,
+                    style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
+                  ),
+                  _buildTimePickerButton(),
+                ],
+              ),
               SizedBox(height: 16),
               _buildCategorySelectionSection(),
               _buildContentInputSection(),
@@ -66,19 +83,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildDateSection() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          "날짜 및 시간",
-          style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
-        ),
-        _buildAlarmToggleSection(),
-      ],
     );
   }
 
@@ -98,64 +102,54 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     );
   }
 
-  Widget _buildTodoTimeButton() {
-    String selectedDateStr = DateFormat('M월 d일').format(selectedDate);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          selectedDateStr,
-          style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
-        ),
-        GestureDetector(
-          onTap: () async {
-            TimeOfDay? pickedTime = await showTimePicker(
-              context: context,
-              initialTime: selectedTime ?? TimeOfDay.now(),
-              builder: (BuildContext context, Widget? child) {
-                return Theme(
-                  data: ThemeData(
-                    primaryColor: LIGHT_GREY_COLOR,
-                    timePickerTheme: TimePickerThemeData(
-                      hourMinuteColor: Colors.grey[200],
-                      hourMinuteTextColor: Colors.black,
-                      backgroundColor: Colors.white,
-                      dialHandColor: Colors.black,
-                      dialBackgroundColor: Colors.grey[200],
-                      dayPeriodColor: Colors.grey[200],
-                      dayPeriodTextColor: Colors.black,
-                    ),
-                    textButtonTheme: TextButtonThemeData(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                      ),
-                    ),
+  Widget _buildTimePickerButton() {
+    return GestureDetector(
+      onTap: () async {
+        TimeOfDay? pickedTime = await showTimePicker(
+          context: context,
+          initialTime: selectedTime ?? TimeOfDay.now(),
+          builder: (BuildContext context, Widget? child) {
+            return Theme(
+              data: ThemeData(
+                primaryColor: LIGHT_GREY_COLOR,
+                timePickerTheme: TimePickerThemeData(
+                  hourMinuteColor: Colors.grey[200],
+                  hourMinuteTextColor: Colors.black,
+                  backgroundColor: Colors.white,
+                  dialHandColor: Colors.black,
+                  dialBackgroundColor: Colors.grey[200],
+                  dayPeriodColor: Colors.grey[200],
+                  dayPeriodTextColor: Colors.black,
+                ),
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black,
                   ),
-                  child: child!,
-                );
-              },
-            );
-            if (pickedTime != null) setState(() => selectedTime = pickedTime);
-          },
-          child: Container(
-            width: 195,
-            height: 37,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                selectedTime != null ? selectedTime!.format(context) : '시간 선택',
-                style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+                ),
               ),
-            ),
+              child: child!,
+            );
+          },
+        );
+        if (pickedTime != null) setState(() => selectedTime = pickedTime);
+      },
+      child: Container(
+        width: 195,
+        height: 37,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            selectedTime != null ? selectedTime!.format(context) : '시간 선택',
+            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -191,66 +185,63 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children:
-            todos.map((category) {
-              final isSelected = category.id == selectedCategoryId;
-              Color circleColor;
-              try {
-                circleColor = ColorManager.getColor(
-                  ColorTypeExtension.fromString(
-                    category.colorType ?? 'pinkLight',
-                  ),
-                );
-              } catch (_) {
-                circleColor = Colors.grey;
-              }
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: GestureDetector(
-                  onTap: () => setState(() => selectedCategoryId = category.id),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                      border: Border.all(
-                        color: isSelected ? Colors.grey : Colors.transparent,
-                        width: 2,
-                      ),
+        children: todos.map((category) {
+          final isSelected = category.id == selectedCategoryId;
+          Color circleColor;
+          try {
+            circleColor = ColorManager.getColor(
+              ColorTypeExtension.fromString(
+                category.colorType ?? 'pinkLight',
+              ),
+            );
+          } catch (_) {
+            circleColor = Colors.grey;
+          }
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: GestureDetector(
+              onTap: () => setState(() => selectedCategoryId = category.id),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: circleColor,
-                          ),
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          category.categoryName,
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight:
-                                isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
+                  ],
+                  border: Border.all(
+                    color: isSelected ? Colors.grey : Colors.transparent,
+                    width: 2,
                   ),
                 ),
-              );
-            }).toList(),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: circleColor,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      category.categoryName,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -330,7 +321,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           final minutes = selectedTime!.hour * 60 + selectedTime!.minute;
 
           final selectedCategory = todos.firstWhere(
-            (c) => c.id == selectedCategoryId,
+                (c) => c.id == selectedCategoryId,
           );
 
           int colorIndex = 0;

@@ -1,7 +1,8 @@
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:flutter_svg/svg.dart';
-import '../services/todo_service.dart';
+import '../db/drift_database.dart';
 import 'alarm_bottom_sheet.dart';
 import 'color_palette_bottom_sheet.dart';
 import 'delete_popup.dart';
@@ -36,7 +37,6 @@ class _TodoCardState extends State<TodoCard> {
   late bool _isChecked;
   bool _isEditing = false;
   late TextEditingController _controller;
-
   ColorType _selectedColorType = ColorType.pinkLight;
 
   @override
@@ -45,6 +45,23 @@ class _TodoCardState extends State<TodoCard> {
     _isChecked = widget.isDone;
     _controller = TextEditingController(text: widget.content);
     _selectedColorType = widget.colorType;
+  }
+
+  @override
+  void didUpdateWidget(covariant TodoCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.content != widget.content) {
+      _controller.text = widget.content;
+    }
+
+    if (oldWidget.isDone != widget.isDone) {
+      _isChecked = widget.isDone;
+    }
+
+    if (oldWidget.colorType != widget.colorType) {
+      _selectedColorType = widget.colorType;
+    }
   }
 
   @override
@@ -81,35 +98,34 @@ class _TodoCardState extends State<TodoCard> {
             ),
             const SizedBox(width: 30.0),
             Expanded(
-              child:
-                  _isEditing
-                      ? TextField(
-                        controller: _controller,
-                        style: textStyle,
-                        autofocus: true,
-                        onSubmitted: (value) {
-                          setState(() {
-                            _isEditing = false;
-                          });
-                          widget.onEdit(value);
-                        },
-                        onTapOutside: (_) {
-                          setState(() {
-                            _isEditing = false;
-                          });
-                          widget.onEdit(_controller.text);
-                        },
-                      )
-                      : GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isEditing = true;
-                          });
-                        },
-                        child: Text(_controller.text, style: textStyle),
-                      ),
-            ),
+              child: _isEditing
+                  ? TextField(
+                controller: _controller,
+                style: textStyle,
+                autofocus: true,
+                onSubmitted: (value) async {
+                  setState(() => _isEditing = false);
+                  widget.onEdit(value);
 
+                  final db = LocalDatabase();
+                  await db.updateTodo(
+                    TodosCompanion(
+                      id: Value(widget.scheduleId),
+                      content: Value(value),
+                      colorType: Value(_selectedColorType.index),
+                    ),
+                  );
+                },
+                onTapOutside: (_) {
+                  setState(() => _isEditing = false);
+                  widget.onEdit(_controller.text);
+                },
+              )
+                  : GestureDetector(
+                onTap: () => setState(() => _isEditing = true),
+                child: Text(_controller.text, style: textStyle),
+              ),
+            ),
             GestureDetector(
               onTap: () {
                 final popupWidget = widget.deletePopupBuilder?.call(context);
@@ -132,7 +148,7 @@ class _TodoCardState extends State<TodoCard> {
                       ),
                     ),
                     builder:
-                        widget.deletePopupBuilder ?? (context) => TodoAlarm(),
+                    widget.deletePopupBuilder ?? (context) => TodoAlarm(),
                   );
                 }
               },
@@ -141,34 +157,31 @@ class _TodoCardState extends State<TodoCard> {
             const SizedBox(width: 8.0),
             widget.showCheckbox
                 ? Checkbox(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: VisualDensity.minimumDensity,
-                    vertical: VisualDensity.minimumDensity,
-                  ),
-                  value: _isChecked,
-                  onChanged: (bool? value) async {
-                    setState(() {
-                      _isChecked = value ?? false;
-                    });
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(
+                horizontal: VisualDensity.minimumDensity,
+                vertical: VisualDensity.minimumDensity,
+              ),
+              value: _isChecked,
+              onChanged: (bool? value) async {
+                setState(() => _isChecked = value ?? false);
 
-                    try {
-                      await TodoService().toggleTodoStatus(widget.scheduleId);
-                      if (widget.onStatusChanged != null) {
-                        await widget.onStatusChanged!();
-                      }
-                      print('투두 상태 변경 성공');
-                    } catch (e) {
-                      print('투 상태 변경 실패: $e');
-                      setState(() {
-                        _isChecked = !(_isChecked);
-                      });
-                    }
-                  },
-                  activeColor: Colors.black,
-                  checkColor: Colors.white,
-                  fillColor: MaterialStateProperty.all(Colors.black),
-                )
+                try {
+                  final db = LocalDatabase();
+                  await db.toggleTodoStatus(widget.scheduleId);
+
+                  if (widget.onStatusChanged != null) {
+                    await widget.onStatusChanged!();
+                  }
+                } catch (e) {
+                  print('투두 상태 변경 실패: $e');
+                  setState(() => _isChecked = !(_isChecked));
+                }
+              },
+              activeColor: Colors.black,
+              checkColor: Colors.white,
+              fillColor: MaterialStateProperty.all(Colors.black),
+            )
                 : SizedBox.shrink(),
           ],
         ),
@@ -187,15 +200,20 @@ class _TodoCardState extends State<TodoCard> {
           topLeft: Radius.circular(59),
         ),
       ),
-      builder:
-          (context) => ColorPaletteBottomSheet(
-            selectedColorType: _selectedColorType,
-            onColorSelected: (colorType) {
-              setState(() {
-                _selectedColorType = colorType;
-              });
-            },
-          ),
+      builder: (context) => ColorPaletteBottomSheet(
+        selectedColorType: _selectedColorType,
+        onColorSelected: (colorType) async {
+          setState(() => _selectedColorType = colorType);
+
+          final db = LocalDatabase();
+          await db.updateTodo(
+            TodosCompanion(
+              id: Value(widget.scheduleId),
+              colorType: Value(colorType.index),
+            ),
+          );
+        },
+      ),
     );
   }
 }

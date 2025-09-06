@@ -6,7 +6,11 @@ class TodoBanner extends StatelessWidget {
   final VoidCallback onTodoAdded;
   final DateTime selectedDate;
 
-  const TodoBanner({Key? key,required this.selectedDate,required this.onTodoAdded}) : super(key: key);
+  const TodoBanner({
+    Key? key,
+    required this.selectedDate,
+    required this.onTodoAdded,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +27,8 @@ class TodoBanner extends StatelessWidget {
               offset: Offset(5, 0),
               child: IconButton(
                 icon: SvgPicture.asset('android/assets/images/plus2.svg'),
-                onPressed: ()async {
-                  final result=await showModalBottomSheet(
+                onPressed: () async {
+                  final result = await showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
                     isDismissible: true,
@@ -35,12 +39,16 @@ class TodoBanner extends StatelessWidget {
                         topLeft: Radius.circular(59),
                       ),
                     ),
-                    builder: (_) => TodoBottomSheet(selectedDate: selectedDate, onTodoAdded: () async {
-                  onTodoAdded();
-                  },),
+                    builder:
+                        (_) => TodoBottomSheet(
+                          selectedDate: selectedDate,
+                          onTodoAdded: () async {
+                            onTodoAdded();
+                          },
+                        ),
                   );
 
-                  if(result==true){
+                  if (result == true) {
                     onTodoAdded();
                   }
                 },
