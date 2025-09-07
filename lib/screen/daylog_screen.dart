@@ -1,5 +1,6 @@
 import 'dart:math';
-
+import 'dart:convert';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -7,11 +8,12 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
-import 'package:ohmo/shared_data.dart';
 import '../customize_category.dart';
 import '../models/todo.dart';
 import '../db/drift_database.dart' as db;
 import 'home_screen.dart';
+import 'package:ohmo/db/local_category_repository.dart';
+import 'package:ohmo/models/category_item.dart';
 
 class DaylogScreen extends StatefulWidget {
   final String? date;
@@ -62,6 +64,29 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   List<Routine> weeklyRoutines = [];
 
+  late LocalCategoryRepository _repository;
+  List<DayLogQuestionItem> _dbQuestions = [];
+
+  Map<String, String> _dailyAnswers = {};
+
+  final FocusNode _answerFocusNode = FocusNode();
+  final FocusNode _diaryFocusNode = FocusNode();
+
+  String? _getSelectedEmotion() {
+    if (_happyActive) return 'happy';
+    if (_sosoActive) return 'soso';
+    if (_badActive) return 'bad';
+    return null;
+  }
+
+  void _setSelectedEmotion(String? emotion) {
+    setState(() {
+      _happyActive = emotion == 'happy';
+      _sosoActive = emotion == 'soso';
+      _badActive = emotion == 'bad';
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +95,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logWeeklyData(_focusedDay);
+
     });
 
     _answerController = TextEditingController();
@@ -84,6 +110,15 @@ class _DaylogScreenState extends State<DaylogScreen> {
     _loadTodoDeletionStatus();
     _loadQuestionDeletionStatus();
     _loadDiaryDeletionStatus();
+
+    final database = db.LocalDatabaseSingleton.instance;
+    _repository = LocalCategoryRepository(database);
+    _loadDbQuestions();
+
+    _loadDayLogData(_focusedDay);
+
+    _answerFocusNode.addListener(_onAnswerFocusChange);
+    _diaryFocusNode.addListener(_onDiaryFocusChange);
 
     if (widget.showTodoSheet) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -105,9 +140,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     widget.selectedDateNotifier.addListener(() {
       if (!mounted) return;
       if (_focusedDay != widget.selectedDateNotifier.value) {
-        setState(() {
-          _focusedDay = widget.selectedDateNotifier.value;
-        });
+        _updateFocusedDay(widget.selectedDateNotifier.value);
       }
     });
   }
@@ -116,7 +149,29 @@ class _DaylogScreenState extends State<DaylogScreen> {
   void dispose() {
     _answerController.dispose();
     _diaryController.dispose();
+
+    _answerFocusNode.removeListener(_onAnswerFocusChange);
+    _diaryFocusNode.removeListener(_onDiaryFocusChange);
+
+    _answerFocusNode.dispose();
+    _diaryFocusNode.dispose();
+
     super.dispose();
+  }
+
+  void _onAnswerFocusChange() {
+    if (!_answerFocusNode.hasFocus) {
+      if (selectedQuestion != null) {
+        _dailyAnswers[selectedQuestion!] = _answerController.text;
+      }
+      _saveDaylogData(showSnackbar: false);
+    }
+  }
+
+  void _onDiaryFocusChange() {
+    if (!_diaryFocusNode.hasFocus) {
+      _saveDaylogData(showSnackbar: false);
+    }
   }
 
   @override
@@ -140,6 +195,54 @@ class _DaylogScreenState extends State<DaylogScreen> {
           todo.Date.day == _focusedDay.day;
       return isCompleted && isOnSelectedDay;
     }).toList();
+  }
+
+  Future<void> _loadDayLogData(DateTime date) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final existingLog = await database.getDayLog(dateOnly);
+
+    if (existingLog != null) {
+      _diaryController.text = existingLog.diary ?? '';
+      _setSelectedEmotion(existingLog.emotion);
+
+      if (existingLog.answerMapJson != null) {
+        try {
+          _dailyAnswers = Map<String, String>.from(jsonDecode(existingLog.answerMapJson!));
+        } catch (e) {
+          _dailyAnswers = {};
+        }
+      } else {
+        _dailyAnswers = {};
+      }
+
+      setState(() {
+        selectedQuestion = null;
+        _answerController.clear();
+      });
+
+    } else {
+      _diaryController.clear();
+      _dailyAnswers = {};
+      _answerController.clear();
+      setState(() {
+        selectedQuestion = null;
+        _resetIconState();
+      });
+    }
+  }
+
+  Future<void> _updateFocusedDay(DateTime newDate) async {
+    setState(() {
+      _focusedDay = newDate;
+      if (widget.selectedDateNotifier.value != newDate) {
+        widget.selectedDateNotifier.value = newDate;
+      }
+    });
+
+    _filterTodosForSelectedDate();
+    await logWeeklyData(newDate);
+    await _loadDayLogData(newDate);
   }
 
   Future<void> logWeeklyData(DateTime date) async {
@@ -306,28 +409,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   void _onLeftChevronPressed() async {
-    final newDate = _focusedDay.subtract(Duration(days: 1));
-    _resetIconState();
-
-    setState(() {
-      _focusedDay = newDate;
-      widget.selectedDateNotifier.value = newDate;
-    });
-    _filterTodosForSelectedDate();
-
-    await logWeeklyData(newDate);
+    await _updateFocusedDay(_focusedDay.subtract(Duration(days: 1)));
   }
 
   void _onRightChevronPressed() async {
-    final newDate = _focusedDay.add(Duration(days: 1));
-    _resetIconState();
-
-    setState(() {
-      _focusedDay = newDate;
-      widget.selectedDateNotifier.value = newDate;
-    });
-    _filterTodosForSelectedDate();
-    await logWeeklyData(newDate);
+    await _updateFocusedDay(_focusedDay.add(Duration(days: 1)));
   }
 
   void _resetIconState() {
@@ -973,7 +1059,14 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
-
+  Future<void> _loadDbQuestions() async {
+    final fetchedQuestions = await _repository.fetchDayLogQuestions();
+    if (mounted) {
+      setState(() {
+        _dbQuestions = fetchedQuestions;
+      });
+    }
+  }
 
   Widget _buildQuestionBanner() {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
@@ -992,17 +1085,27 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildQuestionButtons() {
+    final staticQuestionStrings = [
+      '💰 오늘의 소비는?',
+      '😊 오늘의 내가 감사했던 일은?',
+    ];
+
+    final dynamicQuestionStrings = _dbQuestions.map((q) => '${q.emoji} ${q.question}').toList();
+
+    final allQuestionStrings = [...staticQuestionStrings, ...dynamicQuestionStrings];
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 40.0),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
         child: Row(
-          children: [
-            ...daylogQuestions.map(
-                  (q) => Row(children: [_buildQuestionButton(q.content)]),
-            ),
-          ],
+          children: allQuestionStrings.map((questionText) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: _buildQuestionButton(questionText),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -1013,9 +1116,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     return GestureDetector(
       onTap: () {
+        if (selectedQuestion != null) {
+          _dailyAnswers[selectedQuestion!] = _answerController.text;
+        }
+
         setState(() {
           selectedQuestion = (selectedQuestion == text) ? null : text;
         });
+        if (selectedQuestion != null) {
+          _answerController.text = _dailyAnswers[selectedQuestion!] ?? '';
+        } else {
+          _answerController.clear();
+        }
       },
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -1075,6 +1187,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
                     padding: const EdgeInsets.only(left: 16.0),
                     child: TextField(
                       controller: _answerController,
+                      focusNode: _answerFocusNode,
                       decoration: InputDecoration(border: InputBorder.none),
                       onChanged: (value) {
                         setState(() {
@@ -1112,6 +1225,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         scrollDirection: Axis.vertical,
         child: TextField(
           controller: _diaryController,
+          focusNode: _diaryFocusNode,
           maxLines: null,
           minLines: 10,
           decoration: InputDecoration(
@@ -1139,13 +1253,35 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
+  void _saveDaylogData({bool showSnackbar = true}) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final dateOnly = DateTime(_focusedDay.year, _focusedDay.month, _focusedDay.day);
+
+    if (selectedQuestion != null && _answerFocusNode.hasFocus) {
+      _dailyAnswers[selectedQuestion!] = _answerController.text;
+    }
+
+    final String? answerMapString = _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
+
+    final entry = db.DayLogsCompanion(
+      date: Value(dateOnly),
+      emotion: Value(_getSelectedEmotion()),
+      diary: Value(_diaryController.text),
+      answerMapJson: Value(answerMapString),
+    );
+
+    await database.upsertDayLog(entry);
+
+    if (mounted && showSnackbar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('데이로그가 저장되었습니다.')),
+      );
+    }
+  }
+
   Widget _buildDaylogSaveButton() {
     return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('데이로그가 저장되었습니다.')));
-      },
+      onTap: () => _saveDaylogData(showSnackbar: true),
       child: Container(
         width: 334,
         height: 56,

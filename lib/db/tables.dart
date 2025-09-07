@@ -50,3 +50,13 @@ class CompletedTodos extends Table {
   IntColumn get todoId => integer()();
   DateTimeColumn get date => dateTime()();
 }
+
+class DayLogs extends Table {
+  DateTimeColumn get date => dateTime()();
+  TextColumn get emotion => text().nullable()();
+  TextColumn get answerMapJson => text().nullable()();
+  TextColumn get diary => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {date};
+}

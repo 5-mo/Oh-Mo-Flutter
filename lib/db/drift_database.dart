@@ -18,13 +18,21 @@ LazyDatabase _openConnection() {
 
 // ------------------ Drift Database ------------------
 @DriftDatabase(
-  tables: [Categories, DayLogQuestions, Routines, Todos, CompletedRoutines, CompletedTodos],
+  tables: [
+    Categories,
+    DayLogQuestions,
+    Routines,
+    Todos,
+    CompletedRoutines,
+    CompletedTodos,
+    DayLogs,
+  ],
 )
 class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -32,11 +40,11 @@ class LocalDatabase extends _$LocalDatabase {
       await m.createAll();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      if (from < 2) {
-        await m.addColumn(routines, routines.scheduleType);
-      }
       if (from < 5) {
         await m.createTable(completedTodos);
+      }
+      if (from < 6) {
+        await m.addColumn(dayLogs, dayLogs.answerMapJson);
       }
     },
   );
@@ -147,9 +155,10 @@ class LocalDatabase extends _$LocalDatabase {
   Future<void> toggleRoutineCompletion(int routineId, DateTime date) async {
     final dateOnly = DateTime(date.year, date.month, date.day);
 
-    final existing = await (select(completedRoutines)
-      ..where((c) => c.routineId.equals(routineId) & c.date.equals(dateOnly)))
-        .getSingleOrNull();
+    final existing =
+        await (select(completedRoutines)..where(
+          (c) => c.routineId.equals(routineId) & c.date.equals(dateOnly),
+        )).getSingleOrNull();
 
     if (existing != null) {
       await deleteCompletedRoutineByRoutineAndDate(routineId, date);
@@ -165,14 +174,13 @@ class LocalDatabase extends _$LocalDatabase {
 
   Future<List<int>> getCompletedRoutineIds(DateTime date) async {
     final dateOnly = DateTime(date.year, date.month, date.day);
-    final list = await (select(completedRoutines)
-      ..where((c) => c.date.equals(dateOnly)))
-        .get();
+    final list =
+        await (select(completedRoutines)
+          ..where((c) => c.date.equals(dateOnly))).get();
     return list.map((c) => c.routineId).toList();
   }
 
-
-  // ------------------ Todo ------------------
+  // ------------------Todo ------------------
   Future<int> insertTodo(TodosCompanion entry) => into(todos).insert(entry);
 
   Future<int> updateTodo(TodosCompanion entry) async {
@@ -204,40 +212,50 @@ class LocalDatabase extends _$LocalDatabase {
       ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))).get();
   }
 
-
   Future<void> toggleTodoStatus(int id) async {
     final existing =
-    await (select(todos)..where((t) => t.id.equals(id))).getSingle();
+        await (select(todos)..where((t) => t.id.equals(id))).getSingle();
     await (update(todos)..where(
-          (t) => t.id.equals(id),
+      (t) => t.id.equals(id),
     )).write(TodosCompanion(isDone: Value(!existing.isDone)));
   }
 
   Future<void> toggleTodoCompletion(int todoId, DateTime date) async {
     final dateOnly = DateTime(date.year, date.month, date.day);
 
-    final existing = await (select(completedTodos)
-      ..where((c) => c.todoId.equals(todoId) & c.date.equals(dateOnly)))
-        .getSingleOrNull();
+    final existing =
+        await (select(completedTodos)..where(
+          (c) => c.todoId.equals(todoId) & c.date.equals(dateOnly),
+        )).getSingleOrNull();
 
     if (existing != null) {
-      await (delete(completedTodos)..where((c) => c.id.equals(existing.id))).go();
+      await (delete(completedTodos)
+        ..where((c) => c.id.equals(existing.id))).go();
     } else {
       await into(completedTodos).insert(
-        CompletedTodosCompanion(
-          todoId: Value(todoId),
-          date: Value(dateOnly),
-        ),
+        CompletedTodosCompanion(todoId: Value(todoId), date: Value(dateOnly)),
       );
     }
   }
 
-  // 특정 날짜에 완료된 투두 ID 목록을 가져오는 함수
   Future<List<int>> getCompletedTodoIds(DateTime date) async {
     final dateOnly = DateTime(date.year, date.month, date.day);
     final list =
-    await (select(completedTodos)..where((c) => c.date.equals(dateOnly))).get();
+        await (select(completedTodos)
+          ..where((c) => c.date.equals(dateOnly))).get();
     return list.map((c) => c.todoId).toList();
+  }
+
+  // ------------------ DayLog Entry------------------
+
+  Future<void> upsertDayLog(DayLogsCompanion entry) {
+    return into(dayLogs).insertOnConflictUpdate(entry);
+  }
+
+  Future<DayLog?> getDayLog(DateTime date) {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    return (select(dayLogs)..where((tbl) => tbl.date.equals(dateOnly)))
+        .getSingleOrNull();
   }
 }
 
