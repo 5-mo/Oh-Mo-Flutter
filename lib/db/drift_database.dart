@@ -257,6 +257,82 @@ class LocalDatabase extends _$LocalDatabase {
     return (select(dayLogs)..where((tbl) => tbl.date.equals(dateOnly)))
         .getSingleOrNull();
   }
+
+  // ------------------ Search------------------
+
+  Future<List<Map<String, dynamic>>> searchSchedules(String query) async {
+    if (query.isEmpty) {
+      return [];
+    }
+
+    final normalizedQuery = '%${query.toLowerCase()}%';
+
+    final todosQuery = select(todos)
+      ..where((t) => t.content.lower().like(normalizedQuery));
+    final foundTodos = await todosQuery.get();
+
+    final routinesQuery = select(routines)
+      ..where((r) => r.content.lower().like(normalizedQuery));
+    final foundRoutines = await routinesQuery.get();
+
+    final List<Map<String, dynamic>> results = [];
+
+    for (var todo in foundTodos) {
+      results.add({
+        'content': todo.content,
+        'date': todo.date,
+        'type': 'todo',
+      });
+    }
+
+    for (var routine in foundRoutines) {
+      if (routine.startDate != null && routine.endDate != null && routine.weekDays != null) {
+        final activeWeekDays = _parseWeekDays(routine.weekDays);
+        if (activeWeekDays.isEmpty) continue;
+
+        for (var day = routine.startDate!; day.isBefore(routine.endDate!.add(const Duration(days: 1))); day = day.add(const Duration(days: 1))) {
+          if (activeWeekDays.contains(day.weekday)) {
+            results.add({
+              'content': routine.content,
+              'date': day,
+              'type': 'routine',
+            });
+          }
+        }
+      }
+    }
+
+    results.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+
+    return results;
+  }
+
+  List<int> _parseWeekDays(String? weekDaysStr) {
+    if (weekDaysStr == null || weekDaysStr.isEmpty) return [];
+
+    const dayMap = {
+      'MONDAY': 1, 'TUESDAY': 2, 'WEDNESDAY': 3, 'THURSDAY': 4,
+      'FRIDAY': 5, 'SATURDAY': 6, 'SUNDAY': 7,
+    };
+
+    try {
+      return weekDaysStr
+          .split(',')
+          .map((e) {
+        final trimmed = e.trim();
+        final asInt = int.tryParse(trimmed);
+        if (asInt != null) {
+          return asInt;
+        }
+        return dayMap[trimmed.toUpperCase()] ?? 0;
+      })
+          .where((e) => e != 0)
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
 }
 
 // ------------------ Singleton ------------------

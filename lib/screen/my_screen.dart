@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/category_screen.dart';
+import '../db/drift_database.dart' as db;
 
 class MyScreen extends StatefulWidget {
   final Function(int) onTabChange;
@@ -22,14 +23,33 @@ class MyScreen extends StatefulWidget {
 class _MyScreenState extends State<MyScreen> {
   bool _showSearchRecords = false;
 
-  final List<Map<String, String>> _searchRecords = [
-    {'text': '오모 회식', 'date': '2025.02.02'},
-    {'text': '미팅 일정', 'date': '2025.03.02'},
-    {'text': '운동 계획', 'date': '2025.02.22'},
-    {'text': '공부', 'date': '2025.03.22'},
-  ];
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isLoading = false;
 
   final TextEditingController _searchController = TextEditingController();
+
+  Future<void> _performSearch(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _showSearchRecords = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _showSearchRecords = true;
+    });
+
+    final database = db.LocalDatabaseSingleton.instance;
+    final results = await database.searchSchedules(query);
+
+    setState(() {
+      _searchResults = results;
+      _isLoading = false;
+    });
+  }
 
   Future<void> _pickImage(BuildContext context) async {
     final picker = ImagePicker();
@@ -50,78 +70,86 @@ class _MyScreenState extends State<MyScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned(
-                  child: SvgPicture.asset(
-                    'android/assets/images/mybackground.svg',
-                    width: double.infinity,
-                    alignment: Alignment.topCenter,
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          setState(() {
+            _showSearchRecords = false;
+          });
+        },
+        child: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned(
+                    child: SvgPicture.asset(
+                      'android/assets/images/mybackground.svg',
+                      width: double.infinity,
+                      alignment: Alignment.topCenter,
+                    ),
                   ),
-                ),
 
-                Positioned(
-                  top: 66,
-                  left: 41,
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => _pickImage(context),
-                        child:
-                            profile.image != null
-                                ? ClipOval(
-                                  child: Image.file(
-                                    profile.image!,
-                                    width: 84,
-                                    height: 84,
-                                    fit: BoxFit.cover,
+                  Positioned(
+                    top: 66,
+                    left: 41,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _pickImage(context),
+                          child:
+                              profile.image != null
+                                  ? ClipOval(
+                                    child: Image.file(
+                                      profile.image!,
+                                      width: 84,
+                                      height: 84,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                  : SvgPicture.asset(
+                                    'android/assets/images/myprofile.svg',
                                   ),
-                                )
-                                : SvgPicture.asset(
-                                  'android/assets/images/myprofile.svg',
-                                ),
-                      ),
+                        ),
 
-                      SizedBox(width: 50),
-                      _buildProfileSection(context),
-                    ],
+                        SizedBox(width: 50),
+                        _buildProfileSection(context),
+                      ],
+                    ),
                   ),
-                ),
 
-                Positioned(
-                  left: 38,
-                  top: 367,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildNotionButton(context),
-                      SizedBox(height: 20.0),
-                      _buildCategoryManaging(context),
-                      SizedBox(height: 10.0),
-                      _buildDiaryCollection(context),
-                    ],
+                  Positioned(
+                    left: 38,
+                    top: 367,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildNotionButton(context),
+                        SizedBox(height: 20.0),
+                        _buildCategoryManaging(context),
+                        SizedBox(height: 10.0),
+                        _buildDiaryCollection(context),
+                      ],
+                    ),
                   ),
-                ),
 
-                Positioned(
-                  left: 50,
-                  top: 186,
+                  Positioned(
+                    left: 50,
+                    top: 186,
 
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSearchbarSection(context),
-                      _buildSearchbarRecords(context),
-                    ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSearchbarSection(context),
+                        _buildSearchbarRecords(context),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -228,9 +256,7 @@ class _MyScreenState extends State<MyScreen> {
               },
 
               onChanged: (text) {
-                setState(() {
-                  _showSearchRecords = text.isNotEmpty;
-                });
+                _performSearch(text);
               },
             ),
           ),
@@ -252,49 +278,76 @@ class _MyScreenState extends State<MyScreen> {
       visible: _showSearchRecords,
       child: Container(
         width: 311,
-        padding: EdgeInsets.all(8.0),
+        constraints: BoxConstraints(maxHeight: 400),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.9),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: Middle_GREY_COLOR),
         ),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: List.generate(_searchRecords.length * 2 - 1, (index) {
-            if (index.isEven) {
-              final record = _searchRecords[index ~/ 2];
-              return GestureDetector(
-                onTap: () {
-                  final date = DateFormat('yyyy.MM.dd').parse(record['date']!);
-                  widget.selectedDateNotifier.value = date;
-                  widget.onTabChange(1);
-                },
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 3.0, horizontal: 5.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        record['text']!,
-                        style: TextStyle(fontSize: 16, color: Colors.black),
-                      ),
-                      Text(
-                        record['date']!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Middle_GREY_COLOR,
+        child:
+            _isLoading
+                ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+                : _searchResults.isEmpty
+                ? Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Text(
+                    '검색 결과가 없습니다.',
+                    style: TextStyle(color: DARK_GREY_COLOR),
+                  ),
+                )
+                : ListView.separated(
+                  padding: EdgeInsets.symmetric(vertical: 4.0),
+                  shrinkWrap: true,
+                  itemCount: _searchResults.length,
+                  itemBuilder: (context, index) {
+                    final record = _searchResults[index];
+                    final date = record['date'] as DateTime;
+                    return InkWell(
+                      onTap: () {
+                        widget.selectedDateNotifier.value = date;
+                        widget.onTabChange(1);
+                        setState(() {
+                          _showSearchRecords = false;
+                          _searchController.clear();
+                          FocusScope.of(context).unfocus();
+                        });
+                      },
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 6.0,
+                          horizontal: 12.0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              record['content'] as String,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black,
+                              ),
+                            ),
+                            Text(
+                              DateFormat('yyyy.MM.dd').format(date),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Middle_GREY_COLOR,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
+                  separatorBuilder:
+                      (context, index) =>
+                          Divider(color: Colors.grey[300], height: 1),
                 ),
-              );
-            } else {
-              return Divider(color: Colors.grey);
-            }
-          }),
-        ),
       ),
     );
   }
