@@ -1,7 +1,8 @@
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
-import '../services/routine_service.dart';
+import '../db/drift_database.dart';
 import 'alarm_bottom_sheet.dart';
 import 'delete_popup.dart';
 import 'color_palette_bottom_sheet.dart';
@@ -36,7 +37,6 @@ class _RoutineCardState extends State<RoutineCard> {
   late bool _isChecked;
   bool _isEditing = false;
   late TextEditingController _controller;
-
   ColorType _selectedColorType = ColorType.pinkLight;
 
   @override
@@ -45,6 +45,24 @@ class _RoutineCardState extends State<RoutineCard> {
     _isChecked = widget.isDone;
     _controller = TextEditingController(text: widget.content);
     _selectedColorType = widget.colorType;
+  }
+
+  // ✅ 부모가 전달하는 값이 바뀌면 UI 갱신
+  @override
+  void didUpdateWidget(covariant RoutineCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.content != widget.content) {
+      _controller.text = widget.content;
+    }
+
+    if (oldWidget.isDone != widget.isDone) {
+      _isChecked = widget.isDone;
+    }
+
+    if (oldWidget.colorType != widget.colorType) {
+      _selectedColorType = widget.colorType;
+    }
   }
 
   @override
@@ -62,6 +80,7 @@ class _RoutineCardState extends State<RoutineCard> {
       color: _isChecked ? Middle_GREY_COLOR : Colors.black,
       decorationColor: _isChecked ? Middle_GREY_COLOR : Colors.black,
     );
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: IntrinsicHeight(
@@ -82,33 +101,33 @@ class _RoutineCardState extends State<RoutineCard> {
             const SizedBox(width: 30.0),
 
             Expanded(
-              child:
-                  _isEditing
-                      ? TextField(
-                        controller: _controller,
-                        style: textStyle,
-                        autofocus: true,
-                        onSubmitted: (value) {
-                          setState(() {
-                            _isEditing = false;
-                          });
-                          widget.onEdit(value);
-                        },
-                        onTapOutside: (_) {
-                          setState(() {
-                            _isEditing = false;
-                          });
-                          widget.onEdit(_controller.text);
-                        },
-                      )
-                      : GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isEditing = true;
-                          });
-                        },
-                        child: Text(_controller.text, style: textStyle),
-                      ),
+              child: _isEditing
+                  ? TextField(
+                controller: _controller,
+                style: textStyle,
+                autofocus: true,
+                onSubmitted: (value) async {
+                  setState(() => _isEditing = false);
+                  widget.onEdit(value);
+
+                  final db = LocalDatabase();
+                  await db.updateRoutine(
+                    RoutinesCompanion(
+                      id: Value(widget.scheduleId),
+                      content: Value(value),
+                      colorType: Value(_selectedColorType.index),
+                    ),
+                  );
+                },
+                onTapOutside: (_) {
+                  setState(() => _isEditing = false);
+                  widget.onEdit(_controller.text);
+                },
+              )
+                  : GestureDetector(
+                onTap: () => setState(() => _isEditing = true),
+                child: Text(_controller.text, style: textStyle),
+              ),
             ),
 
             GestureDetector(
@@ -132,50 +151,41 @@ class _RoutineCardState extends State<RoutineCard> {
                         topLeft: Radius.circular(59),
                       ),
                     ),
-                    builder:
-                        widget.deletePopupBuilder ??
-                        (context) => RoutineAlarm(),
+                    builder: widget.deletePopupBuilder ?? (context) => RoutineAlarm(),
                   );
                 }
               },
-
-              child: SvgPicture.asset(
-                'android/assets/images/routine_alarm.svg',
-              ),
+              child: SvgPicture.asset('android/assets/images/routine_alarm.svg'),
             ),
             const SizedBox(width: 8.0),
+
             widget.showCheckbox
                 ? Checkbox(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: VisualDensity.minimumDensity,
-                    vertical: VisualDensity.minimumDensity,
-                  ),
-                  value: _isChecked,
-                  onChanged: (bool? value) async {
-                    setState(() {
-                      _isChecked = value ?? false;
-                    });
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(
+                horizontal: VisualDensity.minimumDensity,
+                vertical: VisualDensity.minimumDensity,
+              ),
+              value: _isChecked,
+              onChanged: (bool? value) async {
+                setState(() => _isChecked = value ?? false);
 
-                    try {
-                      await RoutineService().toggleRoutineStatus(
-                        widget.scheduleId,
-                      );
-                      if (widget.onStatusChanged != null) {
-                        await widget.onStatusChanged!();
-                      }
-                      print('루틴 상태 변경 성공');
-                    } catch (e) {
-                      print('루틴 상태 변경 실패: $e');
-                      setState(() {
-                        _isChecked = !(_isChecked);
-                      });
-                    }
-                  },
-                  activeColor: Colors.black,
-                  checkColor: Colors.white,
-                  fillColor: MaterialStateProperty.all(Colors.black),
-                )
+                try {
+                  final db = LocalDatabase();
+                  await db.toggleRoutineStatus(widget.scheduleId);
+
+                  if (widget.onStatusChanged != null) {
+                    await widget.onStatusChanged!();
+                  }
+                } catch (e) {
+                  print('루틴 상태 변경 실패: $e');
+                  setState(() => _isChecked = !(_isChecked));
+                }
+              },
+              activeColor: Colors.black,
+              checkColor: Colors.white,
+              fillColor: MaterialStateProperty.all(Colors.black),
+            )
                 : SizedBox.shrink(),
           ],
         ),
@@ -194,15 +204,10 @@ class _RoutineCardState extends State<RoutineCard> {
           topLeft: Radius.circular(59),
         ),
       ),
-      builder:
-          (context) => ColorPaletteBottomSheet(
-            selectedColorType: _selectedColorType,
-            onColorSelected: (colorType) {
-              setState(() {
-                _selectedColorType = colorType;
-              });
-            },
-          ),
+      builder: (context) => ColorPaletteBottomSheet(
+        selectedColorType: _selectedColorType,
+        onColorSelected: (colorType) => setState(() => _selectedColorType = colorType),
+      ),
     );
   }
 }

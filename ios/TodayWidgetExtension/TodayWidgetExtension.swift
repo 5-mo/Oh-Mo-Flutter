@@ -20,7 +20,7 @@ struct Provider: TimelineProvider {
         SimpleEntry(date: Date(), emoji: "😀", routineList: ["루틴 없음"], todoList: ["투두 없음"])
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
+    func getSnapshot(in context: Context, completion:    (SimpleEntry) -> ()) {
         let defaults = UserDefaults(suiteName: "group.ohmo")
         
         let routineList = loadStringArray(from: defaults, key: "today_routine",defaultValue: ["루틴 없음"])

@@ -1,5 +1,6 @@
 import 'dart:math';
-
+import 'dart:convert';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -7,15 +8,12 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
-import 'package:ohmo/shared_data.dart';
-import 'package:ohmo/temporary_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../customize_category.dart';
-import '../models/CompletedRoutine.dart';
 import '../models/todo.dart';
-import '../services/routine_service.dart';
-import '../services/todo_service.dart';
+import '../db/drift_database.dart' as db;
+import 'home_screen.dart';
+import 'package:ohmo/db/local_category_repository.dart';
+import 'package:ohmo/models/category_item.dart';
 
 class DaylogScreen extends StatefulWidget {
   final String? date;
@@ -43,8 +41,8 @@ class DaylogScreen extends StatefulWidget {
 class _DaylogScreenState extends State<DaylogScreen> {
   bool isPressed = false;
   String? selectedQuestion;
-  String? answer='';
-  String? diary='';
+  String? answer = '';
+  String? diary = '';
 
   late DateTime _focusedDay;
   bool _happyActive = false;
@@ -64,27 +62,62 @@ class _DaylogScreenState extends State<DaylogScreen> {
   late TextEditingController _answerController;
   late TextEditingController _diaryController;
 
+  List<Routine> weeklyRoutines = [];
+
+  late LocalCategoryRepository _repository;
+  List<DayLogQuestionItem> _dbQuestions = [];
+
+  Map<String, String> _dailyAnswers = {};
+
+  final FocusNode _answerFocusNode = FocusNode();
+  final FocusNode _diaryFocusNode = FocusNode();
+
+  String? _getSelectedEmotion() {
+    if (_happyActive) return 'happy';
+    if (_sosoActive) return 'soso';
+    if (_badActive) return 'bad';
+    return null;
+  }
+
+  void _setSelectedEmotion(String? emotion) {
+    setState(() {
+      _happyActive = emotion == 'happy';
+      _sosoActive = emotion == 'soso';
+      _badActive = emotion == 'bad';
+    });
+  }
+
   @override
   void initState() {
     super.initState();
 
     _focusedDay = widget.selectedDateNotifier.value;
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      logWeeklyData(_focusedDay);
+    });
 
     _answerController = TextEditingController();
     _diaryController = TextEditingController();
 
-    _loadSavedData();
-
     routines = widget.routines;
     todos = widget.todos;
+
+    _filterTodosForSelectedDate();
 
     _loadRoutineDeletionStatus();
     _loadTodoDeletionStatus();
     _loadQuestionDeletionStatus();
     _loadDiaryDeletionStatus();
 
-    _filterRoutinesByDate(_focusedDay);
+    final database = db.LocalDatabaseSingleton.instance;
+    _repository = LocalCategoryRepository(database);
+    _loadDbQuestions();
+
+    _loadDayLogData(_focusedDay);
+
+    _answerFocusNode.addListener(_onAnswerFocusChange);
+    _diaryFocusNode.addListener(_onDiaryFocusChange);
 
     if (widget.showTodoSheet) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -99,49 +132,251 @@ class _DaylogScreenState extends State<DaylogScreen> {
               topLeft: Radius.circular(59),
             ),
           ),
-          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
+          builder: (_) => TodoBottomSheet(selectedDate: _focusedDay),
         );
       });
     }
     widget.selectedDateNotifier.addListener(() {
       if (!mounted) return;
       if (_focusedDay != widget.selectedDateNotifier.value) {
-        setState(() {
-          _focusedDay = widget.selectedDateNotifier.value;
-          _filterRoutinesByDate(_focusedDay);
-        });
+        _updateFocusedDay(widget.selectedDateNotifier.value);
       }
     });
-    _loadRoutines();
-    _loadTodos();
   }
 
   @override
   void dispose() {
     _answerController.dispose();
     _diaryController.dispose();
+
+    _answerFocusNode.removeListener(_onAnswerFocusChange);
+    _diaryFocusNode.removeListener(_onDiaryFocusChange);
+
+    _answerFocusNode.dispose();
+    _diaryFocusNode.dispose();
+
     super.dispose();
   }
 
-  Future<void> _loadSavedData() async {
-    final dateStr = DateFormat('yyyy-MM-dd').format(_focusedDay);
-    final loadedAnswer = await LocalStorage.loadAnswer(dateStr);
-    final loadedDiary = await LocalStorage.loadDiary(dateStr);
+  void _onAnswerFocusChange() {
+    if (!_answerFocusNode.hasFocus) {
+      if (selectedQuestion != null) {
+        _dailyAnswers[selectedQuestion!] = _answerController.text;
+      }
+      _saveDaylogData(showSnackbar: false);
+    }
+  }
 
+  void _onDiaryFocusChange() {
+    if (!_diaryFocusNode.hasFocus) {
+      _saveDaylogData(showSnackbar: false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(DaylogScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.routines != oldWidget.routines ||
+        widget.todos != oldWidget.todos) {
+      setState(() {
+        routines = widget.routines;
+        todos = widget.todos;
+        _filterTodosForSelectedDate();
+      });
+    }
+  }
+
+  void _filterTodosForSelectedDate() {
+    filteredTodos =
+        todos.where((todo) {
+          final isCompleted = todo.isDone;
+          final isOnSelectedDay =
+              todo.Date.year == _focusedDay.year &&
+              todo.Date.month == _focusedDay.month &&
+              todo.Date.day == _focusedDay.day;
+          return isCompleted && isOnSelectedDay;
+        }).toList();
+  }
+
+  Future<void> _loadDayLogData(DateTime date) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final existingLog = await database.getDayLog(dateOnly);
+
+    if (existingLog != null) {
+      _diaryController.text = existingLog.diary ?? '';
+      _setSelectedEmotion(existingLog.emotion);
+
+      if (existingLog.answerMapJson != null) {
+        try {
+          _dailyAnswers = Map<String, String>.from(
+            jsonDecode(existingLog.answerMapJson!),
+          );
+        } catch (e) {
+          _dailyAnswers = {};
+        }
+      } else {
+        _dailyAnswers = {};
+      }
+
+      setState(() {
+        selectedQuestion = null;
+        _answerController.clear();
+      });
+    } else {
+      _diaryController.clear();
+      _dailyAnswers = {};
+      _answerController.clear();
+      setState(() {
+        selectedQuestion = null;
+        _resetIconState();
+      });
+    }
+  }
+
+  Future<void> _updateFocusedDay(DateTime newDate) async {
     setState(() {
-      answer = loadedAnswer;
-      diary = loadedDiary;
-      _answerController.text = answer!;
-      _diaryController.text = diary!;
+      _focusedDay = newDate;
+      if (widget.selectedDateNotifier.value != newDate) {
+        widget.selectedDateNotifier.value = newDate;
+      }
     });
+
+    _filterTodosForSelectedDate();
+    await logWeeklyData(newDate);
+    await _loadDayLogData(newDate);
   }
 
-  void _saveData() async {
-    final dateStr = DateFormat('yyyy-MM-dd').format(_focusedDay);
-    await LocalStorage.saveAnswer(dateStr, _answerController.text);
-    await LocalStorage.saveDiary(dateStr, _diaryController.text);
+  Future<void> logWeeklyData(DateTime date) async {
+    final year = date.year;
+    final month = date.month;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final weekday = date.weekday;
+    final weekStartDay = max(date.day - (weekday - 1), 1);
+    final weekEndDay = min(weekStartDay + 6, daysInMonth);
+
+    List<Routine> fetchedWeeklyRoutines = [];
+
+    for (int day = weekStartDay; day <= weekEndDay; day++) {
+      final currentDate = DateTime(year, month, day);
+
+      final dailyRoutines = await fetchRoutines(currentDate);
+      final visibleRoutines =
+          dailyRoutines
+              .where((r) => isRoutineVisibleOnDate(r, currentDate))
+              .toList();
+
+      fetchedWeeklyRoutines.addAll(visibleRoutines);
+    }
+
+    if (mounted) {
+      setState(() {
+        weeklyRoutines = fetchedWeeklyRoutines;
+      });
+    }
   }
 
+  List<Map<String, int>> countRoutines(List<String> routines) {
+    final Map<String, int> counter = {};
+    for (var r in routines) {
+      counter[r] = (counter[r] ?? 0) + 1;
+    }
+    return counter.entries.map((e) => {e.key: e.value}).toList();
+  }
+
+  bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
+    final dateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    final start = DateTime(
+      routine.startDate!.year,
+      routine.startDate!.month,
+      routine.startDate!.day,
+    );
+    final end = DateTime(
+      routine.endDate.year,
+      routine.endDate.month,
+      routine.endDate.day,
+    );
+    return !dateOnly.isBefore(start) &&
+        !dateOnly.isAfter(end) &&
+        routine.daysOfWeek.contains(dateOnly.weekday);
+  }
+
+  Future<List<Routine>> fetchRoutines(DateTime date) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final allRoutines = await database.getAllRoutines();
+    final completedIds = await database.getCompletedRoutineIds(date);
+
+    return allRoutines.map((r) {
+      return Routine(
+        id: r.id,
+        content: r.content,
+        colorType: ColorType.values[r.colorType],
+        isDone: completedIds.contains(r.id),
+        startDate: r.startDate ?? DateTime.now(),
+        endDate: r.endDate ?? DateTime.now(),
+        daysOfWeek: parseWeekDays(r.weekDays),
+        time: convertMinutesToTime(r.timeMinutes),
+        alarm: false,
+      );
+    }).toList();
+  }
+
+  Future<List<Todo>> fetchTodos(DateTime date) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final fetched = await database.getAllTodos();
+    return fetched.map((t) {
+      return Todo(
+        id: t.id,
+        content: t.content,
+        Date: t.date,
+        colorType: ColorType.values[t.colorType],
+        isDone: t.isDone,
+        alarm: false,
+      );
+    }).toList();
+  }
+
+  List<int> parseWeekDays(String? weekDaysStr) {
+    if (weekDaysStr == null || weekDaysStr.isEmpty) return [];
+
+    const dayMap = {
+      'MONDAY': 1,
+      'TUESDAY': 2,
+      'WEDNESDAY': 3,
+      'THURSDAY': 4,
+      'FRIDAY': 5,
+      'SATURDAY': 6,
+      'SUNDAY': 7,
+    };
+
+    try {
+      return weekDaysStr
+          .split(',')
+          .map((e) {
+            final trimmed = e.trim();
+            final asInt = int.tryParse(trimmed);
+            if (asInt != null) {
+              return asInt;
+            }
+            return dayMap[trimmed.toUpperCase()] ?? 0;
+          })
+          .where((e) => e != 0)
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  String? convertMinutesToTime(int? minutes) {
+    if (minutes == null) return null;
+    final h = (minutes ~/ 60).toString().padLeft(2, '0');
+    final m = (minutes % 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
 
   Future<void> _loadRoutineDeletionStatus() async {
     final visible = await RoutineVisibilityHelper.getVisibility();
@@ -175,96 +410,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
   }
 
-  Future<void> _loadRoutines() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
-    final service = RoutineService();
-
-    // ✅ 주차 범위 계산
-    final now = _focusedDay;
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final endOfWeek = startOfWeek.add(Duration(days: 6));
-
-    // ✅ 주차 전체 루틴을 가져옴
-    final result = await service.getRoutines(startOfWeek, endOfWeek, token);
-
-    // ✅ 완료 루틴 가져옴
-    final completedList = await service.getCompletedRoutinesThisWeek(token);
-
-    setState(() {
-      routines = result;
-      updateRoutineProgress(routines, completedList);
-      _filterRoutinesByDate(_focusedDay); // 당일 필터링은 유지
-    });
-  }
-
-  void _filterRoutinesByDate(DateTime date) {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    filteredRoutines =
-        routines.where((routine) {
-          final startOnly = DateTime(
-            routine.startDate.year,
-            routine.startDate.month,
-            routine.startDate.day,
-          );
-          final endOnly = DateTime(
-            routine.endDate.year,
-            routine.endDate.month,
-            routine.endDate.day,
-          );
-          final isInRange =
-              !dateOnly.isBefore(startOnly) && !dateOnly.isAfter(endOnly);
-          final isOnWeekday = routine.daysOfWeek.contains(dateOnly.weekday);
-
-          return isInRange && isOnWeekday;
-        }).toList();
-  }
-
-  Future<void> _loadTodos() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
-    final service = TodoService();
-    final result = await service.getTodos(_focusedDay, token);
-
-    setState(() {
-      todos = result;
-      _filterTodosByDate(_focusedDay);
-    });
-  }
-
-  void _filterTodosByDate(DateTime date) {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    filteredTodos =
-        todos.where((todo) {
-          final todoDateOnly = DateTime(
-            todo.Date.year,
-            todo.Date.month,
-            todo.Date.day,
-          );
-          return todoDateOnly == dateOnly && todo.isDone == true;
-        }).toList();
-  }
-
   void _onLeftChevronPressed() async {
-    setState(() {
-      _focusedDay = _focusedDay.subtract(Duration(days: 1));
-      _resetIconState();
-    });
-    await _loadRoutines();
-    await _loadTodos();
-    await _loadSavedData();
+    await _updateFocusedDay(_focusedDay.subtract(Duration(days: 1)));
   }
 
   void _onRightChevronPressed() async {
-    setState(() async {
-      _focusedDay = _focusedDay.add(Duration(days: 1));
-      _resetIconState();
-      await _loadSavedData();
-    });
-    await _loadRoutines();
-    await _loadTodos();
+    await _updateFocusedDay(_focusedDay.add(Duration(days: 1)));
   }
 
   void _resetIconState() {
@@ -289,49 +440,15 @@ class _DaylogScreenState extends State<DaylogScreen> {
         _sosoActive = false;
       }
     });
-  }
 
-  void updateRoutineProgress(
-    List<Routine> routines,
-    List<CompletedRoutine> completedRoutineList,
-  ) {
-    final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final endOfWeek = startOfWeek.add(Duration(days: 6));
-
-    for (var routine in routines) {
-      int total = 0;
-      int done = 0;
-
-      for (int i = 0; i < 7; i++) {
-        final date = startOfWeek.add(Duration(days: i));
-        if (routine.daysOfWeek.contains(date.weekday)) {
-          total++;
-
-          final isCompleted = completedRoutineList.any(
-            (completed) =>
-                completed.routineId == routine.id &&
-                completed.date.year == date.year &&
-                completed.date.month == date.month &&
-                completed.date.day == date.day,
-          );
-
-          if (isCompleted) {
-            done++;
-          }
-        }
-      }
-
-      routine.totalDaysThisWeek = total;
-      routine.completedDays = done;
-    }
+    _saveDaylogData(showSnackbar: false);
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        FocusScope.of(context).unfocus(); // 키보드 내리기
+        FocusScope.of(context).unfocus();
       },
       child: Scaffold(
         body: SafeArea(
@@ -339,12 +456,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
             child: Column(
               children: [
                 _buildHeader(),
+                SizedBox(height: 20),
                 if (!_hideRoutineUI) _buildRoutineBanner(),
+                if (!_hideTodoUI) SizedBox(height: 13),
                 if (!_hideRoutineUI) _buildRoutineSection(),
-                if (!_hideTodoUI) SizedBox(height: 30),
+                if (!_hideTodoUI) SizedBox(height: 15),
                 if (!_hideTodoUI) _buildDoneBanner(),
                 if (!_hideTodoUI) _buildDoneSection(),
-                if (!_hideTodoUI) SizedBox(height: 30),
                 if (!_hideTodoUI) _buildProgressBanner(),
                 if (!_hideTodoUI) SizedBox(height: 20),
                 if (!_hideTodoUI) _buildProgressSection(),
@@ -474,11 +592,29 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildRoutineSection() {
+    final Map<String, List<Routine>> groupedRoutines = {};
+
+    for (var routine in weeklyRoutines) {
+      if (groupedRoutines.containsKey(routine.content)) {
+        groupedRoutines[routine.content]!.add(routine);
+      } else {
+        groupedRoutines[routine.content] = [routine];
+      }
+    }
+    final todaysRoutineEntries =
+        groupedRoutines.entries.where((entry) {
+          return entry.value.any(
+            (routineInstance) =>
+                isRoutineVisibleOnDate(routineInstance, _focusedDay),
+          );
+        }).toList();
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0.0),
+      padding: EdgeInsets.symmetric(horizontal: 33.0),
       child: Column(
         children: [
-          if (routines.isEmpty) ...[
+          if (todaysRoutineEntries.isEmpty) ...[
+            SizedBox(height: 5),
             Center(
               child: Text(
                 "이번 주 루틴 현황을 보여드립니다.",
@@ -499,79 +635,82 @@ class _DaylogScreenState extends State<DaylogScreen> {
               ],
             ),
           ] else ...[
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: filteredRoutines.length,
-              itemBuilder: (context, index) {
-                final routine = filteredRoutines[index];
-                print(
-                  "DaylogScreen initState routines length: ${routines.length}",
-                );
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 3.0,
-                    horizontal: 5.0,
-                  ),
-                  child: Container(
-                    padding: EdgeInsets.all(6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(width: 5),
-                        Text(
-                          "      •",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            routine.content,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children:
+                  todaysRoutineEntries.map((entry) {
+                    final routineContent = entry.key;
+                    final routineInstances = groupedRoutines[routineContent]!;
+
+                    final totalCount = routineInstances.length;
+                    final completedCount =
+                        routineInstances.where((r) => r.isDone).length;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            " • ",
                             style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'PretendardRegular',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
-                        ),
-
-                        Container(
-                          width: 60,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(3),
-                            color: Colors.grey[300],
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              routineContent,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'PretendardRegular',
+                              ),
+                            ),
                           ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor:
-                                routine.daysOfWeek.isEmpty
-                                    ? 0.0
-                                    : routine.completedDays /
-                                        routine.daysOfWeek.length,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(3),
+                          SizedBox(width: 3),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              totalCount,
+                              (index) => Container(
+                                width: 20,
+                                height: 4,
+                                margin: EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                  color:
+                                      index < completedCount
+                                          ? Colors.black
+                                          : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 20.0),
+                          Container(
+                            width: 40,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              "$completedCount/$totalCount",
+                              style: TextStyle(
+                                fontFamily: 'RubikSprayPaint',
+                                fontSize: 14.0,
                                 color: Colors.black,
                               ),
                             ),
                           ),
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          "${routine.completedDays}/${routine.totalDaysThisWeek}",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontFamily: 'RubikSprayPaint',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                        ],
+                      ),
+                    );
+                  }).toList(),
+            ),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(width: 320, child: Divider(color: Colors.grey)),
+              ],
             ),
           ],
         ],
@@ -637,10 +776,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildDoneSection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0.0),
+      padding: const EdgeInsets.symmetric(horizontal: 33.0, vertical: 15.0),
       child: Column(
         children: [
-          if (todos.isEmpty) ...[
+          if (filteredTodos.isEmpty) ...[
             Center(
               child: Text(
                 "오늘 끝낸 to-do 리스트를 보여드립니다.",
@@ -653,56 +792,51 @@ class _DaylogScreenState extends State<DaylogScreen> {
             ),
             SizedBox(height: 16),
             Center(child: _buildTodoButton()),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(width: 320, child: Divider(color: Colors.grey)),
-              ],
-            ),
           ] else ...[
-            ListView.builder(
+            GridView.builder(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
               itemCount: filteredTodos.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                childAspectRatio: 6 / 1,
+              ),
               itemBuilder: (context, index) {
                 final todo = filteredTodos[index];
-                print("DaylogScreen initState todos length: ${todos.length}");
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 3.0,
-                    horizontal: 5.0,
-                  ),
-                  child: Container(
-                    padding: EdgeInsets.all(6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(width: 5),
-                        Text(
-                          "      •",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            todo.content,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'PretendardRegular',
-                            ),
-                          ),
-                        ),
-                      ],
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      " • ",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                    SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        todo.content,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'PretendardRegular',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
           ],
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(width: 320, child: Divider(color: Colors.grey)),
+            ],
+          ),
         ],
       ),
     );
@@ -722,7 +856,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               topLeft: Radius.circular(59),
             ),
           ),
-          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
+          builder: (_) => TodoBottomSheet(selectedDate: _focusedDay),
         );
       },
       child: Container(
@@ -764,55 +898,141 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
-  Widget _buildProgressSection() {
-    int daysInMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0).day;
+  Future<Map<int, double>> _calculateMonthlyProgress() async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final allTodosFromDb = await database.getAllTodos();
 
-    // 랜덤으로 칠할 사각형 개수
-    int blackSquaresCount = 5; // 예: 5개
+    final Map<int, double> progressMap = {};
+    final year = _focusedDay.year;
+    final month = _focusedDay.month;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
 
-    int seed = int.parse(DateFormat('yyyyMMdd').format(_focusedDay));
-    final random = Random(seed);
-    final blackIndices = <int>{};
-    while (blackIndices.length < blackSquaresCount) {
-      blackIndices.add(random.nextInt(daysInMonth));
+    for (int day = 1; day <= daysInMonth; day++) {
+      final todosForDay =
+          allTodosFromDb.where((todo) {
+            return todo.date.year == year &&
+                todo.date.month == month &&
+                todo.date.day == day;
+          }).toList();
+
+      if (todosForDay.isEmpty) {
+        progressMap[day] = -1.0;
+      } else {
+        final completedCount = todosForDay.where((todo) => todo.isDone).length;
+        final totalCount = todosForDay.length;
+        final percentage = (completedCount / totalCount) * 100.0;
+        progressMap[day] = percentage;
+      }
     }
+    return progressMap;
+  }
 
+  Color _getColorForPercentage(double? percentage) {
+    if (percentage == null || percentage <= 20) {
+      return Colors.white;
+    } else if (percentage < 60) {
+      return Colors.grey[300]!;
+    } else if (percentage < 80) {
+      return Colors.grey[500]!;
+    } else if (percentage < 100) {
+      return Colors.grey[700]!;
+    } else {
+      return Colors.black;
+    }
+  }
+
+  Widget _buildProgressSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 40.0),
-      child: Container(
-        constraints: BoxConstraints(maxHeight: 200),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 11,
-            crossAxisSpacing: 4.0,
-            mainAxisSpacing: 4.0,
-            childAspectRatio: 1.0,
-          ),
-          itemCount: daysInMonth,
-          itemBuilder: (context, index) {
-            final isBlack = blackIndices.contains(index);
+      child: FutureBuilder<Map<int, double>>(
+        future: _calculateMonthlyProgress(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return Container(
-              decoration: BoxDecoration(
-                color: isBlack ? Colors.black : Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 2,
-                  ),
-                ],
-              ),
-              alignment: Alignment.center,
+              height: 150,
+              child: Center(child: CircularProgressIndicator()),
             );
-          },
-        ),
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('진행률을 불러오는 데 실패했습니다.'));
+          }
+          if (snapshot.hasData) {
+            final progressMap = snapshot.data!;
+            final bool hasTodosThisMonth = progressMap.values.any(
+              (progress) => progress >= 0,
+            );
+
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  constraints: BoxConstraints(maxHeight: 200),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 11,
+                      crossAxisSpacing: 4.0,
+                      mainAxisSpacing: 4.0,
+                      childAspectRatio: 1.0,
+                    ),
+                    itemCount: progressMap.length,
+                    itemBuilder: (context, index) {
+                      final day = index + 1;
+                      final percentage = progressMap[day];
+                      final color = _getColorForPercentage(percentage);
+
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                      );
+                    },
+                  ),
+                ),
+                if (!hasTodosThisMonth)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "이번 달 to-do 달성률을 보여드립니다.\n퍼센트에 따라 색깔을 달리 표현합니다.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontFamily: 'PretendardSemiBold',
+                              color: DARK_GREY_COLOR,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          _buildCalendarButton(),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }
+          return SizedBox.shrink();
+        },
       ),
     );
   }
 
-  /*Widget _buildCalendarButton() {
+  Widget _buildCalendarButton() {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -832,18 +1052,23 @@ class _DaylogScreenState extends State<DaylogScreen> {
           ],
         ),
         child: Center(
-          child: Center(
-            child: Text(
-              '캘린더 보러 가기',
-              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
-            ),
+          child: Text(
+            '캘린더 보러 가기',
+            style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
           ),
         ),
       ),
     );
   }
 
-   */
+  Future<void> _loadDbQuestions() async {
+    final fetchedQuestions = await _repository.fetchDayLogQuestions();
+    if (mounted) {
+      setState(() {
+        _dbQuestions = fetchedQuestions;
+      });
+    }
+  }
 
   Widget _buildQuestionBanner() {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
@@ -862,17 +1087,29 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildQuestionButtons() {
+    final staticQuestionStrings = ['💰 오늘의 소비는?', '😊 오늘의 내가 감사했던 일은?'];
+
+    final dynamicQuestionStrings =
+        _dbQuestions.map((q) => '${q.emoji} ${q.question}').toList();
+
+    final allQuestionStrings = [
+      ...staticQuestionStrings,
+      ...dynamicQuestionStrings,
+    ];
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 40.0),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
         child: Row(
-          children: [
-            ...daylogQuestions.map(
-              (q) => Row(children: [_buildQuestionButton(q.content)]),
-            ),
-          ],
+          children:
+              allQuestionStrings.map((questionText) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: _buildQuestionButton(questionText),
+                );
+              }).toList(),
         ),
       ),
     );
@@ -883,9 +1120,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     return GestureDetector(
       onTap: () {
+        if (selectedQuestion != null) {
+          _dailyAnswers[selectedQuestion!] = _answerController.text;
+        }
+
         setState(() {
           selectedQuestion = (selectedQuestion == text) ? null : text;
         });
+        if (selectedQuestion != null) {
+          _answerController.text = _dailyAnswers[selectedQuestion!] ?? '';
+        } else {
+          _answerController.clear();
+        }
       },
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -945,6 +1191,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
                     padding: const EdgeInsets.only(left: 16.0),
                     child: TextField(
                       controller: _answerController,
+                      focusNode: _answerFocusNode,
                       decoration: InputDecoration(border: InputBorder.none),
                       onChanged: (value) {
                         setState(() {
@@ -982,6 +1229,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         scrollDirection: Axis.vertical,
         child: TextField(
           controller: _diaryController,
+          focusNode: _diaryFocusNode,
           maxLines: null,
           minLines: 10,
           decoration: InputDecoration(
@@ -1009,14 +1257,40 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
+  void _saveDaylogData({bool showSnackbar = true}) async {
+    final database = db.LocalDatabaseSingleton.instance;
+    final dateOnly = DateTime(
+      _focusedDay.year,
+      _focusedDay.month,
+      _focusedDay.day,
+    );
+
+    if (selectedQuestion != null && _answerFocusNode.hasFocus) {
+      _dailyAnswers[selectedQuestion!] = _answerController.text;
+    }
+
+    final String? answerMapString =
+        _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
+
+    final entry = db.DayLogsCompanion(
+      date: Value(dateOnly),
+      emotion: Value(_getSelectedEmotion()),
+      diary: Value(_diaryController.text),
+      answerMapJson: Value(answerMapString),
+    );
+
+    await database.upsertDayLog(entry);
+
+    if (mounted && showSnackbar) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('데이로그가 저장되었습니다.')));
+    }
+  }
+
   Widget _buildDaylogSaveButton() {
     return GestureDetector(
-      onTap: () {
-        _saveData();
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('데이로그가 저장되었습니다.')),
-        );
-      },
+      onTap: () => _saveDaylogData(showSnackbar: true),
       child: Container(
         width: 334,
         height: 56,
