@@ -28,6 +28,9 @@ LazyDatabase _openConnection() {
     DayLogs,
   ],
 )
+
+enum Emotion { happy, soso, bad, none }
+
 class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
@@ -77,6 +80,7 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   // ------------------ DayLog ------------------
+
   Future<List<DayLogQuestion>> getAllDayLogQuestions() {
     return select(dayLogQuestions).get();
   }

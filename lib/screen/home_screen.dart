@@ -92,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<List<Todo>> fetchTodos(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
     final fetched = await database.getTodosByDate(date);
-    final completedIds = await database.getCompletedTodoIds(date);
 
     return fetched.map((t) {
       return Todo(
