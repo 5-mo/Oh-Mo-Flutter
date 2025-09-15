@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/category_screen.dart';
+import 'package:ohmo/screen/diary_collection_screen.dart';
 import '../db/drift_database.dart' as db;
 
 class MyScreen extends StatefulWidget {
@@ -399,9 +400,17 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Widget _buildDiaryCollection(BuildContext context) {
-    return Text(
-      "일기 모아보기",
-      style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => DiaryCollectionScreen(selectedDateNotifier: widget.selectedDateNotifier, onTabChange: widget.onTabChange)),
+        );
+      },
+      child: Text(
+        '일기 모아보기',
+        style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
+      ),
     );
   }
 }
