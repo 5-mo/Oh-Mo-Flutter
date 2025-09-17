@@ -38,8 +38,8 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
 
   Widget _buildSettingRoutineAlarm() {
     return GestureDetector(
-      onTap: () {
-        showModalBottomSheet(
+      onTap: () async {
+        final result = await showModalBottomSheet<int>(
           context: context,
           isScrollControlled: true,
           isDismissible: true,
@@ -54,6 +54,10 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
             return AlarmSetting();
           },
         );
+
+        if (result != null) {
+          Navigator.of(context).pop(result);
+        }
       },
       child: Container(
         width: 318,
@@ -164,9 +168,7 @@ class _TodoAlarmState extends State<TodoAlarm> {
                   textTheme: ButtonTextTheme.primary,
                 ),
                 textButtonTheme: TextButtonThemeData(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.black),
                 ),
               ),
               child: child!,
@@ -210,8 +212,8 @@ class _TodoAlarmState extends State<TodoAlarm> {
 
   Widget _buildSettingRoutineAlarm() {
     return GestureDetector(
-      onTap: () {
-        showModalBottomSheet(
+      onTap: ()  async {
+        final result = await showModalBottomSheet<int>(
           context: context,
           isScrollControlled: true,
           isDismissible: true,
@@ -226,6 +228,9 @@ class _TodoAlarmState extends State<TodoAlarm> {
             return AlarmSetting();
           },
         );
+        if (result != null) {
+          Navigator.of(context).pop(result);
+        }
       },
       child: Container(
         width: 318,

@@ -4,6 +4,7 @@ import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ohmo/services/notification_service.dart';
 
 Future<void> clearTokens() async {
   final prefs = await SharedPreferences.getInstance();
@@ -14,6 +15,7 @@ Future<void> clearTokens() async {
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   await HomeWidget.setAppGroupId('group.ohmo');
   await clearTokens();
   runApp(

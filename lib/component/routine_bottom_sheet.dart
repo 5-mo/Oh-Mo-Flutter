@@ -6,6 +6,7 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/screen/category_screen.dart';
 import '../models/category_item.dart';
+import 'package:ohmo/services/notification_service.dart';
 
 class RoutineBottomSheet extends StatefulWidget {
   final Future<void> Function()? onRoutineAdded;
@@ -465,12 +466,49 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
               startDate: drift.Value(startDate),
               endDate: drift.Value(selectedEndDate!),
               timeMinutes: drift.Value(minutes),
+              
               weekDays: drift.Value(weekString),
               categoryId: drift.Value(selectedCategoryId!),
             ),
           );
 
-          print('새 루틴 ID: $id');
+          if (isChecked) {
+            final routine = await db.getRoutineById(id);
+            if (routine == null || routine.weekDays == null || routine.endDate == null || routine.timeMinutes == null) return;
+
+            final weekDays = routine.weekDays!.split(',').map(int.parse).toList();
+
+            DateTime today = DateTime.now();
+            DateTime startDate = DateTime(today.year, today.month, today.day);
+
+            for (var i = 0; i < 365; i++) {
+              DateTime currentDay = startDate.add(Duration(days: i));
+              if (currentDay.isAfter(routine.endDate!)) break;
+
+              if (weekDays.contains(currentDay.weekday)) {
+                final notificationTime = DateTime(
+                  currentDay.year,
+                  currentDay.month,
+                  currentDay.day,
+                ).add(Duration(minutes: routine.timeMinutes!));
+
+                if (notificationTime.isBefore(DateTime.now())) continue;
+
+                int uniqueNotificationId = routine.id * 100000000 +
+                    notificationTime.year * 10000 +
+                    notificationTime.month * 100 +
+                    notificationTime.day;
+
+                await NotificationService().scheduleNotification(
+                  id: uniqueNotificationId,
+                  title: '오늘의 루틴 시간!',
+                  body: routine.content,
+                  scheduledTime: notificationTime,
+                  payload: routine.id.toString(),
+                );
+              }
+            }
+          }
 
           if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
           if (widget.onDataChanged != null) await widget.onDataChanged!();
