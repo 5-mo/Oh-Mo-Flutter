@@ -7,6 +7,7 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import '../models/category_item.dart';
 import '../screen/category_screen.dart';
+import 'package:ohmo/services/notification_service.dart';
 
 class TodoBottomSheet extends StatefulWidget {
   final DateTime selectedDate;
@@ -316,8 +317,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
         }
 
         try {
-          final db = LocalDatabase();
-
+          final db = LocalDatabaseSingleton.instance;
           final minutes = selectedTime!.hour * 60 + selectedTime!.minute;
 
           final selectedCategory = todos.firstWhere(
@@ -334,6 +334,14 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             } catch (_) {}
           }
 
+          final fullTodoDate = DateTime(
+            selectedDate.year,
+            selectedDate.month,
+            selectedDate.day,
+            selectedTime!.hour,
+            selectedTime!.minute,
+          );
+
           final id = await db.insertTodo(
             TodosCompanion.insert(
               content: contentController.text,
@@ -342,14 +350,23 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               scheduleType: drift.Value('TO_DO'),
               timeMinutes: drift.Value(minutes),
               isDone: drift.Value(false),
-              date: DateTime(
-                selectedDate.year,
-                selectedDate.month,
-                selectedDate.day,
-              ),
+              date: fullTodoDate,
             ),
           );
-          print('새 투두 ID: $id');
+
+          if (isChecked) {
+            final notificationTime = fullTodoDate; // 정시 알람
+
+            if (notificationTime.isAfter(DateTime.now())) {
+              await NotificationService().scheduleNotification(
+                id: id, // 투두의 ID를 알람 ID로 사용
+                title: '오늘의 할 일!',
+                body: contentController.text,
+                scheduledTime: notificationTime,
+                payload: 'todo_$id', // 'todo_' 접두사를 붙여 구분
+              );
+            }
+          }
 
           if (widget.onTodoAdded != null) await widget.onTodoAdded!();
           if (widget.onDataChanged != null) await widget.onDataChanged!();
@@ -388,7 +405,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
 
   void _loadCategories() async {
     try {
-      final localDb = LocalDatabase();
+      final localDb = LocalDatabaseSingleton.instance;
       final categoryRepo = LocalCategoryRepository(localDb);
 
       final loadedTodos = await categoryRepo.fetchCategories(

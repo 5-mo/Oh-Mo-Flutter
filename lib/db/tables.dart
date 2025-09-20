@@ -5,7 +5,7 @@ class Categories extends Table{
   TextColumn get name => text()();
   TextColumn get type => text()();
   TextColumn get color => text()();
-  BoolColumn get isDeleted => boolean().withDefault(Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 class DayLogQuestions extends Table {
@@ -17,25 +17,26 @@ class DayLogQuestions extends Table {
 class Routines extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get content => text()();
-  IntColumn get colorType => integer().withDefault(Constant(0))();
-  BoolColumn get isDone => boolean().withDefault(Constant(false))();
+  IntColumn get colorType => integer().withDefault(const Constant(0))();
+  BoolColumn get isDone => boolean().withDefault(const Constant(false))();
   DateTimeColumn get startDate => dateTime().named('start_date').nullable()();
   DateTimeColumn get endDate => dateTime().named('end_date').nullable()();
   IntColumn get timeMinutes => integer().nullable()();
   TextColumn get weekDays => text().nullable()();
-  TextColumn get scheduleType => text().withDefault(Constant('ROUTINE'))();
+  TextColumn get scheduleType => text().withDefault(const Constant('ROUTINE'))();
   IntColumn get categoryId => integer().nullable()();
+  IntColumn get alarmMinutes => integer().nullable()();
 }
 
 class Todos extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get content => text()();
-  IntColumn get colorType => integer().withDefault(Constant(0))();
-  BoolColumn get isDone => boolean().withDefault(Constant(false))();
+  IntColumn get colorType => integer().withDefault(const Constant(0))();
+  BoolColumn get isDone => boolean().withDefault(const Constant(false))();
   IntColumn get timeMinutes => integer().nullable()();
-  TextColumn get scheduleType => text().withDefault(Constant('TO_DO'))();
+  TextColumn get scheduleType => text().withDefault(const Constant('TO_DO'))();
   IntColumn get categoryId => integer().nullable()();
-
+  IntColumn get alarmMinutes => integer().nullable()();
   DateTimeColumn get date => dateTime()();
 }
 
@@ -52,7 +53,7 @@ class CompletedTodos extends Table {
 }
 
 class DayLogs extends Table {
-  DateTimeColumn get date => dateTime()();
+  DateTimeColumn get date => dateTime().unique()();
   TextColumn get emotion => text().nullable()();
   TextColumn get answerMapJson => text().nullable()();
   TextColumn get diary => text().nullable()();

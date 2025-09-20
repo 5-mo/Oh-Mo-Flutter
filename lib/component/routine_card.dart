@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
 import '../db/drift_database.dart';
+import '../services/notification_service.dart';
 import 'alarm_bottom_sheet.dart';
-import 'delete_popup.dart';
 import 'color_palette_bottom_sheet.dart';
 
 class RoutineCard extends StatefulWidget {
@@ -47,7 +47,6 @@ class _RoutineCardState extends State<RoutineCard> {
     _selectedColorType = widget.colorType;
   }
 
-  // ✅ 부모가 전달하는 값이 바뀌면 UI 갱신
   @override
   void didUpdateWidget(covariant RoutineCard oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -131,27 +130,66 @@ class _RoutineCardState extends State<RoutineCard> {
             ),
 
             GestureDetector(
-              onTap: () {
-                final popupWidget = widget.deletePopupBuilder?.call(context);
-                if (popupWidget is DeletePopup) {
-                  showDialog(
-                    context: context,
-                    barrierColor: Colors.black.withOpacity(0.4),
-                    builder: (_) => popupWidget,
-                  );
-                } else {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    isDismissible: true,
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.only(
-                        topRight: Radius.circular(59),
-                        topLeft: Radius.circular(59),
-                      ),
+              onTap: () async {
+                final int? minutes = await showModalBottomSheet<int>(
+                  context: context,
+                  isScrollControlled: true,
+                  isDismissible: true,
+                  backgroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(59),
+                      topLeft: Radius.circular(59),
                     ),
-                    builder: widget.deletePopupBuilder ?? (context) => RoutineAlarm(),
+                  ),
+                  builder: (context) => RoutineAlarm(),
+                );
+
+                if (minutes != null) {
+                  final db = LocalDatabaseSingleton.instance;
+                  await db.updateRoutine(
+                    RoutinesCompanion(
+                      id: Value(widget.scheduleId),
+                      alarmMinutes: Value(minutes),
+                    ),
+                  );
+                  final routine = await db.getRoutineById(widget.scheduleId);
+                  if (routine == null || routine.weekDays==null|| routine.endDate == null||routine.timeMinutes==null) {
+                    return;
+                  }
+                  final weekDays = routine.weekDays!.split(',').map(int.parse).toList();
+
+                  DateTime today = DateTime.now();
+                  DateTime startDate = DateTime(today.year, today.month, today.day);
+                  for (var i = 0; i < 365; i++) {
+                    DateTime currentDay = startDate.add(Duration(days: i));
+                    if (currentDay.isAfter(routine.endDate!)) break;
+
+                    if (weekDays.contains(currentDay.weekday)) {
+                      final routineTime = DateTime(currentDay.year, currentDay.month, currentDay.day)
+                          .add(Duration(minutes: routine.timeMinutes!));
+
+                      final notificationTime = routineTime.subtract(Duration(minutes: minutes));
+
+                      if (notificationTime.isBefore(DateTime.now())) continue;
+
+                      int uniqueNotificationId = widget.scheduleId * 100000000 +
+                          notificationTime.year * 10000 +
+                          notificationTime.month * 100 +
+                          notificationTime.day;
+
+                      await NotificationService().scheduleNotification(
+                        id: uniqueNotificationId,
+                        title: '오늘의 루틴 시간!',
+                        body: routine.content,
+                        scheduledTime: notificationTime,
+                        payload: widget.scheduleId.toString(),
+                      );
+                    }
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${minutes}분 전으로 전체 알람이 설정되었습니다!')),
                   );
                 }
               },

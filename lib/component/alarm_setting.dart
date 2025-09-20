@@ -11,6 +11,7 @@ class AlarmSetting extends StatefulWidget {
 class _AlarmSettingState extends State<AlarmSetting> {
   String selectedMinute = "";
   bool isManualInputSelected = false;
+  final TextEditingController _manualInputController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -71,17 +72,17 @@ class _AlarmSettingState extends State<AlarmSetting> {
   Widget _buildMinuteButton(String minute) {
     return GestureDetector(
       onTap: () {
-        setState(() {
-          if (minute == "직접 입력") {
+        if (minute == "직접 입력") {
+          setState(() {
             isManualInputSelected = true;
             selectedMinute = minute;
-          } else {
-            selectedMinute = minute;
-            isManualInputSelected = false;
-            print("$minute 선택됨");
-          }
-        });
+          });
+        } else {
+          final minutes = int.parse(minute.replaceAll('분 전', ''));
+          Navigator.of(context).pop(minutes);
+        }
       },
+
       child: Container(
         width: 48,
         height: 48,
@@ -119,6 +120,7 @@ class _AlarmSettingState extends State<AlarmSetting> {
               ],
             ),
             child: TextField(
+              controller: _manualInputController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 filled: true,
@@ -163,7 +165,16 @@ class _AlarmSettingState extends State<AlarmSetting> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () {
-        print('저장하기');
+        if (isManualInputSelected) {
+          final minutes = int.tryParse(_manualInputController.text);
+          if (minutes != null) {
+            Navigator.of(context).pop(minutes);
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('숫자만 입력해주세요.')));
+          }
+        }
       },
       child: Container(
         width: 334,
