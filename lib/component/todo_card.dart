@@ -5,7 +5,6 @@ import 'package:flutter_svg/svg.dart';
 import '../db/drift_database.dart';
 import 'alarm_bottom_sheet.dart';
 import 'color_palette_bottom_sheet.dart';
-import 'delete_popup.dart';
 import 'package:ohmo/services/notification_service.dart';
 
 class TodoCard extends StatefulWidget {
@@ -17,6 +16,7 @@ class TodoCard extends StatefulWidget {
   final int scheduleId;
   final bool isDone;
   final Future<void> Function()? onStatusChanged;
+  final Function(int id, DateTime newDate)? onDateChanged;
 
   const TodoCard({
     required this.content,
@@ -27,6 +27,7 @@ class TodoCard extends StatefulWidget {
     required this.scheduleId,
     required this.isDone,
     this.onStatusChanged,
+    this.onDateChanged,
     Key? key,
   }) : super(key: key);
 
@@ -130,7 +131,11 @@ class _TodoCardState extends State<TodoCard> {
             ),
             GestureDetector(
               onTap: () async {
-                final int? minutes = await showModalBottomSheet<int>(
+                final db=LocalDatabaseSingleton.instance;
+                final todo=await db.getTodoById(widget.scheduleId);
+                if(todo==null)return;
+
+                final result = await showModalBottomSheet<dynamic>(
                   context: context,
                   isScrollControlled: true,
                   isDismissible: true,
@@ -141,13 +146,15 @@ class _TodoCardState extends State<TodoCard> {
                       topLeft: Radius.circular(59),
                     ),
                   ),
-                  builder: (context) => TodoAlarm(),
+                  builder: (context) => TodoAlarm(currentDate:todo.date),
                 );
 
-                if (minutes != null) {
+                if (result != null && result is DateTime) {
+                  widget.onDateChanged?.call(widget.scheduleId, result);
+                } else if (result != null && result is int) {
+                  final minutes = result;
                   final db = LocalDatabaseSingleton.instance;
 
-                  // 3. DB에 알람 시간을 업데이트합니다.
                   await db.updateTodo(
                     TodosCompanion(
                       id: Value(widget.scheduleId),
@@ -155,25 +162,20 @@ class _TodoCardState extends State<TodoCard> {
                     ),
                   );
 
-                  // 4. 알람을 예약하기 위해 투두 정보를 가져옵니다.
                   final todo = await db.getTodoById(widget.scheduleId);
                   if (todo == null) return;
-
-                  // 5. 최종 알람 시간을 계산합니다.
-                  final todoTime = todo.date; // date에 이미 시간 정보가 포함되어 있습니다.
+                  final todoTime = todo.date;
                   final notificationTime = todoTime.subtract(
                     Duration(minutes: minutes),
                   );
 
-                  // 6. 현재보다 과거 시간은 예약하지 않음
                   if (notificationTime.isAfter(DateTime.now())) {
                     await NotificationService().scheduleNotification(
                       id: todo.id,
-                      // 투두 ID를 알람 ID로 사용
                       title: '오늘의 할 일!',
                       body: todo.content,
                       scheduledTime: notificationTime,
-                      payload: 'todo_${todo.id}', // 'todo_' 접두사를 붙여 구분
+                      payload: 'todo_${todo.id}',
                     );
                   }
 

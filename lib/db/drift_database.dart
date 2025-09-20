@@ -206,6 +206,12 @@ class LocalDatabase extends _$LocalDatabase {
     return (update(todos)..where((t) => t.id.equals(id))).write(entry);
   }
 
+  Future<void> updateTodoDate(int id, DateTime newDate) {
+    return (update(todos)..where(
+      (tbl) => tbl.id.equals(id),
+    )).write(TodosCompanion(date: Value(newDate)));
+  }
+
   Future<List<Todo>> getAllTodos({String scheduleType = 'TO_DO'}) {
     return (select(todos)
       ..where((t) => t.scheduleType.equals(scheduleType))).get();

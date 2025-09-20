@@ -9,7 +9,9 @@ class RoutineAlarm extends StatefulWidget {
 }
 
 class TodoAlarm extends StatefulWidget {
-  const TodoAlarm({Key? key}) : super(key: key);
+  final DateTime currentDate;
+
+  const TodoAlarm({required this.currentDate, Key? key}) : super(key: key);
 
   @override
   State<TodoAlarm> createState() => _TodoAlarmState();
@@ -89,8 +91,6 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
 }
 
 class _TodoAlarmState extends State<TodoAlarm> {
-  DateTime selectedDate = DateTime.now();
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -102,7 +102,7 @@ class _TodoAlarmState extends State<TodoAlarm> {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(height: 20),
-              _buildSettingNextDay(),
+              _buildSettingNextDay(widget.currentDate),
               SizedBox(height: 7),
               _buildSettingDifferentDay(),
               SizedBox(height: 7),
@@ -115,13 +115,11 @@ class _TodoAlarmState extends State<TodoAlarm> {
     );
   }
 
-  Widget _buildSettingNextDay() {
+  Widget _buildSettingNextDay(DateTime currentTodoDate) {
     return GestureDetector(
       onTap: () {
-        setState(() {
-          selectedDate = DateTime.now().add(const Duration(days: 1));
-        });
-        print("${selectedDate.toLocal()}");
+        final nextDay = currentTodoDate.add(const Duration(days: 1));
+        Navigator.of(context).pop(nextDay);
       },
       child: Container(
         width: 318,
@@ -156,7 +154,7 @@ class _TodoAlarmState extends State<TodoAlarm> {
       onTap: () async {
         final DateTime? pickedDate = await showDatePicker(
           context: context,
-          initialDate: selectedDate,
+          initialDate: widget.currentDate,
           firstDate: DateTime(2000),
           lastDate: DateTime(3000),
           builder: (context, child) {
@@ -175,11 +173,8 @@ class _TodoAlarmState extends State<TodoAlarm> {
             );
           },
         );
-        if (pickedDate != null && pickedDate != selectedDate) {
-          setState(() {
-            selectedDate = pickedDate;
-          });
-          print("선택한 날짜 : ${selectedDate.toLocal()}");
+        if (pickedDate != null) {
+          Navigator.of(context).pop(pickedDate);
         }
       },
       child: Container(
@@ -212,7 +207,7 @@ class _TodoAlarmState extends State<TodoAlarm> {
 
   Widget _buildSettingRoutineAlarm() {
     return GestureDetector(
-      onTap: ()  async {
+      onTap: () async {
         final result = await showModalBottomSheet<int>(
           context: context,
           isScrollControlled: true,

@@ -443,6 +443,11 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
 
                                             widget.onDataChanged?.call();
                                           },
+                                          onDateChanged: (id,newDate) async{
+                                            await db.LocalDatabaseSingleton.instance
+                                                .updateTodoDate(id,newDate);
+                                            widget.onDataChanged?.call();
+                                          },
                                         ),
                                       )
                                       .toList(),
