@@ -7,8 +7,8 @@ import 'package:ohmo/component/routine_card.dart';
 import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/component/bottom_navigation_bar.dart';
-import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ohmo/services/widget_updater.dart';
 import 'dart:convert';
 import '../const/colors.dart';
 import '../customize_category.dart';
@@ -49,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final today = DateTime.now();
     _loadDataForDate(today);
+    WidgetUpdater.update();
   }
 
   Future<void> _loadDataForDate(DateTime date) async {
@@ -61,12 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {});
     }
-
-    await saveTodayRoutineAndTodo(
-      date,
-      _routinesNotifier.value,
-      _todosNotifier.value,
-    );
   }
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {
@@ -158,60 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return list.map(int.parse).toList();
   }
 
-  Future<void> saveTodayRoutineAndTodo(
-    DateTime date,
-    List<Routine> routines,
-    List<Todo> todos,
-  ) async {
-    final routineContents =
-        routines
-            .where((r) => isRoutineVisibleOnDate(r, date))
-            .map((r) => r.content.trim())
-            .toList();
-    final todoContents =
-        todos.map((t) => t.content.trim()).where((e) => e.isNotEmpty).toList();
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('todayRoutineContents', routineContents);
-    await prefs.setStringList('todayTodoContents', todoContents);
-
-    await HomeWidget.saveWidgetData(
-      'today_routine',
-      jsonEncode(routineContents),
-    );
-    await HomeWidget.saveWidgetData('today_todo', jsonEncode(todoContents));
-    await HomeWidget.updateWidget(
-      name: 'TodayWidgetExtension',
-      iOSName: 'TodayWidgetExtension',
-    );
-    await HomeWidget.updateWidget(
-      name: 'HomeWidgetExtension',
-      iOSName: 'HomeWidgetExtension',
-    );
-  }
-
-  bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
-    final dateOnly = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-    );
-    final start = DateTime(
-      routine.startDate!.year,
-      routine.startDate!.month,
-      routine.startDate!.day,
-    );
-    final end = DateTime(
-      routine.endDate.year,
-      routine.endDate.month,
-      routine.endDate.day,
-    );
-
-    final isWithinRange = !dateOnly.isBefore(start) && !dateOnly.isAfter(end);
-    final isWeekdayMatch = routine.daysOfWeek.contains(dateOnly.weekday);
-    return isWithinRange && isWeekdayMatch;
-  }
-
   Future<void> _loadRoutineDeletionStatus() async {
     final isVisible = await RoutineVisibilityHelper.getVisibility();
     setState(() => _hideRoutineUI = !isVisible);
@@ -231,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onDateChanged(DateTime newDate) async {
     _selectedDateNotifier.value = newDate;
     await _loadDataForDate(newDate);
+    await WidgetUpdater.update();
   }
 
   @override
@@ -243,9 +185,18 @@ class _HomeScreenState extends State<HomeScreen> {
         hideRoutineUI: _hideRoutineUI,
         hideTodoUI: _hideTodoUI,
         onDateChanged: _onDateChanged,
-        onRoutineAdded: () => _loadDataForDate(_selectedDateNotifier.value),
-        onTodoAdded: () => _loadDataForDate(_selectedDateNotifier.value),
-        onDataChanged: () => _loadDataForDate(_selectedDateNotifier.value),
+        onRoutineAdded: () async {
+          await _loadDataForDate(_selectedDateNotifier.value);
+          await WidgetUpdater.update();
+        },
+        onTodoAdded: () async {
+          await _loadDataForDate(_selectedDateNotifier.value);
+          await WidgetUpdater.update();
+        },
+        onDataChanged: () async {
+          await _loadDataForDate(_selectedDateNotifier.value);
+          await WidgetUpdater.update();
+        },
       ),
       DaylogScreen(
         onTabChange: _onTabChange,
@@ -443,9 +394,11 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
 
                                             widget.onDataChanged?.call();
                                           },
-                                          onDateChanged: (id,newDate) async{
-                                            await db.LocalDatabaseSingleton.instance
-                                                .updateTodoDate(id,newDate);
+                                          onDateChanged: (id, newDate) async {
+                                            await db
+                                                .LocalDatabaseSingleton
+                                                .instance
+                                                .updateTodoDate(id, newDate);
                                             widget.onDataChanged?.call();
                                           },
                                         ),

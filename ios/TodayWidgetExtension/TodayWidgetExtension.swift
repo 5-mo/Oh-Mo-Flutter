@@ -161,7 +161,7 @@ struct TodayWidgetExtensionEntryView: View {
                         let isToday = (day != 0) && calendar.isDate(now, inSameDayAs: calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth)!)
                                             
                         Text(day == 0 ? "" : "\(day)")
-                                                .font(.system(size: 12))
+                                                .font(.system(size: 11))
                                                 .fontWeight(isToday ? .bold : .regular)
                                                 .foregroundColor(isToday ? .white : .black)
                                                 .frame(maxWidth: .infinity, minHeight: 18)
