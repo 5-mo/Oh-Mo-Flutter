@@ -24,7 +24,7 @@ struct Provider: TimelineProvider {
         let defaults = UserDefaults(suiteName: "group.ohmo")
         
         let routineList = loadStringArray(from: defaults, key: "today_routine",defaultValue: ["루틴 없음"])
-        let todoList = loadStringArray(from: defaults, key: "today_todo",defaultValue: ["투두 없음"])
+        let todoList = loadTodoContentArray(from: defaults, key: "today_todo",defaultValue: ["투두 없음"])
 
         let entry = SimpleEntry(date: Date(), emoji: "😀", routineList: routineList, todoList: todoList)
         completion(entry)
@@ -34,7 +34,7 @@ struct Provider: TimelineProvider {
         let defaults = UserDefaults(suiteName: "group.ohmo")
         
         let routineList = loadStringArray(from: defaults, key: "today_routine",defaultValue: ["루틴 없음"])
-        let todoList = loadStringArray(from: defaults, key: "today_todo",defaultValue: ["투두 없음"])
+        let todoList = loadTodoContentArray(from: defaults, key: "today_todo",defaultValue: ["투두 없음"])
 
         var entries: [SimpleEntry] = []
         let currentDate = Date()
@@ -49,7 +49,6 @@ struct Provider: TimelineProvider {
         completion(timeline)
     }
     
-    // JSON 문자열 -> [String] 변환 도우미 함수
     private func loadStringArray(from defaults: UserDefaults?, key: String, defaultValue:[String]) -> [String] {
         guard
             let jsonString = defaults?.string(forKey: key),
@@ -64,6 +63,25 @@ struct Provider: TimelineProvider {
             return trimmedArray.isEmpty ? defaultValue:trimmedArray
         } catch {
             print("Error decoding JSON for key \(key): \(error)")
+            return defaultValue
+        }
+    }
+    
+    private func loadTodoContentArray(from defaults:UserDefaults?, key:String,defaultValue:[String])->[String]{
+        guard let jsonString=defaults?.string(forKey: key),
+              let jsonData=jsonString.data(using: .utf8)else{
+            return defaultValue
+        }
+        do{
+            if let todoObjects=try JSONSerialization.jsonObject(with: jsonData,options:[])as?[[String:Any]]{
+                let contents=todoObjects.compactMap{$0["content"] as? String}
+                    .filter{!$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty}
+                
+                return contents.isEmpty ? defaultValue:contents
+            }
+            return defaultValue
+        } catch{
+            print("Error decoding complex JSON for key \(key):\(error)")
             return defaultValue
         }
     }

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.example.ohmo.R
+import org.json.JSONArray
 
 class ToDoWidgetRemoteViewsFactory(private val context: Context, intent: Intent) : RemoteViewsService.RemoteViewsFactory {
 
@@ -13,19 +14,32 @@ class ToDoWidgetRemoteViewsFactory(private val context: Context, intent: Intent)
     override fun onCreate() {
         // 데이터 초기화: 위젯이 처음 생성될 때 호출됩니다.
         // 실제 앱에서는 여기서 데이터베이스나 네트워크에서 데이터를 가져올 수 있습니다.
-        mWidgetItems.add("C++ 과제 제출")
-        mWidgetItems.add("주교재 도서관에서 빌리기")
-        mWidgetItems.add("알고리즘 스터디 준비")
-        mWidgetItems.add("플러터 위젯 개발 완료")
-        mWidgetItems.add("플러터 위젯 개발 완료")
-        mWidgetItems.add("플러터 위젯 개발 완료")
+        loadData()
     }
 
     override fun onDataSetChanged() {
-        // 데이터가 변경되었을 때 호출됩니다.
-        // 예를 들어, 앱에서 데이터를 업데이트하면 이 메서드를 통해 위젯도 갱신됩니다.
-        // 여기서는 간단히 기존 데이터를 유지합니다.
-        // 실제 앱에서는 여기서 최신 데이터를 다시 로드해야 합니다.
+        loadData()
+    }
+
+    private fun loadData(){
+        mWidgetItems.clear()
+
+        val prefs=context.getSharedPreferences("HomeWidgetPreferences",Context.MODE_PRIVATE)
+
+        val todosJsonString=prefs.getString("today_todo",null)
+
+        todosJsonString?.let{
+            try{
+                val jsonArray=JSONArray(it)
+                for(i in 0 until jsonArray.length()){
+                    val jsonObject=jsonArray.getJSONObject(i)
+                    val content=jsonObject.getString("content")
+                    mWidgetItems.add(content)
+                }
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
+        }
     }
 
     override fun onDestroy() {

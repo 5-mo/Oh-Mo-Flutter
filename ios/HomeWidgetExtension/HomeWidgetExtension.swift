@@ -63,11 +63,14 @@ struct Provider: AppIntentTimelineProvider {
         }
         
         do {
-            let items = try JSONDecoder().decode([String].self, from: data)
-            return items.isEmpty ? ["할 일을 추가해보세요 :)"] : items
+            if let todoObjects=try JSONSerialization.jsonObject(with: data, options: [])as? [[String:Any]]{
+                let contents=todoObjects.compactMap{$0["content"]as? String}
+                return contents.isEmpty ? ["할 일을 추가해보세요 :)"] : contents
+            }
+            return["데이터 형식 오류"]
         } catch {
             print("todoList decoding error:", error)
-            return ["할 일을\n 추가해보세요 :)"]
+            return ["에러 발생"]
         }
     }
     
@@ -218,7 +221,7 @@ struct HomeWidgetExtensionEntryView: View {
                         .frame(width: 70, height: 70)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .offset(x:25, y: 20)
+                .offset(x:20, y: 20)
             }
         }
     }

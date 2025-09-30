@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ohmo/component/main_calendar.dart';
 import 'package:ohmo/screen/daylog_screen.dart';
 import 'package:ohmo/screen/my_screen.dart';
@@ -30,7 +31,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
   late int _selectedIndex;
   final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
     DateTime.now(),
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hideRoutineUI = false;
   bool _hideTodoUI = false;
 
+
   @override
   void initState() {
     super.initState();
@@ -47,9 +49,25 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadRoutineDeletionStatus();
     _loadTodoDeletionStatus();
 
+    WidgetsBinding.instance.addObserver(this);
+
     final today = DateTime.now();
     _loadDataForDate(today);
     WidgetUpdater.update();
+  }
+
+  @override
+  void dispose(){
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state){
+    if(state==AppLifecycleState.resumed){
+      print("앱이 다시 활성화되어 데이터를 새로고침합니다.");
+      _loadDataForDate(_selectedDateNotifier.value);
+    }
   }
 
   Future<void> _loadDataForDate(DateTime date) async {

@@ -12,10 +12,13 @@ class WidgetUpdater {
     final today = DateTime.now();
 
     // 1. 월간 데이터 처리
-    final startOfMonth = DateTime(today.year, today.month, 1);
-    final endOfMonth = DateTime(today.year, today.month + 1, 0);
+    final startOfMonth = DateTime(today.year, today.month-1, 1);
+    final endOfMonth = DateTime(today.year, today.month + 2, 0);
 
-    final monthlyTodos = await database.getTodosBetween(startOfMonth, endOfMonth);
+    final monthlyTodos = await database.getTodosBetween(
+      startOfMonth,
+      endOfMonth,
+    );
 
     final Map<String, List<Map<String, dynamic>>> groupedTodos = {};
     final formatter = DateFormat('yyyy-MM-dd');
@@ -38,25 +41,30 @@ class WidgetUpdater {
 
     // 2. 오늘의 할 일 데이터 처리
     final todosForToday = await database.getTodosByDate(today);
-    final todoContents =
-    todosForToday
-        .where((todo) => isSameDay(todo.date, today))
-        .map((t) => t.content.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    final todoMaps =
+        todosForToday
+            .where((todo) => isSameDay((todo.date), today))
+            .map(
+              (t) => {
+                'id': t.id,
+                'content': t.content.trim(),
+                'isDone': t.isDone,
+              },
+            )
+            .toList();
 
     await HomeWidget.saveWidgetData<String>(
       'today_todo',
-      jsonEncode(todoContents),
+      jsonEncode(todoMaps),
     );
 
     // 3. 루틴 데이터 처리
     final routineForToday = await database.getAllRoutines();
     final routineContents =
-    routineForToday
-        .where((r) => _isRoutineVisibleOnDate(r, today))
-        .map((r) => r.content.trim())
-        .toList();
+        routineForToday
+            .where((r) => _isRoutineVisibleOnDate(r, today))
+            .map((r) => r.content.trim())
+            .toList();
 
     await HomeWidget.saveWidgetData<String>(
       'today_routine',
@@ -66,11 +74,13 @@ class WidgetUpdater {
     // 4. 위젯 업데이트
     await HomeWidget.updateWidget(
       name: 'TodayWidgetExtension',
+      androidName: 'ToDoWidgetProvider',
       iOSName: 'TodayWidgetExtension',
     );
 
     await HomeWidget.updateWidget(
       name: 'HomeWidgetExtension',
+      androidName: 'WeeklyCalendarWidgetProvider',
       iOSName: 'HomeWidgetExtension',
     );
   }

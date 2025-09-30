@@ -281,6 +281,11 @@ class LocalDatabase extends _$LocalDatabase {
         .get();
   }
 
+  Future<void> updateTodoCompletion(int id,bool isDone){
+    return(update(todos)..where((tbl)=>tbl.id.equals(id)))
+        .write(TodosCompanion(isDone:Value(isDone)));
+  }
+
   // ------------------ DayLog Entry------------------
 
   Future<void> upsertDayLog(DayLogsCompanion entry) {
