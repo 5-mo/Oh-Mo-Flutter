@@ -1,20 +1,25 @@
 package com.example.ohmo
 
+import android.content.Intent
+import android.content.Context
 import android.graphics.Typeface
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
 import android.view.Window
 import android.view.WindowManager
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.ohmo.model.ScheduleItem
+import org.json.JSONArray
+import org.json.JSONObject
+
 
 class CheckModalActivity : AppCompatActivity() {
 
@@ -47,8 +52,9 @@ class CheckModalActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.schedule_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        // 샘플 데이터 로드 (실제 앱에서는 여기서 위젯의 데이터를 가져와야 합니다!)
-        loadSampleScheduleData()
+        loadSchedule()
+
+        val initialScheduleState=scheduleList.map{it.copy()}
 
         adapter = ScheduleAdapter(scheduleList) { position, isChecked ->
             // 체크박스 상태 변경 시 데이터 업데이트
@@ -59,22 +65,54 @@ class CheckModalActivity : AppCompatActivity() {
 
         // 저장 버튼 클릭 리스너
         findViewById<ImageView>(R.id.close)?.setOnClickListener {
-            // 여기에서 scheduleList에 있는 변경된 데이터를 처리합니다.
-            // 예: Log.d("ModalActivity", "저장된 데이터: $scheduleList")
-            // 실제 앱에서는 이 데이터를 플러터 앱으로 다시 보내 위젯을 업데이트해야 합니다.
+            val changedItems=mutableListOf<ScheduleItem>()
+            for(i in scheduleList.indices){
+                if(scheduleList[i].isChecked!=initialScheduleState[i].isChecked){
+                    changedItems.add(scheduleList[i])
+                }
+            }
+
+            if(changedItems.isNotEmpty()){
+                val intent=Intent(this, TodoUpdateReceiver::class.java).apply{
+                    action="com.example.ohmo.ACTION_UPDATE_TODOS"
+                }
+
+                val jsonArray=JSONArray()
+                changedItems.forEach{item->
+                    val jsonObject=org.json.JSONObject()
+                    jsonObject.put("id",item.id)
+                    jsonObject.put("isDone",item.isChecked)
+                    jsonArray.put(jsonObject)
+                }
+                intent.putExtra("updated_todos",jsonArray.toString())
+                sendBroadcast(intent)
+            }
             finish() // 모달 닫기
         }
     }
 
-    // 샘플 데이터 로드 메서드 (실제 앱에서는 이 부분을 수정하여 위젯 데이터와 연동)
-    private fun loadSampleScheduleData() {
-        // 이 데이터는 위젯의 RemoteViewsFactory에서 사용하는 데이터와 동일하거나,
-        // 메인 앱에서 관리하는 실제 일정 데이터가 되어야 합니다.
-        scheduleList.add(ScheduleItem("C++ 과제 제출", false))
-        scheduleList.add(ScheduleItem("주교재 도서관에서 빌리기", true))
-        scheduleList.add(ScheduleItem("알고리즘 스터디 준비", false))
-        scheduleList.add(ScheduleItem("플러터 위젯 개발 완료", true))
-        scheduleList.add(ScheduleItem("앱 아이디어 구체화", false))
+    private fun loadSchedule(){
+        scheduleList.clear()
+        var prefs=getSharedPreferences("HomeWidgetPreferences",Context.MODE_PRIVATE)
+        val todosJsonString=prefs.getString("today_todo",null)
+
+        todosJsonString?.let{
+            try{
+                val jsonArray=JSONArray(it)
+                for(i in 0 until jsonArray.length()){
+                    val jsonObject=jsonArray.getJSONObject(i)
+                    scheduleList.add(
+                        ScheduleItem(
+                            id=jsonObject.getInt("id"),
+                            text=jsonObject.getString("content"),
+                            isChecked=jsonObject.getBoolean("isDone")
+                        )
+                    )
+                }
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
+        }
     }
 
     // RecyclerView 어댑터 클래스

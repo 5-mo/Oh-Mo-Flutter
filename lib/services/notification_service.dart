@@ -17,7 +17,7 @@ class NotificationService {
 
   Future<void> init() async {
     const AndroidInitializationSettings androidInitializationSettings =
-        AndroidInitializationSettings('@images/omo.png');
+        AndroidInitializationSettings('plus_btn');
 
     const DarwinInitializationSettings darwinInitializationSettings =
         DarwinInitializationSettings(

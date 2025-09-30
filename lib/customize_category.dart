@@ -47,7 +47,7 @@ class DiaryVisibilityHelper {
 
   static Future<bool> getVisibility() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_key) ?? true; // 기본값 true
+    return prefs.getBool(_key) ?? true;
   }
 
   static Future<void> setVisibility(bool isVisible) async {

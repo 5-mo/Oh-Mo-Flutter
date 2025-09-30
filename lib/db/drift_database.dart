@@ -272,6 +272,20 @@ class LocalDatabase extends _$LocalDatabase {
     return list.map((c) => c.todoId).toList();
   }
 
+  Future<List<Todo>> getTodosBetween(DateTime start,DateTime end){
+    final startOfDay=DateTime(start.year,start.month,start.day);
+    final endOfDay=DateTime(end.year,end.month,end.day,23,59,59);
+
+    return(select(todos)
+        ..where((t)=>t.date.isBetweenValues(startOfDay, endOfDay)))
+        .get();
+  }
+
+  Future<void> updateTodoCompletion(int id,bool isDone){
+    return(update(todos)..where((tbl)=>tbl.id.equals(id)))
+        .write(TodosCompanion(isDone:Value(isDone)));
+  }
+
   // ------------------ DayLog Entry------------------
 
   Future<void> upsertDayLog(DayLogsCompanion entry) {
