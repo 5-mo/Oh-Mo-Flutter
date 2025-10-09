@@ -19,27 +19,23 @@ LazyDatabase _openConnection() {
   });
 }
 
+enum Emotion { happy, soso, bad, none }
+
 // ------------------ Drift Database ------------------
 
 @DriftDatabase(
   tables: [
     Categories,
-
     DayLogQuestions,
-
     Routines,
-
     Todos,
-
     CompletedRoutines,
-
     CompletedTodos,
-
     DayLogs,
+    Notices,
+    Groups,
   ],
 )
-enum Emotion { happy, soso, bad, none }
-
 class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
@@ -97,6 +93,19 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   // ------------------ Routine ------------------
+
+  Stream<List<Routine>> watchRoutinesByGroupId(int groupId) {
+    return (select(routines)
+      ..where((tbl) => tbl.groupId.equals(groupId))).watch();
+  }
+
+  Future<List<Routine>> getRoutinesByGroupId(int groupId) {
+    return (select(routines)..where((tbl) => tbl.groupId.equals(groupId))).get();
+  }
+
+  Future<List<Routine>> getPersonalRoutines() {
+    return (select(routines)..where((tbl) => tbl.groupId.isNull())).get();
+  }
 
   Future<int> insertRoutine(RoutinesCompanion entry) =>
       into(routines).insert(entry);
@@ -192,7 +201,12 @@ class LocalDatabase extends _$LocalDatabase {
     return list.map((c) => c.routineId).toList();
   }
 
-  // ------------------Todo ------------------
+  // ------------------Todo------------------
+
+  Future<List<Todo>> getPersonalTodosByDate(DateTime date) {
+    return (select(todos)
+      ..where((tbl) => tbl.date.equals(date) & tbl.groupId.isNull())).get();
+  }
 
   Future<int> insertTodo(TodosCompanion entry) => into(todos).insert(entry);
 
@@ -272,18 +286,18 @@ class LocalDatabase extends _$LocalDatabase {
     return list.map((c) => c.todoId).toList();
   }
 
-  Future<List<Todo>> getTodosBetween(DateTime start,DateTime end){
-    final startOfDay=DateTime(start.year,start.month,start.day);
-    final endOfDay=DateTime(end.year,end.month,end.day,23,59,59);
+  Future<List<Todo>> getTodosBetween(DateTime start, DateTime end) {
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
 
-    return(select(todos)
-        ..where((t)=>t.date.isBetweenValues(startOfDay, endOfDay)))
-        .get();
+    return (select(todos)
+      ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))).get();
   }
 
-  Future<void> updateTodoCompletion(int id,bool isDone){
-    return(update(todos)..where((tbl)=>tbl.id.equals(id)))
-        .write(TodosCompanion(isDone:Value(isDone)));
+  Future<void> updateTodoCompletion(int id, bool isDone) {
+    return (update(todos)..where(
+      (tbl) => tbl.id.equals(id),
+    )).write(TodosCompanion(isDone: Value(isDone)));
   }
 
   // ------------------ DayLog Entry------------------
@@ -297,6 +311,46 @@ class LocalDatabase extends _$LocalDatabase {
 
     return (select(dayLogs)
       ..where((tbl) => tbl.date.equals(dateOnly))).getSingleOrNull();
+  }
+
+  // ------------------ Notice ------------------
+
+  Future<int> insertNotice(NoticesCompanion entry) {
+    return into(notices).insert(entry);
+  }
+
+  Future<List<Notice>> getAllNotices() {
+    return (select(notices)
+          ..where((n) => n.isDeleted.equals(false))
+          ..orderBy([
+            (n) =>
+                OrderingTerm(expression: n.createdAt, mode: OrderingMode.desc),
+          ]))
+        .get();
+  }
+
+  Future<Notice?> getNoticeById(int id) {
+    return (select(notices)..where((n) => n.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<int> updateNoticeContent(int id, String newContent) {
+    return (update(notices)..where(
+      (n) => n.id.equals(id),
+    )).write(NoticesCompanion(content: Value(newContent)));
+  }
+
+  Future<int> deleteNotice(int id) {
+    return (delete(notices)..where((n) => n.id.equals(id))).go();
+  }
+
+  Future<List<Notice>> getNoticesForGroup(int groupId) {
+    return (select(notices)
+          ..where((n) => n.groupId.equals(groupId) & n.isDeleted.equals(false))
+          ..orderBy([
+            (n) =>
+                OrderingTerm(expression: n.createdAt, mode: OrderingMode.desc),
+          ]))
+        .get();
   }
 
   // ------------------ Search------------------

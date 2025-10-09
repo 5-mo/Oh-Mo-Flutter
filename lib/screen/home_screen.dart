@@ -11,6 +11,7 @@ import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'dart:convert';
+import '../component/routine_bottom_sheet.dart';
 import '../const/colors.dart';
 import '../customize_category.dart';
 import '../db/drift_database.dart' as db;
@@ -84,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final allRoutines = await database.getAllRoutines();
+    final allRoutines = await database.getPersonalRoutines();
     final completedIds = await database.getCompletedRoutineIds(date);
 
     return allRoutines.map((r) {
@@ -104,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
 
   Future<List<Todo>> fetchTodos(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final fetched = await database.getTodosByDate(date);
+    final fetched = await database.getPersonalTodosByDate(date);
 
     return fetched.map((t) {
       return Todo(
@@ -247,7 +248,7 @@ class HomeScreenBody extends StatefulWidget {
   final ValueNotifier<List<Todo>> todosNotifier;
   final ValueNotifier<DateTime> selectedDateNotifier;
   final VoidCallback? onDataChanged;
-  final VoidCallback? onRoutineAdded;
+  final Future<void> Function()? onRoutineAdded;
   final VoidCallback? onTodoAdded;
   final ValueChanged<DateTime>? onDateChanged;
   final bool hideRoutineUI;
@@ -323,7 +324,24 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                     children: [
                       if (!widget.hideRoutineUI)
                         RoutineBanner(
-                          onRoutineAdded: widget.onRoutineAdded ?? () {},
+                          onAddPressed:() {
+                            showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                isDismissible: true,
+                                backgroundColor: Colors.white,
+                                shape:RoundedRectangleBorder(
+                            borderRadius:BorderRadius.only(
+                                  topRight:Radius.circular(59),
+                                  topLeft:Radius.circular(59),
+                                ),
+                            ),
+                              builder: (_) => RoutineBottomSheet(
+                          groupId:null,
+                            onRoutineAdded:widget.onRoutineAdded??() async{},
+                          ),
+                            );
+                          },
                         ),
                       ValueListenableBuilder<List<Routine>>(
                         valueListenable: widget.routinesNotifier,

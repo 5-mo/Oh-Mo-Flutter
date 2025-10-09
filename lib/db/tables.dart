@@ -1,5 +1,34 @@
 import 'package:drift/drift.dart';
 
+class Users extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get nickname => text()();
+}
+
+class Groups extends Table{
+  IntColumn get id=>integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get description => text()();
+}
+
+class GroupMembers extends Table {
+  IntColumn get groupId => integer().references(Groups, #id)();
+  IntColumn get userId => integer().references(Users, #id)();
+  TextColumn get role => text().withDefault(const Constant('MEMBER'))();
+
+  @override
+  Set<Column> get primaryKey => {groupId, userId};
+}
+
+class Notices extends Table{
+  IntColumn get groupId => integer().references(Groups, #id).nullable()();
+  IntColumn get id=>integer().autoIncrement()();
+  TextColumn get content=>text()();
+  DateTimeColumn get createdAt => dateTime()();
+  TextColumn get authorName=>text().nullable()();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+}
+
 class Categories extends Table{
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
@@ -16,6 +45,7 @@ class DayLogQuestions extends Table {
 
 class Routines extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();
   BoolColumn get isDone => boolean().withDefault(const Constant(false))();
@@ -30,6 +60,7 @@ class Routines extends Table {
 
 class Todos extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();
   BoolColumn get isDone => boolean().withDefault(const Constant(false))();
@@ -53,7 +84,7 @@ class CompletedTodos extends Table {
 }
 
 class DayLogs extends Table {
-  DateTimeColumn get date => dateTime().unique()();
+  DateTimeColumn get date => dateTime()();
   TextColumn get emotion => text().nullable()();
   TextColumn get answerMapJson => text().nullable()();
   TextColumn get diary => text().nullable()();

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:ohmo/screen/group_main_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +49,7 @@ void main() async{
       ],
       child: MaterialApp(
         theme: ThemeData(scaffoldBackgroundColor: Colors.white),
-        home: HomeScreen(),
+        home: GroupMainScreen(groupId: 1),
         debugShowCheckedModeBanner: false,
       ),
     ),

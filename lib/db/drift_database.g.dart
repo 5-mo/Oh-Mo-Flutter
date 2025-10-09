@@ -599,6 +599,260 @@ class DayLogQuestionsCompanion extends UpdateCompanion<DayLogQuestion> {
   }
 }
 
+class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GroupsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, description];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'groups';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Group> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_descriptionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Group map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Group(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}id'],
+          )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      description:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}description'],
+          )!,
+    );
+  }
+
+  @override
+  $GroupsTable createAlias(String alias) {
+    return $GroupsTable(attachedDatabase, alias);
+  }
+}
+
+class Group extends DataClass implements Insertable<Group> {
+  final int id;
+  final String name;
+  final String description;
+  const Group({
+    required this.id,
+    required this.name,
+    required this.description,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['description'] = Variable<String>(description);
+    return map;
+  }
+
+  GroupsCompanion toCompanion(bool nullToAbsent) {
+    return GroupsCompanion(
+      id: Value(id),
+      name: Value(name),
+      description: Value(description),
+    );
+  }
+
+  factory Group.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Group(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String>(json['description']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String>(description),
+    };
+  }
+
+  Group copyWith({int? id, String? name, String? description}) => Group(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    description: description ?? this.description,
+  );
+  Group copyWithCompanion(GroupsCompanion data) {
+    return Group(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Group(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, description);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Group &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.description == this.description);
+}
+
+class GroupsCompanion extends UpdateCompanion<Group> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String> description;
+  const GroupsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+  });
+  GroupsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required String description,
+  }) : name = Value(name),
+       description = Value(description);
+  static Insertable<Group> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? description,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+    });
+  }
+
+  GroupsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<String>? description,
+  }) {
+    return GroupsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroupsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -615,6 +869,20 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<int> groupId = GeneratedColumn<int>(
+    'group_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES "groups" (id)',
     ),
   );
   static const VerificationMeta _contentMeta = const VerificationMeta(
@@ -734,6 +1002,7 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    groupId,
     content,
     colorType,
     isDone,
@@ -759,6 +1028,12 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
     }
     if (data.containsKey('content')) {
       context.handle(
@@ -845,6 +1120,10 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}group_id'],
+      ),
       content:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -900,6 +1179,7 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
 
 class Routine extends DataClass implements Insertable<Routine> {
   final int id;
+  final int? groupId;
   final String content;
   final int colorType;
   final bool isDone;
@@ -912,6 +1192,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   final int? alarmMinutes;
   const Routine({
     required this.id,
+    this.groupId,
     required this.content,
     required this.colorType,
     required this.isDone,
@@ -927,6 +1208,9 @@ class Routine extends DataClass implements Insertable<Routine> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || groupId != null) {
+      map['group_id'] = Variable<int>(groupId);
+    }
     map['content'] = Variable<String>(content);
     map['color_type'] = Variable<int>(colorType);
     map['is_done'] = Variable<bool>(isDone);
@@ -955,6 +1239,10 @@ class Routine extends DataClass implements Insertable<Routine> {
   RoutinesCompanion toCompanion(bool nullToAbsent) {
     return RoutinesCompanion(
       id: Value(id),
+      groupId:
+          groupId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(groupId),
       content: Value(content),
       colorType: Value(colorType),
       isDone: Value(isDone),
@@ -993,6 +1281,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Routine(
       id: serializer.fromJson<int>(json['id']),
+      groupId: serializer.fromJson<int?>(json['groupId']),
       content: serializer.fromJson<String>(json['content']),
       colorType: serializer.fromJson<int>(json['colorType']),
       isDone: serializer.fromJson<bool>(json['isDone']),
@@ -1010,6 +1299,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'groupId': serializer.toJson<int?>(groupId),
       'content': serializer.toJson<String>(content),
       'colorType': serializer.toJson<int>(colorType),
       'isDone': serializer.toJson<bool>(isDone),
@@ -1025,6 +1315,7 @@ class Routine extends DataClass implements Insertable<Routine> {
 
   Routine copyWith({
     int? id,
+    Value<int?> groupId = const Value.absent(),
     String? content,
     int? colorType,
     bool? isDone,
@@ -1037,6 +1328,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     Value<int?> alarmMinutes = const Value.absent(),
   }) => Routine(
     id: id ?? this.id,
+    groupId: groupId.present ? groupId.value : this.groupId,
     content: content ?? this.content,
     colorType: colorType ?? this.colorType,
     isDone: isDone ?? this.isDone,
@@ -1051,6 +1343,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   Routine copyWithCompanion(RoutinesCompanion data) {
     return Routine(
       id: data.id.present ? data.id.value : this.id,
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
       content: data.content.present ? data.content.value : this.content,
       colorType: data.colorType.present ? data.colorType.value : this.colorType,
       isDone: data.isDone.present ? data.isDone.value : this.isDone,
@@ -1076,6 +1369,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   String toString() {
     return (StringBuffer('Routine(')
           ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
           ..write('isDone: $isDone, ')
@@ -1093,6 +1387,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   @override
   int get hashCode => Object.hash(
     id,
+    groupId,
     content,
     colorType,
     isDone,
@@ -1109,6 +1404,7 @@ class Routine extends DataClass implements Insertable<Routine> {
       identical(this, other) ||
       (other is Routine &&
           other.id == this.id &&
+          other.groupId == this.groupId &&
           other.content == this.content &&
           other.colorType == this.colorType &&
           other.isDone == this.isDone &&
@@ -1123,6 +1419,7 @@ class Routine extends DataClass implements Insertable<Routine> {
 
 class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<int> id;
+  final Value<int?> groupId;
   final Value<String> content;
   final Value<int> colorType;
   final Value<bool> isDone;
@@ -1135,6 +1432,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<int?> alarmMinutes;
   const RoutinesCompanion({
     this.id = const Value.absent(),
+    this.groupId = const Value.absent(),
     this.content = const Value.absent(),
     this.colorType = const Value.absent(),
     this.isDone = const Value.absent(),
@@ -1148,6 +1446,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   });
   RoutinesCompanion.insert({
     this.id = const Value.absent(),
+    this.groupId = const Value.absent(),
     required String content,
     this.colorType = const Value.absent(),
     this.isDone = const Value.absent(),
@@ -1161,6 +1460,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   }) : content = Value(content);
   static Insertable<Routine> custom({
     Expression<int>? id,
+    Expression<int>? groupId,
     Expression<String>? content,
     Expression<int>? colorType,
     Expression<bool>? isDone,
@@ -1174,6 +1474,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (groupId != null) 'group_id': groupId,
       if (content != null) 'content': content,
       if (colorType != null) 'color_type': colorType,
       if (isDone != null) 'is_done': isDone,
@@ -1189,6 +1490,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
 
   RoutinesCompanion copyWith({
     Value<int>? id,
+    Value<int?>? groupId,
     Value<String>? content,
     Value<int>? colorType,
     Value<bool>? isDone,
@@ -1202,6 +1504,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   }) {
     return RoutinesCompanion(
       id: id ?? this.id,
+      groupId: groupId ?? this.groupId,
       content: content ?? this.content,
       colorType: colorType ?? this.colorType,
       isDone: isDone ?? this.isDone,
@@ -1220,6 +1523,9 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (groupId.present) {
+      map['group_id'] = Variable<int>(groupId.value);
     }
     if (content.present) {
       map['content'] = Variable<String>(content.value);
@@ -1258,6 +1564,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   String toString() {
     return (StringBuffer('RoutinesCompanion(')
           ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
           ..write('isDone: $isDone, ')
@@ -1289,6 +1596,20 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<int> groupId = GeneratedColumn<int>(
+    'group_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES "groups" (id)',
     ),
   );
   static const VerificationMeta _contentMeta = const VerificationMeta(
@@ -1384,6 +1705,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    groupId,
     content,
     colorType,
     isDone,
@@ -1407,6 +1729,12 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
     }
     if (data.containsKey('content')) {
       context.handle(
@@ -1483,6 +1811,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}group_id'],
+      ),
       content:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -1531,6 +1863,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
 
 class Todo extends DataClass implements Insertable<Todo> {
   final int id;
+  final int? groupId;
   final String content;
   final int colorType;
   final bool isDone;
@@ -1541,6 +1874,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   final DateTime date;
   const Todo({
     required this.id,
+    this.groupId,
     required this.content,
     required this.colorType,
     required this.isDone,
@@ -1554,6 +1888,9 @@ class Todo extends DataClass implements Insertable<Todo> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || groupId != null) {
+      map['group_id'] = Variable<int>(groupId);
+    }
     map['content'] = Variable<String>(content);
     map['color_type'] = Variable<int>(colorType);
     map['is_done'] = Variable<bool>(isDone);
@@ -1574,6 +1911,10 @@ class Todo extends DataClass implements Insertable<Todo> {
   TodosCompanion toCompanion(bool nullToAbsent) {
     return TodosCompanion(
       id: Value(id),
+      groupId:
+          groupId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(groupId),
       content: Value(content),
       colorType: Value(colorType),
       isDone: Value(isDone),
@@ -1601,6 +1942,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Todo(
       id: serializer.fromJson<int>(json['id']),
+      groupId: serializer.fromJson<int?>(json['groupId']),
       content: serializer.fromJson<String>(json['content']),
       colorType: serializer.fromJson<int>(json['colorType']),
       isDone: serializer.fromJson<bool>(json['isDone']),
@@ -1616,6 +1958,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'groupId': serializer.toJson<int?>(groupId),
       'content': serializer.toJson<String>(content),
       'colorType': serializer.toJson<int>(colorType),
       'isDone': serializer.toJson<bool>(isDone),
@@ -1629,6 +1972,7 @@ class Todo extends DataClass implements Insertable<Todo> {
 
   Todo copyWith({
     int? id,
+    Value<int?> groupId = const Value.absent(),
     String? content,
     int? colorType,
     bool? isDone,
@@ -1639,6 +1983,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     DateTime? date,
   }) => Todo(
     id: id ?? this.id,
+    groupId: groupId.present ? groupId.value : this.groupId,
     content: content ?? this.content,
     colorType: colorType ?? this.colorType,
     isDone: isDone ?? this.isDone,
@@ -1651,6 +1996,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   Todo copyWithCompanion(TodosCompanion data) {
     return Todo(
       id: data.id.present ? data.id.value : this.id,
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
       content: data.content.present ? data.content.value : this.content,
       colorType: data.colorType.present ? data.colorType.value : this.colorType,
       isDone: data.isDone.present ? data.isDone.value : this.isDone,
@@ -1674,6 +2020,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   String toString() {
     return (StringBuffer('Todo(')
           ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
           ..write('isDone: $isDone, ')
@@ -1689,6 +2036,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   @override
   int get hashCode => Object.hash(
     id,
+    groupId,
     content,
     colorType,
     isDone,
@@ -1703,6 +2051,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       identical(this, other) ||
       (other is Todo &&
           other.id == this.id &&
+          other.groupId == this.groupId &&
           other.content == this.content &&
           other.colorType == this.colorType &&
           other.isDone == this.isDone &&
@@ -1715,6 +2064,7 @@ class Todo extends DataClass implements Insertable<Todo> {
 
 class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<int> id;
+  final Value<int?> groupId;
   final Value<String> content;
   final Value<int> colorType;
   final Value<bool> isDone;
@@ -1725,6 +2075,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<DateTime> date;
   const TodosCompanion({
     this.id = const Value.absent(),
+    this.groupId = const Value.absent(),
     this.content = const Value.absent(),
     this.colorType = const Value.absent(),
     this.isDone = const Value.absent(),
@@ -1736,6 +2087,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   });
   TodosCompanion.insert({
     this.id = const Value.absent(),
+    this.groupId = const Value.absent(),
     required String content,
     this.colorType = const Value.absent(),
     this.isDone = const Value.absent(),
@@ -1748,6 +2100,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
        date = Value(date);
   static Insertable<Todo> custom({
     Expression<int>? id,
+    Expression<int>? groupId,
     Expression<String>? content,
     Expression<int>? colorType,
     Expression<bool>? isDone,
@@ -1759,6 +2112,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (groupId != null) 'group_id': groupId,
       if (content != null) 'content': content,
       if (colorType != null) 'color_type': colorType,
       if (isDone != null) 'is_done': isDone,
@@ -1772,6 +2126,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
 
   TodosCompanion copyWith({
     Value<int>? id,
+    Value<int?>? groupId,
     Value<String>? content,
     Value<int>? colorType,
     Value<bool>? isDone,
@@ -1783,6 +2138,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   }) {
     return TodosCompanion(
       id: id ?? this.id,
+      groupId: groupId ?? this.groupId,
       content: content ?? this.content,
       colorType: colorType ?? this.colorType,
       isDone: isDone ?? this.isDone,
@@ -1799,6 +2155,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (groupId.present) {
+      map['group_id'] = Variable<int>(groupId.value);
     }
     if (content.present) {
       map['content'] = Variable<String>(content.value);
@@ -1831,6 +2190,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   String toString() {
     return (StringBuffer('TodosCompanion(')
           ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
           ..write('isDone: $isDone, ')
@@ -2360,7 +2720,6 @@ class $DayLogsTable extends DayLogs with TableInfo<$DayLogsTable, DayLog> {
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _emotionMeta = const VerificationMeta(
     'emotion',
@@ -2670,6 +3029,418 @@ class DayLogsCompanion extends UpdateCompanion<DayLog> {
   }
 }
 
+class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoticesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<int> groupId = GeneratedColumn<int>(
+    'group_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES "groups" (id)',
+    ),
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _authorNameMeta = const VerificationMeta(
+    'authorName',
+  );
+  @override
+  late final GeneratedColumn<String> authorName = GeneratedColumn<String>(
+    'author_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    groupId,
+    id,
+    content,
+    createdAt,
+    authorName,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notices';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Notice> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('author_name')) {
+      context.handle(
+        _authorNameMeta,
+        authorName.isAcceptableOrUnknown(data['author_name']!, _authorNameMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Notice map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Notice(
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}group_id'],
+      ),
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}id'],
+          )!,
+      content:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}content'],
+          )!,
+      createdAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}created_at'],
+          )!,
+      authorName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}author_name'],
+      ),
+      isDeleted:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_deleted'],
+          )!,
+    );
+  }
+
+  @override
+  $NoticesTable createAlias(String alias) {
+    return $NoticesTable(attachedDatabase, alias);
+  }
+}
+
+class Notice extends DataClass implements Insertable<Notice> {
+  final int? groupId;
+  final int id;
+  final String content;
+  final DateTime createdAt;
+  final String? authorName;
+  final bool isDeleted;
+  const Notice({
+    this.groupId,
+    required this.id,
+    required this.content,
+    required this.createdAt,
+    this.authorName,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || groupId != null) {
+      map['group_id'] = Variable<int>(groupId);
+    }
+    map['id'] = Variable<int>(id);
+    map['content'] = Variable<String>(content);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || authorName != null) {
+      map['author_name'] = Variable<String>(authorName);
+    }
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    return map;
+  }
+
+  NoticesCompanion toCompanion(bool nullToAbsent) {
+    return NoticesCompanion(
+      groupId:
+          groupId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(groupId),
+      id: Value(id),
+      content: Value(content),
+      createdAt: Value(createdAt),
+      authorName:
+          authorName == null && nullToAbsent
+              ? const Value.absent()
+              : Value(authorName),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory Notice.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Notice(
+      groupId: serializer.fromJson<int?>(json['groupId']),
+      id: serializer.fromJson<int>(json['id']),
+      content: serializer.fromJson<String>(json['content']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      authorName: serializer.fromJson<String?>(json['authorName']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'groupId': serializer.toJson<int?>(groupId),
+      'id': serializer.toJson<int>(id),
+      'content': serializer.toJson<String>(content),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'authorName': serializer.toJson<String?>(authorName),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+    };
+  }
+
+  Notice copyWith({
+    Value<int?> groupId = const Value.absent(),
+    int? id,
+    String? content,
+    DateTime? createdAt,
+    Value<String?> authorName = const Value.absent(),
+    bool? isDeleted,
+  }) => Notice(
+    groupId: groupId.present ? groupId.value : this.groupId,
+    id: id ?? this.id,
+    content: content ?? this.content,
+    createdAt: createdAt ?? this.createdAt,
+    authorName: authorName.present ? authorName.value : this.authorName,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  Notice copyWithCompanion(NoticesCompanion data) {
+    return Notice(
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      id: data.id.present ? data.id.value : this.id,
+      content: data.content.present ? data.content.value : this.content,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      authorName:
+          data.authorName.present ? data.authorName.value : this.authorName,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Notice(')
+          ..write('groupId: $groupId, ')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('authorName: $authorName, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(groupId, id, content, createdAt, authorName, isDeleted);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Notice &&
+          other.groupId == this.groupId &&
+          other.id == this.id &&
+          other.content == this.content &&
+          other.createdAt == this.createdAt &&
+          other.authorName == this.authorName &&
+          other.isDeleted == this.isDeleted);
+}
+
+class NoticesCompanion extends UpdateCompanion<Notice> {
+  final Value<int?> groupId;
+  final Value<int> id;
+  final Value<String> content;
+  final Value<DateTime> createdAt;
+  final Value<String?> authorName;
+  final Value<bool> isDeleted;
+  const NoticesCompanion({
+    this.groupId = const Value.absent(),
+    this.id = const Value.absent(),
+    this.content = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.authorName = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+  });
+  NoticesCompanion.insert({
+    this.groupId = const Value.absent(),
+    this.id = const Value.absent(),
+    required String content,
+    required DateTime createdAt,
+    this.authorName = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+  }) : content = Value(content),
+       createdAt = Value(createdAt);
+  static Insertable<Notice> custom({
+    Expression<int>? groupId,
+    Expression<int>? id,
+    Expression<String>? content,
+    Expression<DateTime>? createdAt,
+    Expression<String>? authorName,
+    Expression<bool>? isDeleted,
+  }) {
+    return RawValuesInsertable({
+      if (groupId != null) 'group_id': groupId,
+      if (id != null) 'id': id,
+      if (content != null) 'content': content,
+      if (createdAt != null) 'created_at': createdAt,
+      if (authorName != null) 'author_name': authorName,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+    });
+  }
+
+  NoticesCompanion copyWith({
+    Value<int?>? groupId,
+    Value<int>? id,
+    Value<String>? content,
+    Value<DateTime>? createdAt,
+    Value<String?>? authorName,
+    Value<bool>? isDeleted,
+  }) {
+    return NoticesCompanion(
+      groupId: groupId ?? this.groupId,
+      id: id ?? this.id,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      authorName: authorName ?? this.authorName,
+      isDeleted: isDeleted ?? this.isDeleted,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (groupId.present) {
+      map['group_id'] = Variable<int>(groupId.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (authorName.present) {
+      map['author_name'] = Variable<String>(authorName.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoticesCompanion(')
+          ..write('groupId: $groupId, ')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('authorName: $authorName, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalDatabase extends GeneratedDatabase {
   _$LocalDatabase(QueryExecutor e) : super(e);
   $LocalDatabaseManager get managers => $LocalDatabaseManager(this);
@@ -2677,12 +3448,14 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final $DayLogQuestionsTable dayLogQuestions = $DayLogQuestionsTable(
     this,
   );
+  late final $GroupsTable groups = $GroupsTable(this);
   late final $RoutinesTable routines = $RoutinesTable(this);
   late final $TodosTable todos = $TodosTable(this);
   late final $CompletedRoutinesTable completedRoutines =
       $CompletedRoutinesTable(this);
   late final $CompletedTodosTable completedTodos = $CompletedTodosTable(this);
   late final $DayLogsTable dayLogs = $DayLogsTable(this);
+  late final $NoticesTable notices = $NoticesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2690,11 +3463,13 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     categories,
     dayLogQuestions,
+    groups,
     routines,
     todos,
     completedRoutines,
     completedTodos,
     dayLogs,
+    notices,
   ];
 }
 
@@ -3072,9 +3847,455 @@ typedef $$DayLogQuestionsTableProcessedTableManager =
       DayLogQuestion,
       PrefetchHooks Function()
     >;
+typedef $$GroupsTableCreateCompanionBuilder =
+    GroupsCompanion Function({
+      Value<int> id,
+      required String name,
+      required String description,
+    });
+typedef $$GroupsTableUpdateCompanionBuilder =
+    GroupsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String> description,
+    });
+
+final class $$GroupsTableReferences
+    extends BaseReferences<_$LocalDatabase, $GroupsTable, Group> {
+  $$GroupsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$RoutinesTable, List<Routine>> _routinesRefsTable(
+    _$LocalDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.routines,
+    aliasName: $_aliasNameGenerator(db.groups.id, db.routines.groupId),
+  );
+
+  $$RoutinesTableProcessedTableManager get routinesRefs {
+    final manager = $$RoutinesTableTableManager(
+      $_db,
+      $_db.routines,
+    ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_routinesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$TodosTable, List<Todo>> _todosRefsTable(
+    _$LocalDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.todos,
+    aliasName: $_aliasNameGenerator(db.groups.id, db.todos.groupId),
+  );
+
+  $$TodosTableProcessedTableManager get todosRefs {
+    final manager = $$TodosTableTableManager(
+      $_db,
+      $_db.todos,
+    ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_todosRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$NoticesTable, List<Notice>> _noticesRefsTable(
+    _$LocalDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.notices,
+    aliasName: $_aliasNameGenerator(db.groups.id, db.notices.groupId),
+  );
+
+  $$NoticesTableProcessedTableManager get noticesRefs {
+    final manager = $$NoticesTableTableManager(
+      $_db,
+      $_db.notices,
+    ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_noticesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$GroupsTableFilterComposer
+    extends Composer<_$LocalDatabase, $GroupsTable> {
+  $$GroupsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> routinesRefs(
+    Expression<bool> Function($$RoutinesTableFilterComposer f) f,
+  ) {
+    final $$RoutinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.routines,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoutinesTableFilterComposer(
+            $db: $db,
+            $table: $db.routines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> todosRefs(
+    Expression<bool> Function($$TodosTableFilterComposer f) f,
+  ) {
+    final $$TodosTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableFilterComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> noticesRefs(
+    Expression<bool> Function($$NoticesTableFilterComposer f) f,
+  ) {
+    final $$NoticesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.notices,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NoticesTableFilterComposer(
+            $db: $db,
+            $table: $db.notices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$GroupsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $GroupsTable> {
+  $$GroupsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$GroupsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $GroupsTable> {
+  $$GroupsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  Expression<T> routinesRefs<T extends Object>(
+    Expression<T> Function($$RoutinesTableAnnotationComposer a) f,
+  ) {
+    final $$RoutinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.routines,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoutinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.routines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> todosRefs<T extends Object>(
+    Expression<T> Function($$TodosTableAnnotationComposer a) f,
+  ) {
+    final $$TodosTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableAnnotationComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> noticesRefs<T extends Object>(
+    Expression<T> Function($$NoticesTableAnnotationComposer a) f,
+  ) {
+    final $$NoticesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.notices,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NoticesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.notices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$GroupsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $GroupsTable,
+          Group,
+          $$GroupsTableFilterComposer,
+          $$GroupsTableOrderingComposer,
+          $$GroupsTableAnnotationComposer,
+          $$GroupsTableCreateCompanionBuilder,
+          $$GroupsTableUpdateCompanionBuilder,
+          (Group, $$GroupsTableReferences),
+          Group,
+          PrefetchHooks Function({
+            bool routinesRefs,
+            bool todosRefs,
+            bool noticesRefs,
+          })
+        > {
+  $$GroupsTableTableManager(_$LocalDatabase db, $GroupsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$GroupsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$GroupsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$GroupsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> description = const Value.absent(),
+              }) =>
+                  GroupsCompanion(id: id, name: name, description: description),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required String description,
+              }) => GroupsCompanion.insert(
+                id: id,
+                name: name,
+                description: description,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          $$GroupsTableReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: ({
+            routinesRefs = false,
+            todosRefs = false,
+            noticesRefs = false,
+          }) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (routinesRefs) db.routines,
+                if (todosRefs) db.todos,
+                if (noticesRefs) db.notices,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (routinesRefs)
+                    await $_getPrefetchedData<Group, $GroupsTable, Routine>(
+                      currentTable: table,
+                      referencedTable: $$GroupsTableReferences
+                          ._routinesRefsTable(db),
+                      managerFromTypedResult:
+                          (p0) =>
+                              $$GroupsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).routinesRefs,
+                      referencedItemsForCurrentItem:
+                          (item, referencedItems) => referencedItems.where(
+                            (e) => e.groupId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                  if (todosRefs)
+                    await $_getPrefetchedData<Group, $GroupsTable, Todo>(
+                      currentTable: table,
+                      referencedTable: $$GroupsTableReferences._todosRefsTable(
+                        db,
+                      ),
+                      managerFromTypedResult:
+                          (p0) =>
+                              $$GroupsTableReferences(db, table, p0).todosRefs,
+                      referencedItemsForCurrentItem:
+                          (item, referencedItems) => referencedItems.where(
+                            (e) => e.groupId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                  if (noticesRefs)
+                    await $_getPrefetchedData<Group, $GroupsTable, Notice>(
+                      currentTable: table,
+                      referencedTable: $$GroupsTableReferences
+                          ._noticesRefsTable(db),
+                      managerFromTypedResult:
+                          (p0) =>
+                              $$GroupsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).noticesRefs,
+                      referencedItemsForCurrentItem:
+                          (item, referencedItems) => referencedItems.where(
+                            (e) => e.groupId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$GroupsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $GroupsTable,
+      Group,
+      $$GroupsTableFilterComposer,
+      $$GroupsTableOrderingComposer,
+      $$GroupsTableAnnotationComposer,
+      $$GroupsTableCreateCompanionBuilder,
+      $$GroupsTableUpdateCompanionBuilder,
+      (Group, $$GroupsTableReferences),
+      Group,
+      PrefetchHooks Function({
+        bool routinesRefs,
+        bool todosRefs,
+        bool noticesRefs,
+      })
+    >;
 typedef $$RoutinesTableCreateCompanionBuilder =
     RoutinesCompanion Function({
       Value<int> id,
+      Value<int?> groupId,
       required String content,
       Value<int> colorType,
       Value<bool> isDone,
@@ -3089,6 +4310,7 @@ typedef $$RoutinesTableCreateCompanionBuilder =
 typedef $$RoutinesTableUpdateCompanionBuilder =
     RoutinesCompanion Function({
       Value<int> id,
+      Value<int?> groupId,
       Value<String> content,
       Value<int> colorType,
       Value<bool> isDone,
@@ -3100,6 +4322,28 @@ typedef $$RoutinesTableUpdateCompanionBuilder =
       Value<int?> categoryId,
       Value<int?> alarmMinutes,
     });
+
+final class $$RoutinesTableReferences
+    extends BaseReferences<_$LocalDatabase, $RoutinesTable, Routine> {
+  $$RoutinesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $GroupsTable _groupIdTable(_$LocalDatabase db) => db.groups
+      .createAlias($_aliasNameGenerator(db.routines.groupId, db.groups.id));
+
+  $$GroupsTableProcessedTableManager? get groupId {
+    final $_column = $_itemColumn<int>('group_id');
+    if ($_column == null) return null;
+    final manager = $$GroupsTableTableManager(
+      $_db,
+      $_db.groups,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$RoutinesTableFilterComposer
     extends Composer<_$LocalDatabase, $RoutinesTable> {
@@ -3164,6 +4408,29 @@ class $$RoutinesTableFilterComposer
     column: $table.alarmMinutes,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$GroupsTableFilterComposer get groupId {
+    final $$GroupsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableFilterComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$RoutinesTableOrderingComposer
@@ -3229,6 +4496,29 @@ class $$RoutinesTableOrderingComposer
     column: $table.alarmMinutes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$GroupsTableOrderingComposer get groupId {
+    final $$GroupsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableOrderingComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$RoutinesTableAnnotationComposer
@@ -3280,6 +4570,29 @@ class $$RoutinesTableAnnotationComposer
     column: $table.alarmMinutes,
     builder: (column) => column,
   );
+
+  $$GroupsTableAnnotationComposer get groupId {
+    final $$GroupsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$RoutinesTableTableManager
@@ -3293,9 +4606,9 @@ class $$RoutinesTableTableManager
           $$RoutinesTableAnnotationComposer,
           $$RoutinesTableCreateCompanionBuilder,
           $$RoutinesTableUpdateCompanionBuilder,
-          (Routine, BaseReferences<_$LocalDatabase, $RoutinesTable, Routine>),
+          (Routine, $$RoutinesTableReferences),
           Routine,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool groupId})
         > {
   $$RoutinesTableTableManager(_$LocalDatabase db, $RoutinesTable table)
     : super(
@@ -3311,6 +4624,7 @@ class $$RoutinesTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> groupId = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<int> colorType = const Value.absent(),
                 Value<bool> isDone = const Value.absent(),
@@ -3323,6 +4637,7 @@ class $$RoutinesTableTableManager
                 Value<int?> alarmMinutes = const Value.absent(),
               }) => RoutinesCompanion(
                 id: id,
+                groupId: groupId,
                 content: content,
                 colorType: colorType,
                 isDone: isDone,
@@ -3337,6 +4652,7 @@ class $$RoutinesTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> groupId = const Value.absent(),
                 required String content,
                 Value<int> colorType = const Value.absent(),
                 Value<bool> isDone = const Value.absent(),
@@ -3349,6 +4665,7 @@ class $$RoutinesTableTableManager
                 Value<int?> alarmMinutes = const Value.absent(),
               }) => RoutinesCompanion.insert(
                 id: id,
+                groupId: groupId,
                 content: content,
                 colorType: colorType,
                 isDone: isDone,
@@ -3366,11 +4683,49 @@ class $$RoutinesTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          $$RoutinesTableReferences(db, table, e),
                         ),
                       )
                       .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({groupId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                T extends TableManagerState<
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic
+                >
+              >(state) {
+                if (groupId) {
+                  state =
+                      state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.groupId,
+                            referencedTable: $$RoutinesTableReferences
+                                ._groupIdTable(db),
+                            referencedColumn:
+                                $$RoutinesTableReferences._groupIdTable(db).id,
+                          )
+                          as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -3385,13 +4740,14 @@ typedef $$RoutinesTableProcessedTableManager =
       $$RoutinesTableAnnotationComposer,
       $$RoutinesTableCreateCompanionBuilder,
       $$RoutinesTableUpdateCompanionBuilder,
-      (Routine, BaseReferences<_$LocalDatabase, $RoutinesTable, Routine>),
+      (Routine, $$RoutinesTableReferences),
       Routine,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool groupId})
     >;
 typedef $$TodosTableCreateCompanionBuilder =
     TodosCompanion Function({
       Value<int> id,
+      Value<int?> groupId,
       required String content,
       Value<int> colorType,
       Value<bool> isDone,
@@ -3404,6 +4760,7 @@ typedef $$TodosTableCreateCompanionBuilder =
 typedef $$TodosTableUpdateCompanionBuilder =
     TodosCompanion Function({
       Value<int> id,
+      Value<int?> groupId,
       Value<String> content,
       Value<int> colorType,
       Value<bool> isDone,
@@ -3413,6 +4770,28 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<int?> alarmMinutes,
       Value<DateTime> date,
     });
+
+final class $$TodosTableReferences
+    extends BaseReferences<_$LocalDatabase, $TodosTable, Todo> {
+  $$TodosTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $GroupsTable _groupIdTable(_$LocalDatabase db) => db.groups
+      .createAlias($_aliasNameGenerator(db.todos.groupId, db.groups.id));
+
+  $$GroupsTableProcessedTableManager? get groupId {
+    final $_column = $_itemColumn<int>('group_id');
+    if ($_column == null) return null;
+    final manager = $$GroupsTableTableManager(
+      $_db,
+      $_db.groups,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$TodosTableFilterComposer
     extends Composer<_$LocalDatabase, $TodosTable> {
@@ -3467,6 +4846,29 @@ class $$TodosTableFilterComposer
     column: $table.date,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$GroupsTableFilterComposer get groupId {
+    final $$GroupsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableFilterComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TodosTableOrderingComposer
@@ -3522,6 +4924,29 @@ class $$TodosTableOrderingComposer
     column: $table.date,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$GroupsTableOrderingComposer get groupId {
+    final $$GroupsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableOrderingComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TodosTableAnnotationComposer
@@ -3567,6 +4992,29 @@ class $$TodosTableAnnotationComposer
 
   GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
+
+  $$GroupsTableAnnotationComposer get groupId {
+    final $$GroupsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TodosTableTableManager
@@ -3580,9 +5028,9 @@ class $$TodosTableTableManager
           $$TodosTableAnnotationComposer,
           $$TodosTableCreateCompanionBuilder,
           $$TodosTableUpdateCompanionBuilder,
-          (Todo, BaseReferences<_$LocalDatabase, $TodosTable, Todo>),
+          (Todo, $$TodosTableReferences),
           Todo,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool groupId})
         > {
   $$TodosTableTableManager(_$LocalDatabase db, $TodosTable table)
     : super(
@@ -3598,6 +5046,7 @@ class $$TodosTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> groupId = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<int> colorType = const Value.absent(),
                 Value<bool> isDone = const Value.absent(),
@@ -3608,6 +5057,7 @@ class $$TodosTableTableManager
                 Value<DateTime> date = const Value.absent(),
               }) => TodosCompanion(
                 id: id,
+                groupId: groupId,
                 content: content,
                 colorType: colorType,
                 isDone: isDone,
@@ -3620,6 +5070,7 @@ class $$TodosTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> groupId = const Value.absent(),
                 required String content,
                 Value<int> colorType = const Value.absent(),
                 Value<bool> isDone = const Value.absent(),
@@ -3630,6 +5081,7 @@ class $$TodosTableTableManager
                 required DateTime date,
               }) => TodosCompanion.insert(
                 id: id,
+                groupId: groupId,
                 content: content,
                 colorType: colorType,
                 isDone: isDone,
@@ -3645,11 +5097,49 @@ class $$TodosTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          $$TodosTableReferences(db, table, e),
                         ),
                       )
                       .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({groupId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                T extends TableManagerState<
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic
+                >
+              >(state) {
+                if (groupId) {
+                  state =
+                      state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.groupId,
+                            referencedTable: $$TodosTableReferences
+                                ._groupIdTable(db),
+                            referencedColumn:
+                                $$TodosTableReferences._groupIdTable(db).id,
+                          )
+                          as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -3664,9 +5154,9 @@ typedef $$TodosTableProcessedTableManager =
       $$TodosTableAnnotationComposer,
       $$TodosTableCreateCompanionBuilder,
       $$TodosTableUpdateCompanionBuilder,
-      (Todo, BaseReferences<_$LocalDatabase, $TodosTable, Todo>),
+      (Todo, $$TodosTableReferences),
       Todo,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool groupId})
     >;
 typedef $$CompletedRoutinesTableCreateCompanionBuilder =
     CompletedRoutinesCompanion Function({
@@ -4203,6 +5693,338 @@ typedef $$DayLogsTableProcessedTableManager =
       DayLog,
       PrefetchHooks Function()
     >;
+typedef $$NoticesTableCreateCompanionBuilder =
+    NoticesCompanion Function({
+      Value<int?> groupId,
+      Value<int> id,
+      required String content,
+      required DateTime createdAt,
+      Value<String?> authorName,
+      Value<bool> isDeleted,
+    });
+typedef $$NoticesTableUpdateCompanionBuilder =
+    NoticesCompanion Function({
+      Value<int?> groupId,
+      Value<int> id,
+      Value<String> content,
+      Value<DateTime> createdAt,
+      Value<String?> authorName,
+      Value<bool> isDeleted,
+    });
+
+final class $$NoticesTableReferences
+    extends BaseReferences<_$LocalDatabase, $NoticesTable, Notice> {
+  $$NoticesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $GroupsTable _groupIdTable(_$LocalDatabase db) => db.groups
+      .createAlias($_aliasNameGenerator(db.notices.groupId, db.groups.id));
+
+  $$GroupsTableProcessedTableManager? get groupId {
+    final $_column = $_itemColumn<int>('group_id');
+    if ($_column == null) return null;
+    final manager = $$GroupsTableTableManager(
+      $_db,
+      $_db.groups,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$NoticesTableFilterComposer
+    extends Composer<_$LocalDatabase, $NoticesTable> {
+  $$NoticesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get authorName => $composableBuilder(
+    column: $table.authorName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$GroupsTableFilterComposer get groupId {
+    final $$GroupsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableFilterComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoticesTableOrderingComposer
+    extends Composer<_$LocalDatabase, $NoticesTable> {
+  $$NoticesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get authorName => $composableBuilder(
+    column: $table.authorName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$GroupsTableOrderingComposer get groupId {
+    final $$GroupsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableOrderingComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoticesTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $NoticesTable> {
+  $$NoticesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get authorName => $composableBuilder(
+    column: $table.authorName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  $$GroupsTableAnnotationComposer get groupId {
+    final $$GroupsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.groups,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.groups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoticesTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $NoticesTable,
+          Notice,
+          $$NoticesTableFilterComposer,
+          $$NoticesTableOrderingComposer,
+          $$NoticesTableAnnotationComposer,
+          $$NoticesTableCreateCompanionBuilder,
+          $$NoticesTableUpdateCompanionBuilder,
+          (Notice, $$NoticesTableReferences),
+          Notice,
+          PrefetchHooks Function({bool groupId})
+        > {
+  $$NoticesTableTableManager(_$LocalDatabase db, $NoticesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$NoticesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$NoticesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$NoticesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int?> groupId = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> authorName = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+              }) => NoticesCompanion(
+                groupId: groupId,
+                id: id,
+                content: content,
+                createdAt: createdAt,
+                authorName: authorName,
+                isDeleted: isDeleted,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int?> groupId = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required String content,
+                required DateTime createdAt,
+                Value<String?> authorName = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+              }) => NoticesCompanion.insert(
+                groupId: groupId,
+                id: id,
+                content: content,
+                createdAt: createdAt,
+                authorName: authorName,
+                isDeleted: isDeleted,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          $$NoticesTableReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: ({groupId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                T extends TableManagerState<
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic
+                >
+              >(state) {
+                if (groupId) {
+                  state =
+                      state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.groupId,
+                            referencedTable: $$NoticesTableReferences
+                                ._groupIdTable(db),
+                            referencedColumn:
+                                $$NoticesTableReferences._groupIdTable(db).id,
+                          )
+                          as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$NoticesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $NoticesTable,
+      Notice,
+      $$NoticesTableFilterComposer,
+      $$NoticesTableOrderingComposer,
+      $$NoticesTableAnnotationComposer,
+      $$NoticesTableCreateCompanionBuilder,
+      $$NoticesTableUpdateCompanionBuilder,
+      (Notice, $$NoticesTableReferences),
+      Notice,
+      PrefetchHooks Function({bool groupId})
+    >;
 
 class $LocalDatabaseManager {
   final _$LocalDatabase _db;
@@ -4211,6 +6033,8 @@ class $LocalDatabaseManager {
       $$CategoriesTableTableManager(_db, _db.categories);
   $$DayLogQuestionsTableTableManager get dayLogQuestions =>
       $$DayLogQuestionsTableTableManager(_db, _db.dayLogQuestions);
+  $$GroupsTableTableManager get groups =>
+      $$GroupsTableTableManager(_db, _db.groups);
   $$RoutinesTableTableManager get routines =>
       $$RoutinesTableTableManager(_db, _db.routines);
   $$TodosTableTableManager get todos =>
@@ -4221,4 +6045,6 @@ class $LocalDatabaseManager {
       $$CompletedTodosTableTableManager(_db, _db.completedTodos);
   $$DayLogsTableTableManager get dayLogs =>
       $$DayLogsTableTableManager(_db, _db.dayLogs);
+  $$NoticesTableTableManager get notices =>
+      $$NoticesTableTableManager(_db, _db.notices);
 }
