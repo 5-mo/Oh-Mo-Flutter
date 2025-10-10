@@ -114,7 +114,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  // --- Routine Accordion (추가/삭제/수정에서 repository 사용) ---
   Widget _buildRoutineAccordion() {
     return Padding(
       padding: const EdgeInsets.only(right: 20),

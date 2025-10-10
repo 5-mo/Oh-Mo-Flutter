@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:ohmo/component/delete_bottom_sheet.dart';
 import 'package:ohmo/db/drift_database.dart';
 
 import '../const/colors.dart';
@@ -29,7 +30,11 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
 
     final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
 
-    final allMentions = mentionRegex.allMatches(originalContent).map((m) => m.group(0)!).toList();
+    final allMentions =
+        mentionRegex
+            .allMatches(originalContent)
+            .map((m) => m.group(0)!)
+            .toList();
 
     final mainContent = originalContent.replaceAll(mentionRegex, '').trim();
 
@@ -58,9 +63,10 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                 style: TextStyle(
                   fontSize: 14.0,
                   fontFamily: 'PretendardRegular',
-                  decoration: widget.isDoneForDay
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
+                  decoration:
+                      widget.isDoneForDay
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
                   color: widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
                   decorationColor: Middle_GREY_COLOR,
                 ),
@@ -69,7 +75,10 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                   TextSpan(
                     text: ' $mentionsText',
                     style: TextStyle(
-                      color: widget.isDoneForDay ? Middle_GREY_COLOR : Colors.grey[600],
+                      color:
+                          widget.isDoneForDay
+                              ? Middle_GREY_COLOR
+                              : Colors.grey[600],
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -103,8 +112,36 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
               ),
               Transform.translate(
                 offset: const Offset(-7, -11.0),
-                child: SvgPicture.asset(
-                  'android/assets/images/routine_alarm.svg',
+                child: GestureDetector(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(59),
+                          topLeft: Radius.circular(59),
+                        ),
+                      ),
+                      builder: (BuildContext bContext) {
+                        return DeleteBottomSheet(
+                          onDelete: () async {
+                            final db = LocalDatabaseSingleton.instance;
+                            await db.deleteRoutine(widget.routine.id);
+
+                            widget.onDataChanged?.call();
+                          },
+                        );
+                      },
+                    );
+                  },
+                  child: Container(
+                    color: Colors.transparent,
+                    padding: const EdgeInsets.all(2.0),
+                    child: SvgPicture.asset(
+                      'android/assets/images/routine_alarm.svg',
+                    ),
+                  ),
                 ),
               ),
             ],

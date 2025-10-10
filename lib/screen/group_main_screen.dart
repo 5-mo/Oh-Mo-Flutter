@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:ohmo/component/group_routine_bottom_sheet.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
+import '../component/delete_bottom_sheet.dart';
 import '../component/group_routine_card.dart';
 import '../component/main_calendar.dart';
 import '../component/routine_banner.dart';
@@ -21,14 +22,14 @@ class GroupMainScreen extends StatefulWidget {
 class _GroupMainScreenState extends State<GroupMainScreen> {
   DateTime selectedDate = DateTime.now();
   late final LocalDatabase _db;
-  Set<int> _completedRoutineIds={};
+  Set<int> _completedRoutineIds = {};
 
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    _db=LocalDatabaseSingleton.instance;
+    _db = LocalDatabaseSingleton.instance;
     _fetchCompletedStatus(selectedDate);
     _loadRoutines();
   }
@@ -47,21 +48,21 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     _fetchCompletedStatus(selectedDay);
   }
 
-  Future<void> _fetchCompletedStatus(DateTime date)async{
-    final ids=await _db.getCompletedRoutineIds(date);
-    if(mounted){
+  Future<void> _fetchCompletedStatus(DateTime date) async {
+    final ids = await _db.getCompletedRoutineIds(date);
+    if (mounted) {
       setState(() {
-        _completedRoutineIds=ids.toSet();
+        _completedRoutineIds = ids.toSet();
       });
     }
   }
 
-  bool _isRoutineVisible(Routine routine,DateTime date){
-    if(routine.startDate!.isAfter(date)||routine.endDate!.isBefore(date)){
+  bool _isRoutineVisible(Routine routine, DateTime date) {
+    if (routine.startDate!.isAfter(date) || routine.endDate!.isBefore(date)) {
       return false;
     }
-    final weekDays=routine.weekDays?.split(',').map(int.parse).toList()??[];
-    if(!weekDays.contains(date.weekday)){
+    final weekDays = routine.weekDays?.split(',').map(int.parse).toList() ?? [];
+    if (!weekDays.contains(date.weekday)) {
       return false;
     }
     return true;
@@ -91,8 +92,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               SizedBox(height: 10.0),
               NoticeSection(groupId: widget.groupId),
               SizedBox(height: 10.0),
-              _buildGroupCalendar(
-              ),
+              _buildGroupCalendar(),
               SizedBox(height: 10.0),
             ],
           ),
@@ -188,21 +188,28 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           ValueListenableBuilder<List<Routine>>(
             valueListenable: _routinesNotifier,
             builder: (context, routines, _) {
-              final visibleRoutines = routines.where((r) => _isRoutineVisible(r, selectedDate)).toList();
+              final visibleRoutines =
+                  routines
+                      .where((r) => _isRoutineVisible(r, selectedDate))
+                      .toList();
               if (visibleRoutines.isEmpty) return const SizedBox(height: 20);
               return Column(
-                children: visibleRoutines.map((routine)
-                {
-                  final isDoneForDay = _completedRoutineIds.contains(routine.id);
-                  return GroupRoutineCard(
+                children:
+                    visibleRoutines.map((routine) {
+                      final isDoneForDay = _completedRoutineIds.contains(
+                        routine.id,
+                      );
+                      return GroupRoutineCard(
+                        routine: routine,
+                        isDoneForDay: isDoneForDay,
+                        selectedDate: selectedDate,
 
-                    routine: routine,
-                    isDoneForDay: isDoneForDay,
-                    selectedDate: selectedDate,
-                    onDataChanged: () => _fetchCompletedStatus(selectedDate),
-
-                  );
-                }).toList(),
+                        onDataChanged: () async {
+                          await _loadRoutines();
+                          await _fetchCompletedStatus(selectedDate);
+                        },
+                      );
+                    }).toList(),
               );
             },
           ),
@@ -362,7 +369,27 @@ class _NoticeSectionState extends State<NoticeSection> {
           ),
           InkWell(
             borderRadius: BorderRadius.circular(20),
-            onTap: () {},
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(59),
+                    topLeft: Radius.circular(59),
+                  ),
+                ),
+                builder: (BuildContext bContext) {
+                  return DeleteBottomSheet(
+                    onDelete: () async {
+                      final db = LocalDatabaseSingleton.instance;
+                      await db.deleteNotice(notice.id);
+                      _fetchNotices();
+                    },
+                  );
+                },
+              );
+            },
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: SvgPicture.asset(
