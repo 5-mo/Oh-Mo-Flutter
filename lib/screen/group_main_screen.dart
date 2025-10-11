@@ -58,11 +58,14 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   bool _isRoutineVisible(Routine routine, DateTime date) {
-    if (routine.startDate!.isAfter(date) || routine.endDate!.isBefore(date)) {
+    final checkDate=DateTime(date.year,date.month,date.day);
+    final startDate=DateTime(routine.startDate!.year,routine.startDate!.month,routine.startDate!.day);
+    final endDate=DateTime(routine.endDate!.year,routine.endDate!.month,routine.endDate!.day);
+    if (checkDate.isBefore(startDate)||checkDate.isAfter(endDate)) {
       return false;
     }
     final weekDays = routine.weekDays?.split(',').map(int.parse).toList() ?? [];
-    if (!weekDays.contains(date.weekday)) {
+    if (!weekDays.contains(checkDate.weekday)) {
       return false;
     }
     return true;
@@ -179,6 +182,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                     return GroupRoutineBottomSheet(
                       groupId: widget.groupId,
                       onRoutineAdded: _loadRoutines,
+                      selectedDate: selectedDate,
                     );
                   },
                 );
@@ -189,27 +193,27 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             valueListenable: _routinesNotifier,
             builder: (context, routines, _) {
               final visibleRoutines =
-                  routines
-                      .where((r) => _isRoutineVisible(r, selectedDate))
-                      .toList();
+              routines
+                  .where((r) => _isRoutineVisible(r, selectedDate))
+                  .toList();
               if (visibleRoutines.isEmpty) return const SizedBox(height: 20);
               return Column(
                 children:
-                    visibleRoutines.map((routine) {
-                      final isDoneForDay = _completedRoutineIds.contains(
-                        routine.id,
-                      );
-                      return GroupRoutineCard(
-                        routine: routine,
-                        isDoneForDay: isDoneForDay,
-                        selectedDate: selectedDate,
+                visibleRoutines.map((routine) {
+                  final isDoneForDay = _completedRoutineIds.contains(
+                    routine.id,
+                  );
+                  return GroupRoutineCard(
+                    routine: routine,
+                    isDoneForDay: isDoneForDay,
+                    selectedDate: selectedDate,
 
-                        onDataChanged: () async {
-                          await _loadRoutines();
-                          await _fetchCompletedStatus(selectedDate);
-                        },
-                      );
-                    }).toList(),
+                    onDataChanged: () async {
+                      await _loadRoutines();
+                      await _fetchCompletedStatus(selectedDate);
+                    },
+                  );
+                }).toList(),
               );
             },
           ),
@@ -329,12 +333,23 @@ class _NoticeSectionState extends State<NoticeSection> {
 
             SizedBox(height: 8),
 
-            ..._notices
-                .take(2)
-                .map((notice) => _buildNoticeItem(notice))
-                .toList(),
-
-            if (_notices.isEmpty && !_isAddingNewNotice)
+            if(_notices.length>2)
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: 53.0,
+                ),
+                child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _notices.length,
+                    itemBuilder: (context, index) {
+                      final notice = _notices[index];
+                      return _buildNoticeItem(notice);
+                    }
+                ),
+              )
+            else
+              ..._notices.map((notice)=>_buildNoticeItem(notice)).toList(),
+            if(_notices.isEmpty && !_isAddingNewNotice)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Text(

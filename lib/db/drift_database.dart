@@ -94,13 +94,31 @@ class LocalDatabase extends _$LocalDatabase {
 
   // ------------------ Routine ------------------
 
-  Stream<List<Routine>> watchRoutinesByGroupId(int groupId) {
+  Stream<List<Routine>> watchRoutinesByGroupId(
+    int groupId,
+    DateTime selectedDate,
+  ) {
+    final dateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    final weekDayString = selectedDate.weekday.toString();
+
     return (select(routines)
-      ..where((tbl) => tbl.groupId.equals(groupId))).watch();
+          ..where((tbl) => tbl.groupId.equals(groupId))
+          ..where(
+            (tbl) =>
+                (tbl.startDate.isSmallerOrEqualValue(dateOnly)) &
+                (tbl.endDate.isBiggerOrEqualValue(dateOnly)),
+          )
+          ..where((tbl) => tbl.weekDays.like('$weekDayString')))
+        .watch();
   }
 
   Future<List<Routine>> getRoutinesByGroupId(int groupId) {
-    return (select(routines)..where((tbl) => tbl.groupId.equals(groupId))).get();
+    return (select(routines)
+      ..where((tbl) => tbl.groupId.equals(groupId))).get();
   }
 
   Future<List<Routine>> getPersonalRoutines() {
@@ -199,6 +217,15 @@ class LocalDatabase extends _$LocalDatabase {
           ..where((c) => c.date.equals(dateOnly))).get();
 
     return list.map((c) => c.routineId).toList();
+  }
+
+  Future<void> deactivateRoutine(int routineId, DateTime selectedDate) async {
+    final dayBefore = selectedDate.subtract(const Duration(days: 1));
+    final dateOnly = DateTime(dayBefore.year, dayBefore.month, dayBefore.day);
+
+    await (update(routines)..where(
+      (tbl) => tbl.id.equals(routineId),
+    )).write(RoutinesCompanion(endDate: Value(dateOnly)));
   }
 
   // ------------------Todo------------------

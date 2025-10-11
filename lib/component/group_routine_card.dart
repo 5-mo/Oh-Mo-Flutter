@@ -127,7 +127,7 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                         return DeleteBottomSheet(
                           onDelete: () async {
                             final db = LocalDatabaseSingleton.instance;
-                            await db.deleteRoutine(widget.routine.id);
+                            await db.deactivateRoutine(widget.routine.id,widget.selectedDate);
 
                             widget.onDataChanged?.call();
                           },

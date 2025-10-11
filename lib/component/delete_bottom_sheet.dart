@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'delete_popup.dart';
+
 class DeleteBottomSheet extends StatefulWidget {
   final VoidCallback onDelete;
 
-  const DeleteBottomSheet({
-    Key? key,
-    required this.onDelete,
-  }) : super(key: key);
+  const DeleteBottomSheet({Key? key, required this.onDelete}) : super(key: key);
 
   @override
   State<DeleteBottomSheet> createState() => _DeleteBottomSheetState();
@@ -36,8 +35,17 @@ class _DeleteBottomSheetState extends State<DeleteBottomSheet> {
   Widget _builddeleteButton() {
     return GestureDetector(
       onTap: () {
-        widget.onDelete();
         Navigator.of(context).pop();
+        showDialog(
+          context: context,
+          builder: (_) {
+            return DeletePopup(
+              messageHeader: '루틴 삭제',
+              message: '이후 일정만 삭제되고, 이전 루틴 기록은\n유지됩니다. 삭제를 진행하시겠어요?',
+              onDelete: widget.onDelete,
+            );
+          },
+        );
       },
       child: Container(
         width: 327,

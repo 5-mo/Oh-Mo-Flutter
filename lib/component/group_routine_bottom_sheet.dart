@@ -46,12 +46,14 @@ class GroupRoutineBottomSheet extends StatefulWidget {
   final int? groupId;
   final Future<void> Function()? onRoutineAdded;
   final Future<void> Function()? onDataChanged;
+  final DateTime selectedDate;
 
   const GroupRoutineBottomSheet({
     Key? key,
     this.groupId,
     this.onRoutineAdded,
     this.onDataChanged,
+    required this.selectedDate,
   }) : super(key: key);
 
   @override
@@ -407,7 +409,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
               groupId: drift.Value(widget.groupId),
               content: contentController.text,
               weekDays: drift.Value(weekString),
-              startDate: drift.Value(DateTime.now()),
+              startDate: drift.Value(widget.selectedDate),
               endDate: drift.Value(DateTime(9999, 12, 31)),
               timeMinutes: const drift.Value(0),
               categoryId: const drift.Value(1),
