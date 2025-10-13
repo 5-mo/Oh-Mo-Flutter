@@ -7,8 +7,10 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
 import '../component/delete_bottom_sheet.dart';
 import '../component/group_routine_card.dart';
+import '../component/group_todo_bottom_sheet.dart';
 import '../component/main_calendar.dart';
 import '../component/routine_banner.dart';
+import '../component/todo_banner.dart';
 
 class GroupMainScreen extends StatefulWidget {
   final int groupId;
@@ -26,17 +28,34 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
 
+  int _memberCount = 0;
+  Map<int, int> _completionCounts = {};
+
   @override
   void initState() {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
-    _fetchCompletedStatus(selectedDate);
-    _loadRoutines();
+    _fetchGroupData(selectedDate);
   }
 
-  Future<void> _loadRoutines() async {
+  Future<void> _fetchGroupData(DateTime date) async {
+    final ids = await _db.getCompletedRoutineIds(date);
     final routines = await _db.getRoutinesByGroupId(widget.groupId);
+    const int memberCount = 4;
+    //final memberCount = await _db.getMemberCountInGroup(widget.groupId);
+    final Map<int, int> completionCounts = {};
+    for (var routine in routines) {
+      if (_isRoutineVisible(routine, date)) {
+        completionCounts[routine.id] =
+            (await _db.getCompletionCount(routine.id, date))!;
+      }
+    }
     if (mounted) {
+      setState(() {
+        _completedRoutineIds = ids.toSet();
+        _memberCount = memberCount ?? 0;
+        _completionCounts = completionCounts;
+      });
       _routinesNotifier.value = routines;
     }
   }
@@ -45,23 +64,22 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     setState(() {
       selectedDate = selectedDay;
     });
-    _fetchCompletedStatus(selectedDay);
-  }
-
-  Future<void> _fetchCompletedStatus(DateTime date) async {
-    final ids = await _db.getCompletedRoutineIds(date);
-    if (mounted) {
-      setState(() {
-        _completedRoutineIds = ids.toSet();
-      });
-    }
+    _fetchGroupData(selectedDay);
   }
 
   bool _isRoutineVisible(Routine routine, DateTime date) {
-    final checkDate=DateTime(date.year,date.month,date.day);
-    final startDate=DateTime(routine.startDate!.year,routine.startDate!.month,routine.startDate!.day);
-    final endDate=DateTime(routine.endDate!.year,routine.endDate!.month,routine.endDate!.day);
-    if (checkDate.isBefore(startDate)||checkDate.isAfter(endDate)) {
+    final checkDate = DateTime(date.year, date.month, date.day);
+    final startDate = DateTime(
+      routine.startDate!.year,
+      routine.startDate!.month,
+      routine.startDate!.day,
+    );
+    final endDate = DateTime(
+      routine.endDate!.year,
+      routine.endDate!.month,
+      routine.endDate!.day,
+    );
+    if (checkDate.isBefore(startDate) || checkDate.isAfter(endDate)) {
       return false;
     }
     final weekDays = routine.weekDays?.split(',').map(int.parse).toList() ?? [];
@@ -96,7 +114,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               NoticeSection(groupId: widget.groupId),
               SizedBox(height: 10.0),
               _buildGroupCalendar(),
-              SizedBox(height: 10.0),
+              SizedBox(height: 60.0)
             ],
           ),
         ),
@@ -181,7 +199,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                   builder: (_) {
                     return GroupRoutineBottomSheet(
                       groupId: widget.groupId,
-                      onRoutineAdded: _loadRoutines,
+                      onRoutineAdded: () => _fetchGroupData(selectedDate),
                       selectedDate: selectedDate,
                     );
                   },
@@ -193,29 +211,73 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             valueListenable: _routinesNotifier,
             builder: (context, routines, _) {
               final visibleRoutines =
-              routines
-                  .where((r) => _isRoutineVisible(r, selectedDate))
-                  .toList();
+                  routines
+                      .where((r) => _isRoutineVisible(r, selectedDate))
+                      .toList();
               if (visibleRoutines.isEmpty) return const SizedBox(height: 20);
               return Column(
                 children:
-                visibleRoutines.map((routine) {
-                  final isDoneForDay = _completedRoutineIds.contains(
-                    routine.id,
-                  );
-                  return GroupRoutineCard(
-                    routine: routine,
-                    isDoneForDay: isDoneForDay,
-                    selectedDate: selectedDate,
+                    visibleRoutines.map((routine) {
+                      final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
+                      final mentions =
+                          mentionRegex
+                              .allMatches(routine.content)
+                              .map((m) => m.group(0)!)
+                              .toList();
 
-                    onDataChanged: () async {
-                      await _loadRoutines();
-                      await _fetchCompletedStatus(selectedDate);
-                    },
-                  );
-                }).toList(),
+                      final bool isIndicatorVisible=mentions.isNotEmpty;
+                      final bool isCheckboxVisible =
+                          mentions.contains('@모두') || mentions.any((m) => m.contains('(나)'));
+
+                      int totalCountForThisRoutine;
+                      if (mentions.isEmpty || mentions.contains('@모두')) {
+                        totalCountForThisRoutine = _memberCount;
+                      } else {
+                        totalCountForThisRoutine = mentions.length;
+                      }
+
+                      final isDoneForDay = _completedRoutineIds.contains(
+                        routine.id,
+                      );
+                      return GroupRoutineCard(
+                        routine: routine,
+                        isDoneForDay: isDoneForDay,
+                        selectedDate: selectedDate,
+                        totalMemberCount: totalCountForThisRoutine,
+                        completedMemberCount:
+                            _completionCounts[routine.id] ?? 0,
+                        isIndicatorVisible:isIndicatorVisible,
+                        isCheckboxVisible:isCheckboxVisible,
+                        onDataChanged: () => _fetchGroupData(selectedDate),
+                      );
+                    }).toList(),
               );
             },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 10.0),
+            child: TodoBanner(
+              onAddPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(59),
+                      topRight: Radius.circular(59),
+                    ),
+                  ),
+                  builder: (_) {
+                    return GroupTodoBottomSheet(
+                      groupId: widget.groupId,
+                      onTodoAdded: () => _fetchGroupData(selectedDate),
+                      selectedDate: selectedDate,
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -333,23 +395,21 @@ class _NoticeSectionState extends State<NoticeSection> {
 
             SizedBox(height: 8),
 
-            if(_notices.length>2)
+            if (_notices.length > 2)
               ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: 53.0,
-                ),
+                constraints: BoxConstraints(maxHeight: 53.0),
                 child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _notices.length,
-                    itemBuilder: (context, index) {
-                      final notice = _notices[index];
-                      return _buildNoticeItem(notice);
-                    }
+                  shrinkWrap: true,
+                  itemCount: _notices.length,
+                  itemBuilder: (context, index) {
+                    final notice = _notices[index];
+                    return _buildNoticeItem(notice);
+                  },
                 ),
               )
             else
-              ..._notices.map((notice)=>_buildNoticeItem(notice)).toList(),
-            if(_notices.isEmpty && !_isAddingNewNotice)
+              ..._notices.map((notice) => _buildNoticeItem(notice)).toList(),
+            if (_notices.isEmpty && !_isAddingNewNotice)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Text(

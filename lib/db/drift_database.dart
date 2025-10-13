@@ -34,6 +34,7 @@ enum Emotion { happy, soso, bad, none }
     DayLogs,
     Notices,
     Groups,
+    GroupMembers,
   ],
 )
 class LocalDatabase extends _$LocalDatabase {
@@ -114,6 +115,30 @@ class LocalDatabase extends _$LocalDatabase {
           )
           ..where((tbl) => tbl.weekDays.like('$weekDayString')))
         .watch();
+  }
+
+  Future<int?> getMemberCountInGroup(int groupId) async {
+    final countExp = countAll();
+    final query =
+        selectOnly(groupMembers)
+          ..addColumns([countExp])
+          ..where(groupMembers.groupId.equals(groupId));
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result;
+  }
+
+  Future<int?> getCompletionCount(int routineId, DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final countExp = countAll();
+    final query =
+        selectOnly(completedRoutines)
+          ..addColumns([countExp])
+          ..where(
+            completedRoutines.routineId.equals(routineId) &
+                completedRoutines.date.equals(dateOnly),
+          );
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result;
   }
 
   Future<List<Routine>> getRoutinesByGroupId(int groupId) {

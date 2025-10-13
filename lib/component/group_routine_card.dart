@@ -10,6 +10,10 @@ class GroupRoutineCard extends StatefulWidget {
   final bool isDoneForDay;
   final DateTime selectedDate;
   final Future<void> Function()? onDataChanged;
+  final int totalMemberCount;
+  final int completedMemberCount;
+  final bool isIndicatorVisible;
+  final bool isCheckboxVisible;
 
   const GroupRoutineCard({
     Key? key,
@@ -17,6 +21,10 @@ class GroupRoutineCard extends StatefulWidget {
     required this.isDoneForDay,
     required this.selectedDate,
     this.onDataChanged,
+    required this.totalMemberCount,
+    required this.completedMemberCount,
+    required this.isIndicatorVisible,
+    required this.isCheckboxVisible,
   }) : super(key: key);
 
   @override
@@ -24,21 +32,43 @@ class GroupRoutineCard extends StatefulWidget {
 }
 
 class _GroupRoutineCardState extends State<GroupRoutineCard> {
+  Widget _buildCompletionIndicator() {
+    if (widget.totalMemberCount <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        widget.totalMemberCount,
+        (index) => Container(
+          width: 14,
+          height: 4,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(
+            color:
+                index < widget.completedMemberCount
+                    ? Colors.black
+                    : Colors.grey[300],
+            borderRadius: BorderRadius.circular(5),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final String originalContent = widget.routine.content;
-
     final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
-
     final allMentions =
         mentionRegex
             .allMatches(originalContent)
             .map((m) => m.group(0)!)
             .toList();
-
     final mainContent = originalContent.replaceAll(mentionRegex, '').trim();
-
     final mentionsText = allMentions.join(' ');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
@@ -90,28 +120,41 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              if (widget.isIndicatorVisible)
+                Transform.translate(
+                  offset: const Offset(13, -15.0),
+                  child: _buildCompletionIndicator(),
+                ),
+              if (widget.isIndicatorVisible) const SizedBox(width: 8),
+
               Transform.translate(
-                offset: const Offset(0, -11.0),
+                offset: const Offset(0, -15.0),
                 child: Transform.scale(
                   scale: 0.8,
-                  child: Checkbox(
-                    value: widget.isDoneForDay,
-                    onChanged: (value) async {
-                      final db = LocalDatabaseSingleton.instance;
-                      await db.toggleRoutineCompletion(
-                        widget.routine.id,
-                        widget.selectedDate,
-                      );
-                      widget.onDataChanged?.call();
-                    },
-                    activeColor: Colors.black,
-                    checkColor: Colors.white,
-                    fillColor: MaterialStateProperty.all(Colors.black),
-                  ),
+                  child:
+                      widget.isCheckboxVisible
+                          ? Checkbox(
+                            value: widget.isDoneForDay,
+                            onChanged: (value) async {
+                              final db = LocalDatabaseSingleton.instance;
+                              await db.toggleRoutineCompletion(
+                                widget.routine.id,
+                                widget.selectedDate,
+                              );
+                              widget.onDataChanged?.call();
+                            },
+                            activeColor: Colors.black,
+                            checkColor: Colors.white,
+                            fillColor: MaterialStateProperty.all(Colors.black),
+                          )
+                          : const SizedBox(
+                            width: kMinInteractiveDimension,
+                            height: kMinInteractiveDimension,
+                          ),
                 ),
               ),
               Transform.translate(
-                offset: const Offset(-7, -11.0),
+                offset: const Offset(-5, -15.0),
                 child: GestureDetector(
                   onTap: () {
                     showModalBottomSheet(
@@ -127,7 +170,10 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                         return DeleteBottomSheet(
                           onDelete: () async {
                             final db = LocalDatabaseSingleton.instance;
-                            await db.deactivateRoutine(widget.routine.id,widget.selectedDate);
+                            await db.deactivateRoutine(
+                              widget.routine.id,
+                              widget.selectedDate,
+                            );
 
                             widget.onDataChanged?.call();
                           },

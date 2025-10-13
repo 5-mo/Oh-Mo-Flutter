@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ohmo/component/main_calendar.dart';
+import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/screen/daylog_screen.dart';
 import 'package:ohmo/screen/my_screen.dart';
 import 'package:ohmo/component/routine_banner.dart';
@@ -32,7 +33,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late int _selectedIndex;
   final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
     DateTime.now(),
@@ -41,7 +42,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
   bool _hideRoutineUI = false;
   bool _hideTodoUI = false;
-
 
   @override
   void initState() {
@@ -58,14 +58,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
   }
 
   @override
-  void dispose(){
+  void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state){
-    if(state==AppLifecycleState.resumed){
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
       print("앱이 다시 활성화되어 데이터를 새로고침합니다.");
       _loadDataForDate(_selectedDateNotifier.value);
     }
@@ -249,7 +249,7 @@ class HomeScreenBody extends StatefulWidget {
   final ValueNotifier<DateTime> selectedDateNotifier;
   final VoidCallback? onDataChanged;
   final Future<void> Function()? onRoutineAdded;
-  final VoidCallback? onTodoAdded;
+  final Future<void> Function()? onTodoAdded;
   final ValueChanged<DateTime>? onDateChanged;
   final bool hideRoutineUI;
   final bool hideTodoUI;
@@ -324,22 +324,24 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                     children: [
                       if (!widget.hideRoutineUI)
                         RoutineBanner(
-                          onAddPressed:() {
+                          onAddPressed: () {
                             showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                isDismissible: true,
-                                backgroundColor: Colors.white,
-                                shape:RoundedRectangleBorder(
-                            borderRadius:BorderRadius.only(
-                                  topRight:Radius.circular(59),
-                                  topLeft:Radius.circular(59),
+                              context: context,
+                              isScrollControlled: true,
+                              isDismissible: true,
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(59),
+                                  topLeft: Radius.circular(59),
                                 ),
-                            ),
-                              builder: (_) => RoutineBottomSheet(
-                          groupId:null,
-                            onRoutineAdded:widget.onRoutineAdded??() async{},
-                          ),
+                              ),
+                              builder:
+                                  (_) => RoutineBottomSheet(
+                                    groupId: null,
+                                    onRoutineAdded:
+                                        widget.onRoutineAdded ?? () async {},
+                                  ),
                             );
                           },
                         ),
@@ -392,8 +394,26 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                         SizedBox(height: 20),
                         Divider(color: Colors.grey),
                         TodoBanner(
-                          onTodoAdded: widget.onTodoAdded ?? () {},
-                          selectedDate: selectedDate,
+                          onAddPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              isDismissible: true,
+                              backgroundColor: Colors.white,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(59),
+                                  topLeft: Radius.circular(59),
+                                ),
+                              ),
+                              builder:
+                                  (_) => TodoBottomSheet(
+                                    selectedDate: selectedDate,
+                                    onTodoAdded:
+                                        widget.onTodoAdded ?? () async {},
+                                  ),
+                            );
+                          },
                         ),
                         ValueListenableBuilder<List<Todo>>(
                           valueListenable: widget.todosNotifier,
