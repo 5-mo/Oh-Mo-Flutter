@@ -352,6 +352,34 @@ class LocalDatabase extends _$LocalDatabase {
     )).write(TodosCompanion(isDone: Value(isDone)));
   }
 
+  Future<int?> getTodoCompletionCount(int todoId, DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final countExp = countAll();
+    final query =
+        selectOnly(completedTodos)
+          ..addColumns([countExp])
+          ..where(
+            completedTodos.todoId.equals(todoId) &
+                completedTodos.date.equals(dateOnly),
+          );
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result;
+  }
+
+  Future<List<Todo>> getTodosByGroupIdAndDate(int groupId, DateTime date) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return (select(todos)
+          ..where((tbl) => tbl.groupId.equals(groupId))
+          ..where((tbl) => tbl.date.isBetweenValues(startOfDay, endOfDay)))
+        .get();
+  }
+
+  Future<List<Todo>> getTodosByGroupId(int groupId) {
+    return (select(todos)..where((tbl) => tbl.groupId.equals(groupId))).get();
+  }
+
   // ------------------ DayLog Entry------------------
 
   Future<void> upsertDayLog(DayLogsCompanion entry) {

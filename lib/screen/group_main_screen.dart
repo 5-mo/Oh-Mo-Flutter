@@ -8,6 +8,7 @@ import 'package:ohmo/db/drift_database.dart';
 import '../component/delete_bottom_sheet.dart';
 import '../component/group_routine_card.dart';
 import '../component/group_todo_bottom_sheet.dart';
+import '../component/group_todo_card.dart';
 import '../component/main_calendar.dart';
 import '../component/routine_banner.dart';
 import '../component/todo_banner.dart';
@@ -25,11 +26,14 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   DateTime selectedDate = DateTime.now();
   late final LocalDatabase _db;
   Set<int> _completedRoutineIds = {};
+  Set<int> _completedTodoIds = {};
 
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
+  final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
 
   int _memberCount = 0;
-  Map<int, int> _completionCounts = {};
+  Map<int, int> _routineCompletionCounts = {};
+  Map<int, int> _todoCompletionCounts = {};
 
   @override
   void initState() {
@@ -39,24 +43,38 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Future<void> _fetchGroupData(DateTime date) async {
-    final ids = await _db.getCompletedRoutineIds(date);
+    final routineIds = await _db.getCompletedRoutineIds(date);
     final routines = await _db.getRoutinesByGroupId(widget.groupId);
+
+    final todoIds = await _db.getCompletedTodoIds(date);
+    final todos = await _db.getTodosByGroupIdAndDate(widget.groupId, date);
+
     const int memberCount = 4;
     //final memberCount = await _db.getMemberCountInGroup(widget.groupId);
-    final Map<int, int> completionCounts = {};
+    final Map<int, int> routineCounts = {};
+    final Map<int, int> todoCounts = {};
+
     for (var routine in routines) {
       if (_isRoutineVisible(routine, date)) {
-        completionCounts[routine.id] =
+        routineCounts[routine.id] =
             (await _db.getCompletionCount(routine.id, date))!;
       }
     }
+
+    for (var todo in todos) {
+      todoCounts[todo.id] =
+          (await _db.getTodoCompletionCount(todo.id, date))!;
+    }
     if (mounted) {
       setState(() {
-        _completedRoutineIds = ids.toSet();
+        _completedRoutineIds = routineIds.toSet();
+        _completedTodoIds = todoIds.toSet();
         _memberCount = memberCount ?? 0;
-        _completionCounts = completionCounts;
+        _routineCompletionCounts = routineCounts;
+        _todoCompletionCounts=todoCounts;
       });
       _routinesNotifier.value = routines;
+      _todosNotifier.value = todos;
     }
   }
 
@@ -114,7 +132,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               NoticeSection(groupId: widget.groupId),
               SizedBox(height: 10.0),
               _buildGroupCalendar(),
-              SizedBox(height: 60.0)
+              SizedBox(height: 60.0),
             ],
           ),
         ),
@@ -225,9 +243,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               .map((m) => m.group(0)!)
                               .toList();
 
-                      final bool isIndicatorVisible=mentions.isNotEmpty;
+                      final bool isIndicatorVisible = mentions.isNotEmpty;
                       final bool isCheckboxVisible =
-                          mentions.contains('@모두') || mentions.any((m) => m.contains('(나)'));
+                          mentions.contains('@모두') ||
+                          mentions.any((m) => m.contains('(나)'));
 
                       int totalCountForThisRoutine;
                       if (mentions.isEmpty || mentions.contains('@모두')) {
@@ -245,9 +264,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         selectedDate: selectedDate,
                         totalMemberCount: totalCountForThisRoutine,
                         completedMemberCount:
-                            _completionCounts[routine.id] ?? 0,
-                        isIndicatorVisible:isIndicatorVisible,
-                        isCheckboxVisible:isCheckboxVisible,
+                            _routineCompletionCounts[routine.id] ?? 0,
+                        isIndicatorVisible: isIndicatorVisible,
+                        isCheckboxVisible: isCheckboxVisible,
                         onDataChanged: () => _fetchGroupData(selectedDate),
                       );
                     }).toList(),
@@ -278,6 +297,47 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 );
               },
             ),
+          ),
+          ValueListenableBuilder<List<Todo>>(
+            valueListenable: _todosNotifier,
+            builder: (context, todos, _) {
+              if (todos.isEmpty) return const SizedBox(height: 20);
+              return Column(
+                children:
+                    todos.map((todo) {
+                      final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
+                      final mentions =
+                          mentionRegex
+                              .allMatches(todo.content)
+                              .map((m) => m.group(0)!)
+                              .toList();
+
+                      final bool isIndicatorVisible = mentions.isNotEmpty;
+                      final bool isCheckboxVisible =
+                          mentions.contains('@모두') ||
+                          mentions.any((m) => m.contains('(나)'));
+
+                      int totalCountForThisTodo;
+                      if (mentions.isEmpty || mentions.contains('@모두')) {
+                        totalCountForThisTodo = _memberCount;
+                      } else {
+                        totalCountForThisTodo = mentions.length;
+                      }
+
+                      final isDoneForDay = _completedTodoIds.contains(todo.id);
+                      return GroupTodoCard(
+                        todo: todo,
+                        isDoneForDay: isDoneForDay,
+                        selectedDate: selectedDate,
+                        totalMemberCount: totalCountForThisTodo,
+                        completedMemberCount: _todoCompletionCounts[todo.id] ?? 0,
+                        isIndicatorVisible: isIndicatorVisible,
+                        isCheckboxVisible: isCheckboxVisible,
+                        onDataChanged: () => _fetchGroupData(selectedDate),
+                      );
+                    }).toList(),
+              );
+            },
           ),
         ],
       ),

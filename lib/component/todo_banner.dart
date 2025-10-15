@@ -4,8 +4,9 @@ import 'package:ohmo/component/todo_bottom_sheet.dart';
 
 class TodoBanner extends StatelessWidget {
   final VoidCallback onAddPressed;
+  final int? groupId;
 
-  const TodoBanner({Key? key, required this.onAddPressed}) : super(key: key);
+  const TodoBanner({Key? key, required this.onAddPressed,this.groupId}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

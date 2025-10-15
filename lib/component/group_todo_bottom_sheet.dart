@@ -84,7 +84,6 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _loadCategories();
     contentController.addListener(_onTextChanged);
   }
 
@@ -316,40 +315,35 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
       onTap: () async {
         if (contentController.text.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")),
+            const SnackBar(content: Text("내용을 입력해주세요.")),
           );
           return;
         }
 
         try {
-          final db = LocalDatabase();
+          final db = LocalDatabaseSingleton.instance;
 
-          await db.insertRoutine(
-            RoutinesCompanion.insert(
+          await db.insertTodo(
+            TodosCompanion.insert(
               groupId: drift.Value(widget.groupId),
               content: contentController.text,
-              startDate: drift.Value(widget.selectedDate),
-              endDate: drift.Value(DateTime(9999, 12, 31)),
-              timeMinutes: const drift.Value(0),
-              categoryId: const drift.Value(1),
-              colorType: const drift.Value(0),
-              isDone: const drift.Value(false),
+              date: widget.selectedDate,
             ),
           );
-
+          widget.onTodoAdded?.call();
 
           if (mounted) {
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("루틴이 등록되었습니다!")),
+              const SnackBar(content: Text("투두가 등록되었습니다!")),
             );
           }
 
         } catch (e) {
-          print('루틴 저장 실패: $e');
+          print('투두 저장 실패: $e');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('루틴 저장에 실패했습니다.')),
+              const SnackBar(content: Text('투두 저장에 실패했습니다.')),
             );
           }
         }
@@ -375,21 +369,4 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
     );
   }
 
-  void _loadCategories() async {
-    try {
-      final localDb = LocalDatabase();
-      final categoryRepo = LocalCategoryRepository(localDb);
-
-      final loadedRoutines = await categoryRepo.fetchCategories(
-        scheduleType: 'TODO',
-      );
-
-      setState(() {
-        todos = loadedRoutines;
-        if (todos.isNotEmpty) selectedCategoryId = todos.first.id;
-      });
-    } catch (e) {
-      print('카테고리 로드 실패: $e');
-    }
-  }
 }
