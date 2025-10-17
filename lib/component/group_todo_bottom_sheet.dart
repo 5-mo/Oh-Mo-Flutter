@@ -313,11 +313,20 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        if (contentController.text.isEmpty) {
+        final String originalContent = contentController.text.trim();
+
+        if (originalContent.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("내용을 입력해주세요.")),
           );
           return;
+        }
+
+        final mentionRegex = RegExp(r'@');
+        String finalContent = originalContent;
+
+        if (!mentionRegex.hasMatch(originalContent)) {
+          finalContent = '$originalContent @모두';
         }
 
         try {
@@ -326,7 +335,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
           await db.insertTodo(
             TodosCompanion.insert(
               groupId: drift.Value(widget.groupId),
-              content: contentController.text,
+              content: finalContent,
               date: widget.selectedDate,
             ),
           );

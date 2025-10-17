@@ -3109,6 +3109,17 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _noticeDateMeta = const VerificationMeta(
+    'noticeDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> noticeDate = GeneratedColumn<DateTime>(
+    'notice_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     groupId,
@@ -3117,6 +3128,7 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
     createdAt,
     authorName,
     isDeleted,
+    noticeDate,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3167,6 +3179,14 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('notice_date')) {
+      context.handle(
+        _noticeDateMeta,
+        noticeDate.isAcceptableOrUnknown(data['notice_date']!, _noticeDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noticeDateMeta);
+    }
     return context;
   }
 
@@ -3204,6 +3224,11 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
             DriftSqlType.bool,
             data['${effectivePrefix}is_deleted'],
           )!,
+      noticeDate:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}notice_date'],
+          )!,
     );
   }
 
@@ -3220,6 +3245,7 @@ class Notice extends DataClass implements Insertable<Notice> {
   final DateTime createdAt;
   final String? authorName;
   final bool isDeleted;
+  final DateTime noticeDate;
   const Notice({
     this.groupId,
     required this.id,
@@ -3227,6 +3253,7 @@ class Notice extends DataClass implements Insertable<Notice> {
     required this.createdAt,
     this.authorName,
     required this.isDeleted,
+    required this.noticeDate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3241,6 +3268,7 @@ class Notice extends DataClass implements Insertable<Notice> {
       map['author_name'] = Variable<String>(authorName);
     }
     map['is_deleted'] = Variable<bool>(isDeleted);
+    map['notice_date'] = Variable<DateTime>(noticeDate);
     return map;
   }
 
@@ -3258,6 +3286,7 @@ class Notice extends DataClass implements Insertable<Notice> {
               ? const Value.absent()
               : Value(authorName),
       isDeleted: Value(isDeleted),
+      noticeDate: Value(noticeDate),
     );
   }
 
@@ -3273,6 +3302,7 @@ class Notice extends DataClass implements Insertable<Notice> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       authorName: serializer.fromJson<String?>(json['authorName']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      noticeDate: serializer.fromJson<DateTime>(json['noticeDate']),
     );
   }
   @override
@@ -3285,6 +3315,7 @@ class Notice extends DataClass implements Insertable<Notice> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'authorName': serializer.toJson<String?>(authorName),
       'isDeleted': serializer.toJson<bool>(isDeleted),
+      'noticeDate': serializer.toJson<DateTime>(noticeDate),
     };
   }
 
@@ -3295,6 +3326,7 @@ class Notice extends DataClass implements Insertable<Notice> {
     DateTime? createdAt,
     Value<String?> authorName = const Value.absent(),
     bool? isDeleted,
+    DateTime? noticeDate,
   }) => Notice(
     groupId: groupId.present ? groupId.value : this.groupId,
     id: id ?? this.id,
@@ -3302,6 +3334,7 @@ class Notice extends DataClass implements Insertable<Notice> {
     createdAt: createdAt ?? this.createdAt,
     authorName: authorName.present ? authorName.value : this.authorName,
     isDeleted: isDeleted ?? this.isDeleted,
+    noticeDate: noticeDate ?? this.noticeDate,
   );
   Notice copyWithCompanion(NoticesCompanion data) {
     return Notice(
@@ -3312,6 +3345,8 @@ class Notice extends DataClass implements Insertable<Notice> {
       authorName:
           data.authorName.present ? data.authorName.value : this.authorName,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      noticeDate:
+          data.noticeDate.present ? data.noticeDate.value : this.noticeDate,
     );
   }
 
@@ -3323,14 +3358,22 @@ class Notice extends DataClass implements Insertable<Notice> {
           ..write('content: $content, ')
           ..write('createdAt: $createdAt, ')
           ..write('authorName: $authorName, ')
-          ..write('isDeleted: $isDeleted')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('noticeDate: $noticeDate')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(groupId, id, content, createdAt, authorName, isDeleted);
+  int get hashCode => Object.hash(
+    groupId,
+    id,
+    content,
+    createdAt,
+    authorName,
+    isDeleted,
+    noticeDate,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3340,7 +3383,8 @@ class Notice extends DataClass implements Insertable<Notice> {
           other.content == this.content &&
           other.createdAt == this.createdAt &&
           other.authorName == this.authorName &&
-          other.isDeleted == this.isDeleted);
+          other.isDeleted == this.isDeleted &&
+          other.noticeDate == this.noticeDate);
 }
 
 class NoticesCompanion extends UpdateCompanion<Notice> {
@@ -3350,6 +3394,7 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
   final Value<DateTime> createdAt;
   final Value<String?> authorName;
   final Value<bool> isDeleted;
+  final Value<DateTime> noticeDate;
   const NoticesCompanion({
     this.groupId = const Value.absent(),
     this.id = const Value.absent(),
@@ -3357,6 +3402,7 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
     this.createdAt = const Value.absent(),
     this.authorName = const Value.absent(),
     this.isDeleted = const Value.absent(),
+    this.noticeDate = const Value.absent(),
   });
   NoticesCompanion.insert({
     this.groupId = const Value.absent(),
@@ -3365,8 +3411,10 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
     required DateTime createdAt,
     this.authorName = const Value.absent(),
     this.isDeleted = const Value.absent(),
+    required DateTime noticeDate,
   }) : content = Value(content),
-       createdAt = Value(createdAt);
+       createdAt = Value(createdAt),
+       noticeDate = Value(noticeDate);
   static Insertable<Notice> custom({
     Expression<int>? groupId,
     Expression<int>? id,
@@ -3374,6 +3422,7 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
     Expression<DateTime>? createdAt,
     Expression<String>? authorName,
     Expression<bool>? isDeleted,
+    Expression<DateTime>? noticeDate,
   }) {
     return RawValuesInsertable({
       if (groupId != null) 'group_id': groupId,
@@ -3382,6 +3431,7 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
       if (createdAt != null) 'created_at': createdAt,
       if (authorName != null) 'author_name': authorName,
       if (isDeleted != null) 'is_deleted': isDeleted,
+      if (noticeDate != null) 'notice_date': noticeDate,
     });
   }
 
@@ -3392,6 +3442,7 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
     Value<DateTime>? createdAt,
     Value<String?>? authorName,
     Value<bool>? isDeleted,
+    Value<DateTime>? noticeDate,
   }) {
     return NoticesCompanion(
       groupId: groupId ?? this.groupId,
@@ -3400,6 +3451,7 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
       createdAt: createdAt ?? this.createdAt,
       authorName: authorName ?? this.authorName,
       isDeleted: isDeleted ?? this.isDeleted,
+      noticeDate: noticeDate ?? this.noticeDate,
     );
   }
 
@@ -3424,6 +3476,9 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
     if (isDeleted.present) {
       map['is_deleted'] = Variable<bool>(isDeleted.value);
     }
+    if (noticeDate.present) {
+      map['notice_date'] = Variable<DateTime>(noticeDate.value);
+    }
     return map;
   }
 
@@ -3435,7 +3490,8 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
           ..write('content: $content, ')
           ..write('createdAt: $createdAt, ')
           ..write('authorName: $authorName, ')
-          ..write('isDeleted: $isDeleted')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('noticeDate: $noticeDate')
           ..write(')'))
         .toString();
   }
@@ -6257,6 +6313,7 @@ typedef $$NoticesTableCreateCompanionBuilder =
       required DateTime createdAt,
       Value<String?> authorName,
       Value<bool> isDeleted,
+      required DateTime noticeDate,
     });
 typedef $$NoticesTableUpdateCompanionBuilder =
     NoticesCompanion Function({
@@ -6266,6 +6323,7 @@ typedef $$NoticesTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String?> authorName,
       Value<bool> isDeleted,
+      Value<DateTime> noticeDate,
     });
 
 final class $$NoticesTableReferences
@@ -6321,6 +6379,11 @@ class $$NoticesTableFilterComposer
 
   ColumnFilters<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get noticeDate => $composableBuilder(
+    column: $table.noticeDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6382,6 +6445,11 @@ class $$NoticesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get noticeDate => $composableBuilder(
+    column: $table.noticeDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$GroupsTableOrderingComposer get groupId {
     final $$GroupsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6431,6 +6499,11 @@ class $$NoticesTableAnnotationComposer
 
   GeneratedColumn<bool> get isDeleted =>
       $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get noticeDate => $composableBuilder(
+    column: $table.noticeDate,
+    builder: (column) => column,
+  );
 
   $$GroupsTableAnnotationComposer get groupId {
     final $$GroupsTableAnnotationComposer composer = $composerBuilder(
@@ -6490,6 +6563,7 @@ class $$NoticesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> authorName = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> noticeDate = const Value.absent(),
               }) => NoticesCompanion(
                 groupId: groupId,
                 id: id,
@@ -6497,6 +6571,7 @@ class $$NoticesTableTableManager
                 createdAt: createdAt,
                 authorName: authorName,
                 isDeleted: isDeleted,
+                noticeDate: noticeDate,
               ),
           createCompanionCallback:
               ({
@@ -6506,6 +6581,7 @@ class $$NoticesTableTableManager
                 required DateTime createdAt,
                 Value<String?> authorName = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
+                required DateTime noticeDate,
               }) => NoticesCompanion.insert(
                 groupId: groupId,
                 id: id,
@@ -6513,6 +6589,7 @@ class $$NoticesTableTableManager
                 createdAt: createdAt,
                 authorName: authorName,
                 isDeleted: isDeleted,
+                noticeDate: noticeDate,
               ),
           withReferenceMapper:
               (p0) =>

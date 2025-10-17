@@ -12,6 +12,28 @@ import '../component/group_todo_card.dart';
 import '../component/main_calendar.dart';
 import '../component/routine_banner.dart';
 import '../component/todo_banner.dart';
+import 'package:table_calendar/table_calendar.dart';
+
+class CalendarEvent {
+  final int id;
+  final String content;
+  final int currentCompletion;
+  final int requiredCompletion;
+
+  CalendarEvent({
+    required this.id,
+    required this.content,
+    required this.currentCompletion,
+    required this.requiredCompletion,
+  });
+
+  bool isFullyCompleted() {
+    return requiredCompletion > 0 && currentCompletion >= requiredCompletion;
+  }
+
+  @override
+  String toString() => content;
+}
 
 class GroupMainScreen extends StatefulWidget {
   final int groupId;
@@ -35,16 +57,104 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   Map<int, int> _routineCompletionCounts = {};
   Map<int, int> _todoCompletionCounts = {};
 
+  Map<DateTime, List<CalendarEvent>> _eventsCache = {};
+
   @override
   void initState() {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
     _fetchGroupData(selectedDate);
+
+    _loadSchedulesForMonth(selectedDate);
+  }
+
+  Future<void> _refreshAllData(DateTime date) async {
+    await _loadSchedulesForMonth(date);
+    await _fetchGroupData(date);
+  }
+
+  Future<void> _loadSchedulesForMonth(DateTime month) async {
+    final firstDay = DateTime(month.year, month.month, 1);
+    final lastDay = DateTime(month.year, month.month + 1, 0);
+
+    final allTodosInMonth = await _db.getTodosBetween(firstDay, lastDay);
+    final allNoticesForGroup = await _db.getNoticesForGroup(widget.groupId);
+    const int memberCount = 4;
+
+    _eventsCache.clear();
+    final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
+
+    for (
+      var day = firstDay;
+      day.isBefore(lastDay.add(const Duration(days: 1)));
+      day = day.add(const Duration(days: 1))
+    ) {
+      final dateOnly = DateTime(day.year, day.month, day.day);
+
+      final todosForDay = allTodosInMonth.where(
+        (todo) =>
+            todo.groupId == widget.groupId && isSameDay(todo.date, dateOnly),
+      );
+      bool isTodoCompleted = false;
+
+      if (todosForDay.isNotEmpty) {
+        final todo = todosForDay.first;
+        final mentions =
+            mentionRegex
+                .allMatches(todo.content)
+                .map((m) => m.group(0)!)
+                .toList();
+        int requiredCount =
+            (mentions.isEmpty || mentions.contains('@모두'))
+                ? memberCount
+                : mentions.length;
+        final currentCount =
+            (await _db.getTodoCompletionCount(todo.id, dateOnly)) ?? 0;
+
+        if (requiredCount > 0 && currentCount >= requiredCount) {
+          isTodoCompleted = true;
+        }
+      }
+
+      if (isTodoCompleted) {
+        _eventsCache[dateOnly] = [
+          CalendarEvent(
+            id: todosForDay.first.id,
+            content: '',
+            currentCompletion: 1,
+            requiredCompletion: 1,
+          ),
+        ];
+      } else {
+        final noticesForDay = allNoticesForGroup.where(
+          (notice) => isSameDay(notice.noticeDate, dateOnly),
+        );
+        if (noticesForDay.isNotEmpty) {
+          final notice = noticesForDay.first;
+          _eventsCache[dateOnly] = [
+            CalendarEvent(
+              id: notice.id,
+              content: notice.content,
+              currentCompletion: 0,
+              requiredCompletion: 1,
+            ),
+          ];
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _fetchGroupData(DateTime date) async {
     final routineIds = await _db.getCompletedRoutineIds(date);
-    final routines = await _db.getRoutinesByGroupId(widget.groupId);
+    final allRoutines = await _db.getRoutinesByGroupId(widget.groupId);
+    final routines =
+        allRoutines
+            .where((routine) => _isRoutineVisible(routine, date))
+            .toList();
 
     final todoIds = await _db.getCompletedTodoIds(date);
     final todos = await _db.getTodosByGroupIdAndDate(widget.groupId, date);
@@ -55,15 +165,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     final Map<int, int> todoCounts = {};
 
     for (var routine in routines) {
-      if (_isRoutineVisible(routine, date)) {
-        routineCounts[routine.id] =
-            (await _db.getCompletionCount(routine.id, date))!;
-      }
+      routineCounts[routine.id] =
+          (await _db.getCompletionCount(routine.id, date))!;
     }
 
     for (var todo in todos) {
-      todoCounts[todo.id] =
-          (await _db.getTodoCompletionCount(todo.id, date))!;
+      todoCounts[todo.id] = (await _db.getTodoCompletionCount(todo.id, date))!;
     }
     if (mounted) {
       setState(() {
@@ -71,7 +178,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         _completedTodoIds = todoIds.toSet();
         _memberCount = memberCount ?? 0;
         _routineCompletionCounts = routineCounts;
-        _todoCompletionCounts=todoCounts;
+        _todoCompletionCounts = todoCounts;
       });
       _routinesNotifier.value = routines;
       _todosNotifier.value = todos;
@@ -86,6 +193,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   bool _isRoutineVisible(Routine routine, DateTime date) {
+    if (routine.startDate == null ||
+        routine.endDate == null ||
+        routine.weekDays == null) {
+      return false;
+    }
     final checkDate = DateTime(date.year, date.month, date.day);
     final startDate = DateTime(
       routine.startDate!.year,
@@ -129,7 +241,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             children: [
               Row(children: [_buildGroupName(), Spacer(), _buildSetting()]),
               SizedBox(height: 10.0),
-              NoticeSection(groupId: widget.groupId),
+              NoticeSection(
+                groupId: widget.groupId,
+                onNoticeChanged: () => _refreshAllData(selectedDate),
+              ),
               SizedBox(height: 10.0),
               _buildGroupCalendar(),
               SizedBox(height: 60.0),
@@ -182,7 +297,13 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           MainCalendar(
             selectedDate: selectedDate,
             onDaySelected: onDaySelected,
-            eventLoader: (_) => [],
+            eventLoader: (day) {
+              final dateOnly = DateTime(day.year, day.month, day.day);
+              return _eventsCache[dateOnly] ?? [];
+            },
+            onPageChanged: (focusedDay) {
+              _loadSchedulesForMonth(focusedDay);
+            },
             headerPadding: const EdgeInsets.symmetric(
               horizontal: 10.0,
               vertical: 8.0,
@@ -290,7 +411,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                   builder: (_) {
                     return GroupTodoBottomSheet(
                       groupId: widget.groupId,
-                      onTodoAdded: () => _fetchGroupData(selectedDate),
+                      onTodoAdded: () => _refreshAllData(selectedDate),
                       selectedDate: selectedDate,
                     );
                   },
@@ -325,15 +446,17 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                       }
 
                       final isDoneForDay = _completedTodoIds.contains(todo.id);
+
                       return GroupTodoCard(
                         todo: todo,
                         isDoneForDay: isDoneForDay,
                         selectedDate: selectedDate,
                         totalMemberCount: totalCountForThisTodo,
-                        completedMemberCount: _todoCompletionCounts[todo.id] ?? 0,
+                        completedMemberCount:
+                            _todoCompletionCounts[todo.id] ?? 0,
                         isIndicatorVisible: isIndicatorVisible,
                         isCheckboxVisible: isCheckboxVisible,
-                        onDataChanged: () => _fetchGroupData(selectedDate),
+                        onDataChanged: () => _refreshAllData(selectedDate),
                       );
                     }).toList(),
               );
@@ -347,8 +470,13 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
 class NoticeSection extends StatefulWidget {
   final int groupId;
+  final VoidCallback onNoticeChanged;
 
-  const NoticeSection({super.key, required this.groupId});
+  const NoticeSection({
+    super.key,
+    required this.groupId,
+    required this.onNoticeChanged,
+  });
 
   @override
   State<NoticeSection> createState() => _NoticeSectionState();
@@ -359,6 +487,7 @@ class _NoticeSectionState extends State<NoticeSection> {
   bool _isAddingNewNotice = false;
   final _newNoticeController = TextEditingController();
   List<Notice> _notices = [];
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -374,6 +503,30 @@ class _NoticeSectionState extends State<NoticeSection> {
 
   Future<void> _fetchNotices() async {
     final noticesFromDb = await _db.getNoticesForGroup(widget.groupId);
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final futureNotices =
+        noticesFromDb.where((notice) {
+          final noticeDateOnly = DateTime(
+            notice.noticeDate.year,
+            notice.noticeDate.month,
+            notice.noticeDate.day,
+          );
+          return !noticeDateOnly.isBefore(today);
+        }).toList();
+
+    futureNotices.sort((a, b) {
+      final dateComparison = a.noticeDate.compareTo(b.noticeDate);
+
+      if (dateComparison != 0) {
+        return dateComparison;
+      } else {
+        return b.createdAt.compareTo(a.createdAt);
+      }
+    });
+
     if (mounted) {
       setState(() {
         _notices = noticesFromDb;
@@ -381,20 +534,52 @@ class _NoticeSectionState extends State<NoticeSection> {
     }
   }
 
+  Future<void> _pickDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(3000),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: Colors.black,
+            colorScheme: const ColorScheme.light(primary: Colors.black),
+            buttonTheme: const ButtonThemeData(
+              textTheme: ButtonTextTheme.primary,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: Colors.black),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   Future<void> _addNotice() async {
     final content = _newNoticeController.text.trim();
-    if (content.isNotEmpty) {
+    if (content.isNotEmpty && _selectedDate != null) {
       final newNotice = NoticesCompanion.insert(
         content: content,
         createdAt: DateTime.now(),
         groupId: drift.Value(widget.groupId),
+        noticeDate: _selectedDate!,
       );
       await _db.insertNotice(newNotice);
       _newNoticeController.clear();
       setState(() {
         _isAddingNewNotice = false;
+        _selectedDate = null;
       });
       _fetchNotices();
+      widget.onNoticeChanged();
     }
   }
 
@@ -437,10 +622,15 @@ class _NoticeSectionState extends State<NoticeSection> {
                   onTap: () {
                     setState(() {
                       _isAddingNewNotice = !_isAddingNewNotice;
+                      if (_isAddingNewNotice) {
+                        _selectedDate = DateTime.now();
+                      } else {
+                        _selectedDate = null;
+                      }
                     });
                   },
                   child: Padding(
-                    padding: const EdgeInsets.all(4.0),
+                    padding: const EdgeInsets.all(7.0),
                     child: SvgPicture.asset(
                       'android/assets/images/plus.svg',
                       colorFilter: ColorFilter.mode(
@@ -486,19 +676,38 @@ class _NoticeSectionState extends State<NoticeSection> {
   }
 
   Widget _buildNoticeItem(Notice notice) {
+    final formattedDate = DateFormat('M/d').format(notice.noticeDate);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: Row(
         children: [
-          Text(
-            '•',
-            style: TextStyle(color: Colors.white, fontSize: 16, height: 1),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Text(
+              '$formattedDate',
+              style: TextStyle(
+                fontFamily: 'PretendardRegular',
+                color: Colors.white,
+                fontSize: 15,
+                height: 1,
+              ),
+            ),
           ),
           SizedBox(width: 10),
           Expanded(
             child: Text(
               notice.content,
-              style: TextStyle(color: Colors.white, fontSize: 16, height: 1.3),
+              style: TextStyle(
+                fontFamily: 'PretendardSemibold',
+                color: Colors.white,
+                fontSize: 16,
+                height: 1.3,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -520,6 +729,7 @@ class _NoticeSectionState extends State<NoticeSection> {
                       final db = LocalDatabaseSingleton.instance;
                       await db.deleteNotice(notice.id);
                       _fetchNotices();
+                      widget.onNoticeChanged();
                     },
                   );
                 },
@@ -539,38 +749,55 @@ class _NoticeSectionState extends State<NoticeSection> {
   }
 
   Widget _buildInputField() {
+    if (_selectedDate == null) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          InkWell(
+            onTap: () => _pickDate(context),
+            borderRadius: BorderRadius.circular(8.0),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                DateFormat('M/d').format(_selectedDate!),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
           Expanded(
             child: TextField(
               controller: _newNoticeController,
               autofocus: true,
-              style: TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: '새로운 공지를 입력하세요',
-                hintStyle: TextStyle(color: Colors.grey),
+                hintStyle: const TextStyle(color: Colors.grey),
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 8,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey),
+                  borderSide: const BorderSide(color: Colors.grey),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.white, width: 2),
+                  borderSide: const BorderSide(color: Colors.white, width: 2),
                 ),
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
+
           IconButton(
-            icon: Icon(Icons.check, color: Colors.white),
-            onPressed: _addNotice,
+            icon: const Icon(Icons.check, color: Colors.white),
+            onPressed: _selectedDate != null ? _addNotice : null,
           ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:ohmo/screen/group_main_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/services/widget_updater.dart';
@@ -20,6 +21,7 @@ const platform=MethodChannel('com.example.ohmo/todo_events');
 void backgroundMain(){
   WidgetsFlutterBinding.ensureInitialized();
 
+
   platform.setMethodCallHandler(_handleWidgetMethodCalls);
 }
 
@@ -32,6 +34,7 @@ Future<void> clearTokens() async {
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('ko_KR');
 
   final callbackHandle=PluginUtilities.getCallbackHandle(backgroundMain);
   final prefs=await SharedPreferences.getInstance();
@@ -49,7 +52,7 @@ void main() async{
       ],
       child: MaterialApp(
         theme: ThemeData(scaffoldBackgroundColor: Colors.white),
-        home: GroupMainScreen(groupId: 1),
+        home: HomeScreen(),
         debugShowCheckedModeBanner: false,
       ),
     ),

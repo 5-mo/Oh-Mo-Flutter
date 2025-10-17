@@ -27,6 +27,7 @@ class Notices extends Table{
   DateTimeColumn get createdAt => dateTime()();
   TextColumn get authorName=>text().nullable()();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get noticeDate=>dateTime()();
 }
 
 class Categories extends Table{
