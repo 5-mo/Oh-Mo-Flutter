@@ -90,17 +90,35 @@ class _CategoryScreenState extends State<CategoryScreen> {
         backgroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(top: 30, left: 35, bottom: 60),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCategoryHeader(),
-            SizedBox(height: 20.0),
-            _buildRoutineAccordion(),
-            _buildTodoAccordion(),
-            _buildDaylogAccordion(),
+            Padding(
+              padding: const EdgeInsets.only(top: 30, left: 35),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCategoryHeader(),
+                  SizedBox(height: 20.0),
+                  _buildRoutineAccordion(),
+                  _buildTodoAccordion(),
+                  _buildDaylogAccordion(),
+                  SizedBox(height: 10.0),
+                  _buildDiaryIndex(),
+                ],
+              ),
+            ),
+            SizedBox(height: 60.0),
+
+            Center(
+              child: Container(width: 320, child: Divider(color: Colors.black)),
+            ),
+
             SizedBox(height: 10.0),
-            _buildDiaryIndex(),
+            _buildGroupHeader(),
+            Align(
+              alignment: Alignment.centerLeft,
+            child:_buildGroupSection(),
+            ),
           ],
         ),
       ),
@@ -315,7 +333,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     _isAddingNewRoutine = false;
                                     _newRoutineController.clear();
                                   });
-
                                 },
                               ),
                             ],
@@ -830,6 +847,85 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGroupHeader() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 50, right: 35),
+      child: Row(
+        children: [
+          Text(
+            'Group',
+            style: TextStyle(
+              fontSize: 14,
+              fontFamily: 'RubikSprayPaint',
+              color: Colors.black,
+            ),
+          ),
+          Transform.translate(offset: Offset(-10, 0)),
+          Spacer(),
+          IconButton(
+            icon: Icon(Icons.add_circle, color: Colors.black),
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupSection() {
+    return Container(
+      margin: const EdgeInsets.only(left: 35,top: 5),
+      width: 150,
+      height: 111,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.4),
+            spreadRadius: 1,
+            blurRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 140,
+            height: 70,
+            margin: const EdgeInsets.only(top: 5),
+            padding: const EdgeInsets.all(15.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F2),
+              borderRadius: BorderRadius.circular(12.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.4),
+                  spreadRadius: 1,
+                  blurRadius: 1,
+                ),
+              ],
+            ),
+            child: Text(
+              '그룹\n만들기',
+              style: TextStyle(
+                fontFamily: 'PretendardMedium',
+                fontSize: 12,
+                color: Color(0xFF7B7B7B),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 9,horizontal: 8),
+              child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
+            ),
+          ),
+        ],
       ),
     );
   }
