@@ -77,6 +77,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final List<String> dummyGroupsIds = [
+      'group1',
+      'group2',
+      'group3',
+      'group4',
+      'group1',
+      'group2',
+      'group3',
+      'group4',
+    ];
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -115,10 +126,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
             SizedBox(height: 10.0),
             _buildGroupHeader(),
-            Align(
-              alignment: Alignment.centerLeft,
-            child:_buildGroupSection(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 35.0),
+              child: Wrap(
+                spacing: 23.0,
+                runSpacing: 23.0,
+                children:
+                    dummyGroupsIds.map((groupId) {
+                      return _buildGroupSection(groupId: 'groupId');
+                    }).toList(),
+              ),
             ),
+            SizedBox(height: 60.0),
           ],
         ),
       ),
@@ -875,9 +894,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Widget _buildGroupSection() {
+  Widget _buildGroupSection({String? groupId}) {
+    final bool hasGroup = groupId != null && groupId.isNotEmpty;
+
     return Container(
-      margin: const EdgeInsets.only(left: 35,top: 5),
       width: 150,
       height: 111,
       decoration: BoxDecoration(
@@ -893,36 +913,125 @@ class _CategoryScreenState extends State<CategoryScreen> {
       ),
       child: Column(
         children: [
-          Container(
-            width: 140,
-            height: 70,
-            margin: const EdgeInsets.only(top: 5),
-            padding: const EdgeInsets.all(15.0),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2F2F2),
-              borderRadius: BorderRadius.circular(12.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.4),
-                  spreadRadius: 1,
-                  blurRadius: 1,
+          Stack(
+            children: [
+              Container(
+                width: 140,
+                height: 70,
+                margin: const EdgeInsets.only(top: 5),
+                padding: const EdgeInsets.all(15.0),
+                decoration: BoxDecoration(
+                  color:
+                      hasGroup
+                          ? const Color(0xFFFBC8D9)
+                          : const Color(0xFFF2F2F2),
+                  borderRadius: BorderRadius.circular(12.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.4),
+                      spreadRadius: 1,
+                      blurRadius: 1,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Text(
-              '그룹\n만들기',
-              style: TextStyle(
-                fontFamily: 'PretendardMedium',
-                fontSize: 12,
-                color: Color(0xFF7B7B7B),
+                child: Text(
+                  hasGroup ? '사이드\n프로젝트' : '그룹\n만들기',
+                  style: TextStyle(
+                    fontFamily: 'PretendardMedium',
+                    fontSize: 12,
+                    color:
+                        hasGroup
+                            ? const Color(0xFF000000)
+                            : const Color(0xFF7B7B7B),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 25,
+                right: 15,
+                child: SvgPicture.asset(
+                  'android/assets/images/routine_alarm.svg',
+                ),
+              ),
+            ],
+          ),
+          if (hasGroup)
+            Padding(
+              padding: const EdgeInsets.only(left: 10.0, top: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.8,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.5,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    1.0,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.2,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.2,
+                  ),
+                  const SizedBox(width: 5),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.2,
+                  ),
+                ],
+              ),
+            )
+          else
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberProfile(String imagePath, double progress) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 5),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 9,horizontal: 8),
-              child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircleAvatar(radius: 8, backgroundImage: AssetImage(imagePath)),
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 3,
+              backgroundColor: Color(0xFFA5A5A5),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                const Color(0xFFFBC8D9),
+              ),
             ),
           ),
         ],
