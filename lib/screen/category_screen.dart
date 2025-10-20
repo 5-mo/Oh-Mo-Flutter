@@ -9,6 +9,7 @@ import 'package:ohmo/component/todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:ohmo/screen/group_main_screen.dart';
 import '../component/color_palette_bottom_sheet.dart';
 import '../customize_category.dart';
 import 'package:uuid/uuid.dart';
@@ -78,14 +79,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   Widget build(BuildContext context) {
     final List<String> dummyGroupsIds = [
-      'group1',
-      'group2',
-      'group3',
-      'group4',
-      'group1',
-      'group2',
-      'group3',
-      'group4',
+      '1', '2', '3', '4', '5', '6', '7', '8'
     ];
 
     return Scaffold(
@@ -133,7 +127,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 runSpacing: 23.0,
                 children:
                     dummyGroupsIds.map((groupId) {
-                      return _buildGroupSection(groupId: 'groupId');
+                      return _buildGroupSection(groupId: groupId);
                     }).toList(),
               ),
             ),
@@ -897,111 +891,131 @@ class _CategoryScreenState extends State<CategoryScreen> {
   Widget _buildGroupSection({String? groupId}) {
     final bool hasGroup = groupId != null && groupId.isNotEmpty;
 
-    return Container(
-      width: 150,
-      height: 111,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.4),
-            spreadRadius: 1,
-            blurRadius: 1,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 140,
-                height: 70,
-                margin: const EdgeInsets.only(top: 5),
-                padding: const EdgeInsets.all(15.0),
-                decoration: BoxDecoration(
-                  color:
-                      hasGroup
-                          ? const Color(0xFFFBC8D9)
-                          : const Color(0xFFF2F2F2),
-                  borderRadius: BorderRadius.circular(12.0),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.4),
-                      spreadRadius: 1,
-                      blurRadius: 1,
+    return InkWell(
+      onTap: () {
+        if (hasGroup) {
+          try {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => GroupMainScreen(groupId: int.parse(groupId!)),
+              ),
+            );
+          } catch (e) {
+            print("Error parsing groupId:$groupId,Error:$e");
+            Fluttertoast.showToast(msg: "잘못된 그룹 ID입니다.");
+          }
+        } else {
+          print("그룹 만들기 클릭!");
+        }
+      },
+      child: Container(
+        width: 150,
+        height: 111,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.4),
+              spreadRadius: 1,
+              blurRadius: 1,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: 140,
+                  height: 70,
+                  margin: const EdgeInsets.only(top: 5),
+                  padding: const EdgeInsets.all(15.0),
+                  decoration: BoxDecoration(
+                    color:
+                        hasGroup
+                            ? const Color(0xFFFBC8D9)
+                            : const Color(0xFFF2F2F2),
+                    borderRadius: BorderRadius.circular(12.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.4),
+                        spreadRadius: 1,
+                        blurRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    hasGroup ? '사이드\n프로젝트' : '그룹\n만들기',
+                    style: TextStyle(
+                      fontFamily: 'PretendardMedium',
+                      fontSize: 12,
+                      color:
+                          hasGroup
+                              ? const Color(0xFF000000)
+                              : const Color(0xFF7B7B7B),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 25,
+                  right: 15,
+                  child: SvgPicture.asset(
+                    'android/assets/images/routine_alarm.svg',
+                  ),
+                ),
+              ],
+            ),
+            if (hasGroup)
+              Padding(
+                padding: const EdgeInsets.only(left: 10.0, top: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.8,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.5,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      1.0,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.2,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.2,
+                    ),
+                    const SizedBox(width: 5),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.2,
                     ),
                   ],
                 ),
-                child: Text(
-                  hasGroup ? '사이드\n프로젝트' : '그룹\n만들기',
-                  style: TextStyle(
-                    fontFamily: 'PretendardMedium',
-                    fontSize: 12,
-                    color:
-                        hasGroup
-                            ? const Color(0xFF000000)
-                            : const Color(0xFF7B7B7B),
-                  ),
+              )
+            else
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                  child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
                 ),
               ),
-              Positioned(
-                top: 25,
-                right: 15,
-                child: SvgPicture.asset(
-                  'android/assets/images/routine_alarm.svg',
-                ),
-              ),
-            ],
-          ),
-          if (hasGroup)
-            Padding(
-              padding: const EdgeInsets.only(left: 10.0, top: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.8,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.5,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    1.0,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                  ),
-                  const SizedBox(width: 5),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                  ),
-                ],
-              ),
-            )
-          else
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-                child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
