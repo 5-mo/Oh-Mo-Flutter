@@ -9,12 +9,14 @@ import 'package:ohmo/component/todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:ohmo/screen/group_main_screen.dart';
+import 'package:ohmo/screen/group/group_main_screen.dart';
 import '../component/color_palette_bottom_sheet.dart';
 import '../customize_category.dart';
 import 'package:uuid/uuid.dart';
 import 'package:ohmo/db/drift_database.dart' show LocalDatabase;
 import 'package:ohmo/models/category_item.dart';
+
+import 'group/group_sign_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -881,7 +883,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Spacer(),
           IconButton(
             icon: Icon(Icons.add_circle, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => GroupSignScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),

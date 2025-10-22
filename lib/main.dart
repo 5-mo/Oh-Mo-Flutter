@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:ohmo/screen/group_main_screen.dart';
+import 'package:ohmo/screen/group/group_main_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'package:provider/provider.dart';

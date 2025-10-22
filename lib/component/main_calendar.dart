@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../const/colors.dart';
-import '../screen/group_main_screen.dart';
+import '../screen/group/group_main_screen.dart';
 
 class MainCalendar extends StatefulWidget {
   final OnDaySelected onDaySelected;
