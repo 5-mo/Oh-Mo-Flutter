@@ -87,3 +87,6 @@ flutter:
     - family: PretendardSemiBold
       fonts:
         - asset: android/assets/fonts/Pretendard-SemiBold.ttf
+    - family: PretendardMedium
+      fonts:
+        - asset: android/assets/fonts/Pretendard-Medium.otf

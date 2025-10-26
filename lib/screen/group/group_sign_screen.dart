@@ -111,7 +111,6 @@ class _GroupSignScreenState extends State<GroupSignScreen> {
         ),
       ),
     );
-    // 3. return 문 뒤에 있던 onTap() 함수는 삭제합니다.
   }
 
   Widget _buildEnterRoom() {
