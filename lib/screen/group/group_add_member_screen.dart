@@ -31,9 +31,31 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
         child: Column(
           children: [
             SizedBox(height: 60.0),
+            _buildSharingHeader(),
             SizedBox(height: 20.0),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSharingHeader() {
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            'Let\'s Go!',
+            style: TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 20.0),
+          ),
+          SizedBox(height: 20),
+          Text(
+            '새로운 그룹을 만들었어요!\n함께하고 싶은 멤버들을 초대해보세요',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontFamily: 'PretendardSemiBold', fontSize: 14.0),
+          ),
+          SizedBox(height: 40),
+          Image.asset('android/assets/images/ohmo_letsgo.png', width: 200),
+        ],
       ),
     );
   }
