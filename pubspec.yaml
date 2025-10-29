@@ -73,6 +73,7 @@ flutter:
     - android/assets/images/clear_ohmo.png
     - android/assets/images/group_sign.png
     - android/assets/images/ohmo_letsgo.png
+    - android/assets/images/copy.svg
 
   uses-material-design: true
   fonts:

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:ohmo/component/sharing_link_bottom_sheet.dart';
+
+import '../../const/colors.dart';
 
 class GroupAddMemberScreen extends StatefulWidget {
   const GroupAddMemberScreen({Key? key}) : super(key: key);
@@ -8,6 +11,8 @@ class GroupAddMemberScreen extends StatefulWidget {
 }
 
 class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
+  final TextEditingController _nicknameController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -16,7 +21,6 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         surfaceTintColor: Colors.white,
         leading: IconButton(
@@ -32,7 +36,14 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
           children: [
             SizedBox(height: 60.0),
             _buildSharingHeader(),
-            SizedBox(height: 20.0),
+            SizedBox(height: 50.0),
+            _buildNickname(),
+            SizedBox(height: 10.0),
+            _buildNicknameTextField(_nicknameController),
+            SizedBox(height: 55.0),
+            _buildSharingButton(),
+            SizedBox(height: 8.0),
+            _buildInvitingButton(),
           ],
         ),
       ),
@@ -60,4 +71,135 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
     );
   }
 
+  Widget _buildNickname() {
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            '닉네임을 설정하세요',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontFamily: 'PretendardMedium', fontSize: 13.0),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNicknameTextField(TextEditingController controller) {
+    return Container(
+      width: 168,
+      height: 43,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(9),
+
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 3),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        textAlign: TextAlign.center,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          enabledBorder: InputBorder.none,
+
+          prefixIcon:
+              controller.text.isNotEmpty
+                  ? IconButton(
+                    icon: Icon(
+                      Icons.cancel,
+                      color: Colors.transparent,
+                      size: 14,
+                    ),
+                    onPressed: null,
+                  )
+                  : null,
+
+          suffixIcon:
+              controller.text.isNotEmpty
+                  ? IconButton(
+                    icon: Icon(Icons.cancel, color: ICON_GREY_COLOR, size: 14),
+                    onPressed: () {
+                      setState(() {
+                        controller.clear();
+                      });
+                    },
+                  )
+                  : null,
+        ),
+        onChanged: (value) {
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  Widget _buildSharingButton() {
+    return Center(
+      child: GestureDetector(
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(59),
+                topRight: Radius.circular(59),
+              ),
+            ),
+            builder: (_) {
+              return SharingLinkBottomSheet();
+            },
+          );
+        },
+        child: Container(
+          width: 327,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Center(
+            child: Text(
+              '공유 링크 보내기',
+              style: TextStyle(
+                fontSize: 20,
+                fontFamily: 'PretendardBold',
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvitingButton() {
+    return Center(
+      child: GestureDetector(
+        onTap: () {},
+        child: Container(
+          width: 327,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Center(
+            child: Text(
+              '아이디로 초대하기',
+              style: TextStyle(
+                fontSize: 20,
+                fontFamily: 'PretendardBold',
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
