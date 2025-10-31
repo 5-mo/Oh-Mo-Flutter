@@ -633,12 +633,53 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
   late final GeneratedColumn<String> description = GeneratedColumn<String>(
     'description',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _colorTypeMeta = const VerificationMeta(
+    'colorType',
   );
   @override
-  List<GeneratedColumn> get $columns => [id, name, description];
+  late final GeneratedColumn<int> colorType = GeneratedColumn<int>(
+    'color_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _maxMembersMeta = const VerificationMeta(
+    'maxMembers',
+  );
+  @override
+  late final GeneratedColumn<int> maxMembers = GeneratedColumn<int>(
+    'max_members',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _passwordMeta = const VerificationMeta(
+    'password',
+  );
+  @override
+  late final GeneratedColumn<String> password = GeneratedColumn<String>(
+    'password',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    description,
+    colorType,
+    maxMembers,
+    password,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -670,8 +711,24 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
           _descriptionMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_descriptionMeta);
+    }
+    if (data.containsKey('color_type')) {
+      context.handle(
+        _colorTypeMeta,
+        colorType.isAcceptableOrUnknown(data['color_type']!, _colorTypeMeta),
+      );
+    }
+    if (data.containsKey('max_members')) {
+      context.handle(
+        _maxMembersMeta,
+        maxMembers.isAcceptableOrUnknown(data['max_members']!, _maxMembersMeta),
+      );
+    }
+    if (data.containsKey('password')) {
+      context.handle(
+        _passwordMeta,
+        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
+      );
     }
     return context;
   }
@@ -692,11 +749,23 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
             DriftSqlType.string,
             data['${effectivePrefix}name'],
           )!,
-      description:
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      colorType:
           attachedDatabase.typeMapping.read(
-            DriftSqlType.string,
-            data['${effectivePrefix}description'],
+            DriftSqlType.int,
+            data['${effectivePrefix}color_type'],
           )!,
+      maxMembers: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_members'],
+      ),
+      password: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password'],
+      ),
     );
   }
 
@@ -709,18 +778,33 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
 class Group extends DataClass implements Insertable<Group> {
   final int id;
   final String name;
-  final String description;
+  final String? description;
+  final int colorType;
+  final int? maxMembers;
+  final String? password;
   const Group({
     required this.id,
     required this.name,
-    required this.description,
+    this.description,
+    required this.colorType,
+    this.maxMembers,
+    this.password,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
-    map['description'] = Variable<String>(description);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['color_type'] = Variable<int>(colorType);
+    if (!nullToAbsent || maxMembers != null) {
+      map['max_members'] = Variable<int>(maxMembers);
+    }
+    if (!nullToAbsent || password != null) {
+      map['password'] = Variable<String>(password);
+    }
     return map;
   }
 
@@ -728,7 +812,19 @@ class Group extends DataClass implements Insertable<Group> {
     return GroupsCompanion(
       id: Value(id),
       name: Value(name),
-      description: Value(description),
+      description:
+          description == null && nullToAbsent
+              ? const Value.absent()
+              : Value(description),
+      colorType: Value(colorType),
+      maxMembers:
+          maxMembers == null && nullToAbsent
+              ? const Value.absent()
+              : Value(maxMembers),
+      password:
+          password == null && nullToAbsent
+              ? const Value.absent()
+              : Value(password),
     );
   }
 
@@ -740,7 +836,10 @@ class Group extends DataClass implements Insertable<Group> {
     return Group(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      description: serializer.fromJson<String>(json['description']),
+      description: serializer.fromJson<String?>(json['description']),
+      colorType: serializer.fromJson<int>(json['colorType']),
+      maxMembers: serializer.fromJson<int?>(json['maxMembers']),
+      password: serializer.fromJson<String?>(json['password']),
     );
   }
   @override
@@ -749,14 +848,27 @@ class Group extends DataClass implements Insertable<Group> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
-      'description': serializer.toJson<String>(description),
+      'description': serializer.toJson<String?>(description),
+      'colorType': serializer.toJson<int>(colorType),
+      'maxMembers': serializer.toJson<int?>(maxMembers),
+      'password': serializer.toJson<String?>(password),
     };
   }
 
-  Group copyWith({int? id, String? name, String? description}) => Group(
+  Group copyWith({
+    int? id,
+    String? name,
+    Value<String?> description = const Value.absent(),
+    int? colorType,
+    Value<int?> maxMembers = const Value.absent(),
+    Value<String?> password = const Value.absent(),
+  }) => Group(
     id: id ?? this.id,
     name: name ?? this.name,
-    description: description ?? this.description,
+    description: description.present ? description.value : this.description,
+    colorType: colorType ?? this.colorType,
+    maxMembers: maxMembers.present ? maxMembers.value : this.maxMembers,
+    password: password.present ? password.value : this.password,
   );
   Group copyWithCompanion(GroupsCompanion data) {
     return Group(
@@ -764,6 +876,10 @@ class Group extends DataClass implements Insertable<Group> {
       name: data.name.present ? data.name.value : this.name,
       description:
           data.description.present ? data.description.value : this.description,
+      colorType: data.colorType.present ? data.colorType.value : this.colorType,
+      maxMembers:
+          data.maxMembers.present ? data.maxMembers.value : this.maxMembers,
+      password: data.password.present ? data.password.value : this.password,
     );
   }
 
@@ -772,58 +888,85 @@ class Group extends DataClass implements Insertable<Group> {
     return (StringBuffer('Group(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('colorType: $colorType, ')
+          ..write('maxMembers: $maxMembers, ')
+          ..write('password: $password')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, description);
+  int get hashCode =>
+      Object.hash(id, name, description, colorType, maxMembers, password);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Group &&
           other.id == this.id &&
           other.name == this.name &&
-          other.description == this.description);
+          other.description == this.description &&
+          other.colorType == this.colorType &&
+          other.maxMembers == this.maxMembers &&
+          other.password == this.password);
 }
 
 class GroupsCompanion extends UpdateCompanion<Group> {
   final Value<int> id;
   final Value<String> name;
-  final Value<String> description;
+  final Value<String?> description;
+  final Value<int> colorType;
+  final Value<int?> maxMembers;
+  final Value<String?> password;
   const GroupsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
+    this.colorType = const Value.absent(),
+    this.maxMembers = const Value.absent(),
+    this.password = const Value.absent(),
   });
   GroupsCompanion.insert({
     this.id = const Value.absent(),
     required String name,
-    required String description,
-  }) : name = Value(name),
-       description = Value(description);
+    this.description = const Value.absent(),
+    this.colorType = const Value.absent(),
+    this.maxMembers = const Value.absent(),
+    this.password = const Value.absent(),
+  }) : name = Value(name);
   static Insertable<Group> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? description,
+    Expression<int>? colorType,
+    Expression<int>? maxMembers,
+    Expression<String>? password,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
+      if (colorType != null) 'color_type': colorType,
+      if (maxMembers != null) 'max_members': maxMembers,
+      if (password != null) 'password': password,
     });
   }
 
   GroupsCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
-    Value<String>? description,
+    Value<String?>? description,
+    Value<int>? colorType,
+    Value<int?>? maxMembers,
+    Value<String?>? password,
   }) {
     return GroupsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      colorType: colorType ?? this.colorType,
+      maxMembers: maxMembers ?? this.maxMembers,
+      password: password ?? this.password,
     );
   }
 
@@ -839,6 +982,15 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (colorType.present) {
+      map['color_type'] = Variable<int>(colorType.value);
+    }
+    if (maxMembers.present) {
+      map['max_members'] = Variable<int>(maxMembers.value);
+    }
+    if (password.present) {
+      map['password'] = Variable<String>(password.value);
+    }
     return map;
   }
 
@@ -847,7 +999,10 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     return (StringBuffer('GroupsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('colorType: $colorType, ')
+          ..write('maxMembers: $maxMembers, ')
+          ..write('password: $password')
           ..write(')'))
         .toString();
   }
@@ -4373,13 +4528,19 @@ typedef $$GroupsTableCreateCompanionBuilder =
     GroupsCompanion Function({
       Value<int> id,
       required String name,
-      required String description,
+      Value<String?> description,
+      Value<int> colorType,
+      Value<int?> maxMembers,
+      Value<String?> password,
     });
 typedef $$GroupsTableUpdateCompanionBuilder =
     GroupsCompanion Function({
       Value<int> id,
       Value<String> name,
-      Value<String> description,
+      Value<String?> description,
+      Value<int> colorType,
+      Value<int?> maxMembers,
+      Value<String?> password,
     });
 
 final class $$GroupsTableReferences
@@ -4483,6 +4644,21 @@ class $$GroupsTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorType => $composableBuilder(
+    column: $table.colorType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxMembers => $composableBuilder(
+    column: $table.maxMembers,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get password => $composableBuilder(
+    column: $table.password,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4610,6 +4786,21 @@ class $$GroupsTableOrderingComposer
     column: $table.description,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get colorType => $composableBuilder(
+    column: $table.colorType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxMembers => $composableBuilder(
+    column: $table.maxMembers,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GroupsTableAnnotationComposer
@@ -4631,6 +4822,17 @@ class $$GroupsTableAnnotationComposer
     column: $table.description,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get colorType =>
+      $composableBuilder(column: $table.colorType, builder: (column) => column);
+
+  GeneratedColumn<int> get maxMembers => $composableBuilder(
+    column: $table.maxMembers,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get password =>
+      $composableBuilder(column: $table.password, builder: (column) => column);
 
   Expression<T> routinesRefs<T extends Object>(
     Expression<T> Function($$RoutinesTableAnnotationComposer a) f,
@@ -4768,18 +4970,33 @@ class $$GroupsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-                Value<String> description = const Value.absent(),
-              }) =>
-                  GroupsCompanion(id: id, name: name, description: description),
+                Value<String?> description = const Value.absent(),
+                Value<int> colorType = const Value.absent(),
+                Value<int?> maxMembers = const Value.absent(),
+                Value<String?> password = const Value.absent(),
+              }) => GroupsCompanion(
+                id: id,
+                name: name,
+                description: description,
+                colorType: colorType,
+                maxMembers: maxMembers,
+                password: password,
+              ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required String name,
-                required String description,
+                Value<String?> description = const Value.absent(),
+                Value<int> colorType = const Value.absent(),
+                Value<int?> maxMembers = const Value.absent(),
+                Value<String?> password = const Value.absent(),
               }) => GroupsCompanion.insert(
                 id: id,
                 name: name,
                 description: description,
+                colorType: colorType,
+                maxMembers: maxMembers,
+                password: password,
               ),
           withReferenceMapper:
               (p0) =>

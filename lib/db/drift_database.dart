@@ -41,7 +41,7 @@ class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   // ------------------ Category ------------------
 
@@ -524,6 +524,11 @@ class LocalDatabase extends _$LocalDatabase {
     } catch (e) {
       return [];
     }
+  }
+
+  // ------------------ Group------------------
+  Future<Group?> getGroupById(int id) {
+    return (select(groups)..where((g) => g.id.equals(id))).getSingleOrNull();
   }
 }
 

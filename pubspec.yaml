@@ -34,6 +34,7 @@ dependencies:
   flutter_local_notifications: ^19.4.2
   timezone: ^0.10.1
   extended_text_field: ^16.0.2
+  share_plus: ^12.0.1
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +75,7 @@ flutter:
     - android/assets/images/group_sign.png
     - android/assets/images/ohmo_letsgo.png
     - android/assets/images/copy.svg
+    - android/assets/images/round_check.svg
 
   uses-material-design: true
   fonts:

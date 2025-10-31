@@ -8,7 +8,10 @@ class Users extends Table {
 class Groups extends Table{
   IntColumn get id=>integer().autoIncrement()();
   TextColumn get name => text()();
-  TextColumn get description => text()();
+  TextColumn get description => text().nullable()();
+  IntColumn get colorType=>integer().withDefault(const Constant(0))();
+  IntColumn get maxMembers=>integer().nullable()();
+  TextColumn get password=>text().nullable()();
 }
 
 class GroupMembers extends Table {

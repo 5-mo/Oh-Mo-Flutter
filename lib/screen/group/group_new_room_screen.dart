@@ -51,7 +51,7 @@ class _GroupNewRoomScreenState extends State<GroupNewRoomScreen> {
             SizedBox(height: 55.0),
             _buildRoomPassword(_passwordController),
             SizedBox(height: 55.0),
-            _buildSaveButton()
+            _buildSaveButton(),
           ],
         ),
       ),
@@ -249,9 +249,7 @@ class _GroupNewRoomScreenState extends State<GroupNewRoomScreen> {
           child: TextField(
             controller: controller,
             textAlign: TextAlign.center,
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(4),
-            ],
+            inputFormatters: [LengthLimitingTextInputFormatter(4)],
             decoration: InputDecoration(
               border: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -298,9 +296,33 @@ class _GroupNewRoomScreenState extends State<GroupNewRoomScreen> {
     return Center(
       child: GestureDetector(
         onTap: () {
+          final String roomName = _roomnameController.text;
+          final String password = _passwordController.text;
+
+          if (roomName.isEmpty) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("방 이름을 입력해주세요.")));
+            return;
+          }
+          if (_selectedMemberCount == 0) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("인원수를 1명 이상 선택해주세요.")));
+            return;
+          }
+
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => GroupAddMemberScreen()),
+            MaterialPageRoute(
+              builder:
+                  (context) => GroupAddMemberScreen(
+                    roomName: roomName,
+                    selectedColor: _selectedColorType,
+                    memberCount: _selectedMemberCount,
+                    password: password,
+                  ),
+            ),
           );
         },
         child: Container(

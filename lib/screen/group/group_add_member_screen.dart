@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/sharing_link_bottom_sheet.dart';
-
+import '../../component/inviting_id_bottom_sheet.dart';
 import '../../const/colors.dart';
+import 'package:ohmo/db/drift_database.dart';
+import 'package:drift/drift.dart' as d;
 
 class GroupAddMemberScreen extends StatefulWidget {
-  const GroupAddMemberScreen({Key? key}) : super(key: key);
+  final String roomName;
+  final ColorType selectedColor;
+  final int memberCount;
+  final String password;
+
+  const GroupAddMemberScreen({
+    Key? key,
+    required this.roomName,
+    required this.selectedColor,
+    required this.memberCount,
+    required this.password,
+  }) : super(key: key);
 
   @override
   _GroupAddMemberScreenState createState() => _GroupAddMemberScreenState();
@@ -139,22 +152,7 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
   Widget _buildSharingButton() {
     return Center(
       child: GestureDetector(
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(59),
-                topRight: Radius.circular(59),
-              ),
-            ),
-            builder: (_) {
-              return SharingLinkBottomSheet();
-            },
-          );
-        },
+        onTap: _saveGroupAndShowSheet,
         child: Container(
           width: 327,
           height: 56,
@@ -177,10 +175,72 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
     );
   }
 
+  Future<void> _saveGroupAndShowSheet() async {
+    final String nickname = _nicknameController.text;
+
+    if (nickname.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('닉네임을 입력해주세요.')));
+      return;
+    }
+    final db = LocalDatabaseSingleton.instance;
+
+    try {
+      final newGroupId = await db.transaction(() async {
+        final userCompanion = UsersCompanion(nickname: d.Value(nickname));
+        final newUser = await db.into(db.users).insertReturning(userCompanion);
+
+        final groupCompanion = GroupsCompanion(
+          name: d.Value(widget.roomName),
+          colorType: d.Value(widget.selectedColor.index),
+          maxMembers: d.Value(widget.memberCount),
+          password: d.Value(
+            widget.password.isNotEmpty ? widget.password : null,
+          ),
+        );
+        final newGroup = await db
+            .into(db.groups)
+            .insertReturning(groupCompanion);
+
+        final memberCompanion = GroupMembersCompanion(
+          groupId: d.Value(newGroup.id),
+          userId: d.Value(newUser.id),
+          role: d.Value('HOST'),
+        );
+        await db.into(db.groupMembers).insert(memberCompanion);
+
+        return newGroup.id;
+      });
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(59),
+            topRight: Radius.circular(59),
+          ),
+        ),
+        builder: (_) {
+          return SharingLinkBottomSheet(groupId: newGroupId);
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('그룹 생성에 실패했습니다:$e')));
+    }
+  }
+
   Widget _buildInvitingButton() {
     return Center(
       child: GestureDetector(
-        onTap: () {},
+        onTap: _saveGroupAndIdSheet,
         child: Container(
           width: 327,
           height: 56,
@@ -201,5 +261,67 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveGroupAndIdSheet() async {
+    final String nickname = _nicknameController.text;
+
+    if (nickname.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('닉네임을 입력해주세요.')));
+      return;
+    }
+    final db = LocalDatabaseSingleton.instance;
+
+    try {
+      final newGroupId = await db.transaction(() async {
+        final userCompanion = UsersCompanion(nickname: d.Value(nickname));
+        final newUser = await db.into(db.users).insertReturning(userCompanion);
+
+        final groupCompanion = GroupsCompanion(
+          name: d.Value(widget.roomName),
+          colorType: d.Value(widget.selectedColor.index),
+          maxMembers: d.Value(widget.memberCount),
+          password: d.Value(
+            widget.password.isNotEmpty ? widget.password : null,
+          ),
+        );
+        final newGroup = await db
+            .into(db.groups)
+            .insertReturning(groupCompanion);
+
+        final memberCompanion = GroupMembersCompanion(
+          groupId: d.Value(newGroup.id),
+          userId: d.Value(newUser.id),
+          role: d.Value('HOST'),
+        );
+        await db.into(db.groupMembers).insert(memberCompanion);
+
+        return newGroup.id;
+      });
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(59),
+            topRight: Radius.circular(59),
+          ),
+        ),
+        builder: (_) {
+          return InvitingIdBottomSheet(groupId: newGroupId);
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('그룹 생성에 실패했습니다:$e')));
+    }
   }
 }
