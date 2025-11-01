@@ -118,7 +118,9 @@ class _GroupSignScreenState extends State<GroupSignScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => GroupEnterRoomScreen()),
+          MaterialPageRoute(
+            builder: (context) => GroupEnterRoomScreen(groupId: 1),
+          ),
         );
       },
       child: Container(

@@ -249,7 +249,10 @@ class _GroupNewRoomScreenState extends State<GroupNewRoomScreen> {
           child: TextField(
             controller: controller,
             textAlign: TextAlign.center,
-            inputFormatters: [LengthLimitingTextInputFormatter(4)],
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(4),
+            ],
             decoration: InputDecoration(
               border: InputBorder.none,
               focusedBorder: InputBorder.none,
