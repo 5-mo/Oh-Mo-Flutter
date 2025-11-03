@@ -265,7 +265,7 @@ class _GroupEnterRoomScreenState extends State<GroupEnterRoomScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => GroupFinalEnterRoomScreen(),
+                builder: (context) => GroupFinalEnterRoomScreen(groupId: 1),
               ),
             );
           } else if (!_isCodeValid) {
