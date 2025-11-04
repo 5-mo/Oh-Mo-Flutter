@@ -76,6 +76,7 @@ flutter:
     - android/assets/images/ohmo_letsgo.png
     - android/assets/images/copy.svg
     - android/assets/images/round_check.svg
+    - android/assets/images/invitation.png
 
   uses-material-design: true
   fonts:

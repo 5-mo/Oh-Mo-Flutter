@@ -13,6 +13,7 @@ import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/notification_service.dart';
 
+import 'component/invitation_popup.dart';
 import 'db/drift_database.dart' as db;
 
 
@@ -52,11 +53,37 @@ void main() async{
       ],
       child: MaterialApp(
         theme: ThemeData(scaffoldBackgroundColor: Colors.white),
-        home: HomeScreen(),
+        home: TestScreen(),
         debugShowCheckedModeBanner: false,
       ),
     ),
   );
+}
+
+class TestScreen extends StatelessWidget {
+  const TestScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('팝업 테스트')),
+      body: Center(
+        child: ElevatedButton(
+          child: Text('초대장 팝업 띄우기'),
+          onPressed: () {
+            // 4. ★★★ 바로 이 부분에서 팝업을 띄웁니다 ★★★
+            showDialog(
+              context: context,
+              builder: (BuildContext dialogContext) {
+                // 팝업 빌더에서 InvitationPopup 위젯을 반환
+                return InvitationPopup();
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 Future<dynamic> _handleWidgetMethodCalls(MethodCall call)async{
