@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ohmo/component/invitation_accept_popup.dart';
 
 class InvitationPopup extends StatefulWidget {
   const InvitationPopup({Key? key}) : super(key: key);
@@ -42,7 +43,12 @@ class _InvitationPopupState extends State<InvitationPopup> {
   Widget _buildCheckInvitationButton() {
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).pop();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>InvitationAcceptPopup(),
+          ),
+        );
       },
       child: Container(
         width: 239,

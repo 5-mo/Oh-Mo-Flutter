@@ -77,6 +77,7 @@ flutter:
     - android/assets/images/copy.svg
     - android/assets/images/round_check.svg
     - android/assets/images/invitation.png
+    - android/assets/images/invitation_foryou.png
 
   uses-material-design: true
   fonts:
