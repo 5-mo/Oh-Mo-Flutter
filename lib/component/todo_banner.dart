@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:ohmo/component/todo_bottom_sheet.dart';
 
 class TodoBanner extends StatelessWidget {
   final VoidCallback onAddPressed;
   final int? groupId;
 
-  const TodoBanner({Key? key, required this.onAddPressed,this.groupId}) : super(key: key);
+  final Offset? addButtonOffset;
+
+  const TodoBanner({Key? key, required this.onAddPressed,this.groupId,this.addButtonOffset}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +20,7 @@ class TodoBanner extends StatelessWidget {
         children: [
           Text('To-Do list', style: textStyle),
           Transform.translate(
-            offset: Offset(5, 0),
+            offset: addButtonOffset ?? Offset(12, 0),
             child: IconButton(
               icon: SvgPicture.asset('android/assets/images/plus2.svg'),
               onPressed: onAddPressed,

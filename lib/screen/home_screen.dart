@@ -18,6 +18,7 @@ import '../customize_category.dart';
 import '../db/drift_database.dart' as db;
 import '../models/routine.dart';
 import '../models/todo.dart';
+import 'notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -317,6 +318,14 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                   selectedDate: selectedDate,
                   onDaySelected: onDaySelected,
                   eventLoader: (_) => [],
+                  onAlarmIconPressed: (){
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => NotificationScreen(),
+                      ),
+                    );
+                  },
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),

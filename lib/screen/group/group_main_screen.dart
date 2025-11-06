@@ -305,21 +305,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               _loadSchedulesForMonth(focusedDay);
             },
             headerPadding: const EdgeInsets.symmetric(
-              horizontal: 10.0,
-              vertical: 8.0,
+              horizontal: 15.0,
+              vertical: 15.0,
             ),
             headerTextStyle: TextStyle(
               fontFamily: 'RubikSprayPaint',
               fontSize: 24.0,
             ),
             formatButtonSize: 17.0,
-            formatButtonGapOffset: Offset(25, 0),
+            monthButtonOffset: Offset(30, -5),
+            weekButtonOffset: Offset(5, -5),
             dayFontSize: 14.0,
             calendarPadding: const EdgeInsets.symmetric(
               horizontal: 10.0,
               vertical: 20.0,
             ),
             headerDateFormat: '  MMM',
+            onAlarmIconPressed: null,
           ),
           Padding(
             padding: const EdgeInsets.only(left: 10.0),
@@ -344,6 +346,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                   },
                 );
               },
+              addButtonOffset: Offset(3, 0),
             ),
           ),
           ValueListenableBuilder<List<Routine>>(
@@ -417,6 +420,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                   },
                 );
               },
+              addButtonOffset: Offset(4, 0),
             ),
           ),
           ValueListenableBuilder<List<Todo>>(

@@ -78,6 +78,8 @@ flutter:
     - android/assets/images/round_check.svg
     - android/assets/images/invitation.png
     - android/assets/images/invitation_foryou.png
+    - android/assets/images/notification_on.svg
+    - android/assets/images/notification_off.svg
 
   uses-material-design: true
   fonts:

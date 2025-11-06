@@ -14,11 +14,15 @@ class MainCalendar extends StatefulWidget {
   final TextStyle? headerTextStyle;
   final double? formatButtonSize;
   final EdgeInsetsGeometry? headerPadding;
-  final Offset? formatButtonGapOffset;
+  final Offset? monthButtonOffset;
+  final Offset? weekButtonOffset;
   final double? dayFontSize;
   final EdgeInsetsGeometry? calendarPadding;
   final String? headerDateFormat;
   final void Function(DateTime)? onPageChanged;
+  final VoidCallback? onAlarmIconPressed;
+  final double? alarmIconSize;
+  final bool hasNotifications;
 
   MainCalendar({
     required this.onDaySelected,
@@ -27,11 +31,15 @@ class MainCalendar extends StatefulWidget {
     this.headerTextStyle,
     this.formatButtonSize,
     this.headerPadding,
-    this.formatButtonGapOffset,
+    this.monthButtonOffset,
+    this.weekButtonOffset,
     this.dayFontSize,
     this.calendarPadding,
     this.headerDateFormat,
     this.onPageChanged,
+    this.onAlarmIconPressed,
+    this.alarmIconSize,
+    this.hasNotifications = true,
   });
 
   @override
@@ -51,30 +59,64 @@ class _MainCalendarState extends State<MainCalendar> {
     return Padding(
       padding:
           widget.headerPadding ??
-          const EdgeInsets.symmetric(horizontal: 40.0, vertical: 8.0),
+          const EdgeInsets.symmetric(horizontal: 25.0, vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             DateFormat(
-              widget.headerDateFormat ?? 'MMM',
+              widget.headerDateFormat ?? '  MMM',
               Localizations.localeOf(context).toString(),
             ).format(_focusedDay).toUpperCase(),
             style:
                 widget.headerTextStyle ?? _MainCalendarState._headerTextStyle,
           ),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Transform.translate(
-                offset: widget.formatButtonGapOffset ?? const Offset(20, 0),
-                child: _buildFormatButton(
-                  'android/assets/images/cal_month.svg',
-                  CalendarFormat.month,
+              if (widget.onAlarmIconPressed != null)
+                Builder(
+                  builder: (context) {
+                    final String iconPath =
+                        widget.hasNotifications
+                            ? 'android/assets/images/notification_on.svg'
+                            : 'android/assets/images/notification_off.svg';
+                    return IconButton(
+                      icon: SvgPicture.asset(
+                        iconPath,
+                        width:
+                            widget.alarmIconSize ??
+                            widget.formatButtonSize ??
+                            24.0,
+                        height:
+                            widget.alarmIconSize ??
+                            widget.formatButtonSize ??
+                            24.0,
+                      ),
+
+                      onPressed: widget.onAlarmIconPressed,
+                    );
+                  },
                 ),
-              ),
-              _buildFormatButton(
-                'android/assets/images/cal_week.svg',
-                CalendarFormat.week,
+
+              Row(
+                children: [
+                  Transform.translate(
+                    offset: widget.monthButtonOffset ?? const Offset(20, -10),
+                    child: _buildFormatButton(
+                      'android/assets/images/cal_month.svg',
+                      CalendarFormat.month,
+                    ),
+                  ),
+                  Transform.translate(
+                    offset: widget.weekButtonOffset ?? const Offset(0, -10),
+                    child: _buildFormatButton(
+                      'android/assets/images/cal_week.svg',
+                      CalendarFormat.week,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -126,13 +168,13 @@ class _MainCalendarState extends State<MainCalendar> {
         border: Border.all(color: Colors.black),
       ),
     );
-    final bool isWeekFormat=_format==CalendarFormat.week;
-    final double bottomPosition=isWeekFormat?3:1;
-    final double calendarRowHeight = isWeekFormat ? 85.0 : 75.0;
+    final bool isWeekFormat = _format == CalendarFormat.week;
+    final double bottomPosition = isWeekFormat ? 3 : 1;
+    final double calendarRowHeight = isWeekFormat ? 85.0 : 55.0;
     return Container(
       margin:
           widget.calendarPadding ??
-          const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10.0),
+          const EdgeInsets.symmetric(horizontal: 25.0),
       child: TableCalendar(
         rowHeight: calendarRowHeight,
         onDaySelected: widget.onDaySelected,
@@ -168,32 +210,33 @@ class _MainCalendarState extends State<MainCalendar> {
                 right: 0,
                 bottom: bottomPosition,
                 child: Center(
-                  child:event.isFullyCompleted()
-                  ?Image.asset(
-                    'android/assets/images/clear_ohmo.png',
-                    width: 20,
-                    height: 20,
-                  )
-                  :Container(
-                    width: 40.0,
-                    decoration: BoxDecoration(
-                      color: ColorManager.getColor(
-                        ColorType.pinkLight,
-                      ).withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      event.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 8.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
+                  child:
+                      event.isFullyCompleted()
+                          ? Image.asset(
+                            'android/assets/images/clear_ohmo.png',
+                            width: 20,
+                            height: 20,
+                          )
+                          : Container(
+                            width: 40.0,
+                            decoration: BoxDecoration(
+                              color: ColorManager.getColor(
+                                ColorType.pinkLight,
+                              ).withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              event.toString(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 8.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
                 ),
               );
             }
