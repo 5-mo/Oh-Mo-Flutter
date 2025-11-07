@@ -80,6 +80,9 @@ flutter:
     - android/assets/images/invitation_foryou.png
     - android/assets/images/notification_on.svg
     - android/assets/images/notification_off.svg
+    - android/assets/images/notification_group.png
+    - android/assets/images/notification_calender.png
+    - android/assets/images/notification_invitation.png
 
   uses-material-design: true
   fonts:
