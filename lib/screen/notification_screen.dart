@@ -1,19 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ohmo/db/drift_database.dart' as db;
 
 enum NotificationType { group, calender, invitation }
-
-class NotificationItem {
-  final NotificationType type;
-  final String content;
-  final DateTime timestamp;
-
-  NotificationItem({
-    required this.type,
-    required this.content,
-    required this.timestamp,
-  });
-}
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({Key? key}) : super(key: key);
@@ -23,33 +13,20 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final List<NotificationItem> _notifications = [
-    NotificationItem(
-      type: NotificationType.calender,
-      content: "‘사이드 프로젝트’ 그룹에 새로운 할 일이 등록되었습니다.",
-      timestamp: DateTime.now(),
-    ),
-    NotificationItem(
-      type: NotificationType.calender,
-      content: "‘사이드 프로젝트’ 그룹에 새로운 공지가 등록되었습니다.",
-      timestamp: DateTime.now(),
-    ),
-    NotificationItem(
-      type: NotificationType.calender,
-      content: "10:00 식물 물주기",
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    NotificationItem(
-      type: NotificationType.invitation,
-      content: "‘사이드 프로젝트’ 그룹에 입장했습니다.",
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-    ),
-  ];
+  final db.LocalDatabase _db = db.LocalDatabaseSingleton.instance;
+  late final Stream<List<db.Notification>> _notificationStream;
 
   @override
   void initState() {
     super.initState();
-    _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    _markAllAsRead();
+
+    _notificationStream = _db.watchAllNotifications();
+  }
+
+  void _markAllAsRead() {
+    unawaited(_db.markAllNotificationsAsRead());
   }
 
   @override
@@ -79,7 +56,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
         children: [
           _buildNotificationHeader(),
           SizedBox(height: 10.0),
-          Expanded(child: _buildNotificationList()),
+          Expanded(
+            child: StreamBuilder<List<db.Notification>>(
+              stream: _notificationStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Text(
+                      "새로운 알림이 없습니다.",
+                      style: TextStyle(
+                        fontFamily: 'PretendardRegular',
+                        fontSize: 16.0,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                }
+
+                final notifications = snapshot.data!;
+                return _buildNotificationList(notifications);
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -101,37 +103,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  Widget _buildNotificationList() {
-    if (_notifications.isEmpty) {
-      return Center(
-        child: Text(
-          "새로운 알림이 없습니다.",
-          style: TextStyle(
-            fontFamily: 'PretendardRegular',
-            fontSize: 16.0,
-            color: Colors.grey,
-          ),
-        ),
-      );
-    }
-
+  Widget _buildNotificationList(List<db.Notification> notifications) {
     return ListView.builder(
       padding: EdgeInsets.zero,
-      itemCount: _notifications.length,
+      itemCount: notifications.length,
       itemBuilder: (context, index) {
-        final item = _notifications[index];
+        final item = notifications[index];
         bool showHeader = false;
 
         if (index == 0) {
           showHeader = true;
         } else {
-          final prevItem = _notifications[index - 1];
+          final prevItem = notifications[index - 1];
           if (!_isSameDay(item.timestamp, prevItem.timestamp)) {
             showHeader = true;
           }
         }
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
+          padding: EdgeInsets.symmetric(horizontal: 11),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -152,13 +141,77 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  Widget _buildNotificationItem(NotificationItem item) {
+  Widget _buildNotificationItem(db.Notification item) {
+    final type = NotificationType.values.firstWhere(
+      (e) => e.name == item.type,
+      orElse: () => NotificationType.group,
+    );
+    String displayContent = item.content;
+    if (type == NotificationType.calender) {
+      final timeString = DateFormat('HH:mm').format(item.timestamp);
+      displayContent = '$timeString ${item.content}';
+    }
+    Widget contentWidget;
+    String? tag;
+    int tagIndex = -1;
+    if (displayContent.contains('[공지]')) {
+      tag = '[공지]';
+      tagIndex = displayContent.indexOf(tag);
+    } else if (displayContent.contains('[To-do]')) {
+      tag = '[To-do]';
+      tagIndex = displayContent.indexOf(tag);
+    } else if (displayContent.contains('[Routine]')) {
+      tag = '[Routine]';
+      tagIndex = displayContent.indexOf(tag);
+    }
+
+    if (type == NotificationType.group && tagIndex != -1 && tag != null) {
+      final String part1 = displayContent.substring(0, tagIndex);
+      final String part2 = tag;
+      final String part3 = displayContent.substring(tagIndex + tag.length);
+      contentWidget = RichText(
+        text: TextSpan(
+          style: TextStyle(
+            fontFamily: 'PretendardRegular',
+            fontSize: 12.0,
+            color: Colors.black,
+            height: 1.3,
+          ),
+          children: [
+            TextSpan(text: part1),
+            TextSpan(
+              text: part2,
+              style: TextStyle(
+                fontFamily: 'PretendardBold',
+                fontSize: 12.0,
+                color: Color(0xFF808080),
+                height: 1.3,
+              ),
+            ),
+            TextSpan(text: part3),
+          ],
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    } else {
+      contentWidget = Text(
+        displayContent,
+        style: TextStyle(
+          fontFamily: 'PretendardRegular',
+          fontSize: 12.0,
+          color: Colors.black,
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
     return ListTile(
-      leading: _getIconForType(item.type),
+      leading: _getIconForType(type),
       title: Transform.translate(
         offset: Offset(-5, 5),
         child: Text(
-          _getTitleForType(item.type),
+          _getTitleForType(type),
           style: TextStyle(
             fontFamily: 'RubikSprayPaint',
             fontSize: 13.0,
@@ -171,16 +224,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.content,
-              style: TextStyle(
-                fontFamily: 'PretendardRegular',
-                fontSize: 12.0,
-                color: Colors.black,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            contentWidget,
             SizedBox(height: 1.0),
             Text(
               _formatTimestamp(item.timestamp),
@@ -203,8 +247,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
       case NotificationType.group:
         return Image.asset(
           'android/assets/images/notification_group.png',
-          width: 80,
-          height: 80,
+          width: 40,
+          height: 40,
         );
       case NotificationType.calender:
         return Image.asset(

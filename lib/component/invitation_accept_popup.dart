@@ -3,6 +3,11 @@ import 'package:ohmo/screen/group/group_main_screen.dart';
 
 import '../const/colors.dart';
 
+import 'package:ohmo/db/drift_database.dart';
+import 'package:drift/drift.dart' as drift;
+
+import '../db/drift_database.dart' as db;
+
 class InvitationAcceptPopup extends StatefulWidget {
   const InvitationAcceptPopup({Key? key}) : super(key: key);
 
@@ -92,11 +97,33 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
 
   Widget _buildCheckInvitationButton() {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (cosntext) => GroupMainScreen(groupId: 1)),
-        );
+      onTap: () async {
+        const String groupName = '사이드 프로젝트';
+        const int groupId = 1;
+        try {
+          final localDb = db.LocalDatabaseSingleton.instance;
+
+          await localDb.insertNotification(
+            db.NotificationsCompanion(
+              type: drift.Value('invitation'),
+              content: drift.Value("'$groupName' 그룹에 입장했습니다."),
+              timestamp: drift.Value(DateTime.now()),
+              relatedId: drift.Value(groupId),
+              isRead: drift.Value(true),
+            ),
+          );
+        } catch (e) {
+          print('Failed to insert "group joined" notification: $e');
+        }
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (cosntext) => GroupMainScreen(groupId: 1),
+            ),
+          );
+        }
       },
       child: Container(
         width: 239,

@@ -509,7 +509,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
                   title: '오늘의 루틴 시간!',
                   body: routine.content,
                   scheduledTime: notificationTime,
-                  payload: routine.id.toString(),
+                  payload: 'routine_${routine.id}',
                 );
               }
             }

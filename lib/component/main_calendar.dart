@@ -22,7 +22,7 @@ class MainCalendar extends StatefulWidget {
   final void Function(DateTime)? onPageChanged;
   final VoidCallback? onAlarmIconPressed;
   final double? alarmIconSize;
-  final bool hasNotifications;
+  final bool hasUnread;
 
   MainCalendar({
     required this.onDaySelected,
@@ -39,7 +39,7 @@ class MainCalendar extends StatefulWidget {
     this.onPageChanged,
     this.onAlarmIconPressed,
     this.alarmIconSize,
-    this.hasNotifications = true,
+    required this.hasUnread,
   });
 
   @override
@@ -79,7 +79,7 @@ class _MainCalendarState extends State<MainCalendar> {
                 Builder(
                   builder: (context) {
                     final String iconPath =
-                        widget.hasNotifications
+                        widget.hasUnread
                             ? 'android/assets/images/notification_on.svg'
                             : 'android/assets/images/notification_off.svg';
                     return IconButton(

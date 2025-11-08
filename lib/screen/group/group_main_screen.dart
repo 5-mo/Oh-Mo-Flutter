@@ -322,6 +322,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             ),
             headerDateFormat: '  MMM',
             onAlarmIconPressed: null,
+            hasUnread: false,
           ),
           Padding(
             padding: const EdgeInsets.only(left: 10.0),
@@ -570,13 +571,35 @@ class _NoticeSectionState extends State<NoticeSection> {
   Future<void> _addNotice() async {
     final content = _newNoticeController.text.trim();
     if (content.isNotEmpty && _selectedDate != null) {
+      final group = await _db.getGroupById(widget.groupId);
+      final groupName = group?.name ?? "ohmo";
+
+      final noticeDateStr = DateFormat('MM/dd').format(_selectedDate!);
+
+      String line1 = "'$groupName' 그룹에 새로운 공지가 등록되었습니다.";
+      String line2 = "[공지] $content(일시 : $noticeDateStr)";
+
+      final String multiLineContent = "$line1\n$line2";
+
       final newNotice = NoticesCompanion.insert(
         content: content,
         createdAt: DateTime.now(),
         groupId: drift.Value(widget.groupId),
         noticeDate: _selectedDate!,
       );
-      await _db.insertNotice(newNotice);
+      final int newNoticeId = await _db.insertNotice(newNotice);
+      String shortContent =
+          content.length > 20 ? "${content.substring(0, 20)}..." : content;
+      await _db.insertNotification(
+        NotificationsCompanion(
+          type: drift.Value('group'),
+          content: drift.Value(multiLineContent),
+          timestamp: drift.Value(DateTime.now()),
+          relatedId: drift.Value(newNoticeId),
+          isRead: drift.Value(true),
+        ),
+      );
+
       _newNoticeController.clear();
       setState(() {
         _isAddingNewNotice = false;

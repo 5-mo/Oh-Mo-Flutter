@@ -35,6 +35,7 @@ enum Emotion { happy, soso, bad, none }
     Notices,
     Groups,
     GroupMembers,
+    Notifications,
   ],
 )
 class LocalDatabase extends _$LocalDatabase {
@@ -529,6 +530,33 @@ class LocalDatabase extends _$LocalDatabase {
   // ------------------ Group------------------
   Future<Group?> getGroupById(int id) {
     return (select(groups)..where((g) => g.id.equals(id))).getSingleOrNull();
+  }
+
+  // ------------------ Notification ------------------
+
+  Future<int> insertNotification(NotificationsCompanion entry) {
+    return into(notifications).insert(entry);
+  }
+
+  Stream<List<Notification>> watchAllNotifications() {
+    return (select(notifications)..orderBy([
+      (n) => OrderingTerm(expression: n.timestamp, mode: OrderingMode.desc),
+    ])).watch();
+  }
+
+  Future<int> markAllNotificationsAsRead() {
+    return (update(notifications)
+      ..where((n) => n.isRead.equals(false)))
+        .write(const NotificationsCompanion(isRead: Value(true)));
+  }
+
+  Stream<int> watchUnreadNotificationCount() {
+    final unreadCount = countAll(
+      filter: notifications.isRead.equals(false),
+    );
+    final query = selectOnly(notifications)..addColumns([unreadCount]);
+
+    return query.map((row) => row.read(unreadCount)!).watchSingle();
   }
 }
 

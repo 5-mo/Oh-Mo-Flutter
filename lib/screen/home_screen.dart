@@ -314,18 +314,28 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                MainCalendar(
-                  selectedDate: selectedDate,
-                  onDaySelected: onDaySelected,
-                  eventLoader: (_) => [],
-                  onAlarmIconPressed: (){
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => NotificationScreen(),
-                      ),
-                    );
-                  },
+            StreamBuilder<int>(
+            stream: db.LocalDatabaseSingleton.instance
+                .watchUnreadNotificationCount(),
+            builder: (context, snapshot) {
+              final int unreadCount = snapshot.data ?? 0;
+
+              final bool hasUnread = unreadCount > 0;
+              return MainCalendar(
+                selectedDate: selectedDate,
+                onDaySelected: onDaySelected,
+                eventLoader: (_) => [],
+                hasUnread: hasUnread,
+                onAlarmIconPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationScreen(),
+                    ),
+                  );
+                },
+              );
+            },
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),

@@ -4114,6 +4114,410 @@ class GroupMembersCompanion extends UpdateCompanion<GroupMember> {
   }
 }
 
+class $NotificationsTable extends Notifications
+    with TableInfo<$NotificationsTable, Notification> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+    'timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _relatedIdMeta = const VerificationMeta(
+    'relatedId',
+  );
+  @override
+  late final GeneratedColumn<int> relatedId = GeneratedColumn<int>(
+    'related_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isReadMeta = const VerificationMeta('isRead');
+  @override
+  late final GeneratedColumn<bool> isRead = GeneratedColumn<bool>(
+    'is_read',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_read" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    type,
+    content,
+    timestamp,
+    relatedId,
+    isRead,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notifications';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Notification> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('related_id')) {
+      context.handle(
+        _relatedIdMeta,
+        relatedId.isAcceptableOrUnknown(data['related_id']!, _relatedIdMeta),
+      );
+    }
+    if (data.containsKey('is_read')) {
+      context.handle(
+        _isReadMeta,
+        isRead.isAcceptableOrUnknown(data['is_read']!, _isReadMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Notification map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Notification(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}id'],
+          )!,
+      type:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}type'],
+          )!,
+      content:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}content'],
+          )!,
+      timestamp:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}timestamp'],
+          )!,
+      relatedId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}related_id'],
+      ),
+      isRead:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_read'],
+          )!,
+    );
+  }
+
+  @override
+  $NotificationsTable createAlias(String alias) {
+    return $NotificationsTable(attachedDatabase, alias);
+  }
+}
+
+class Notification extends DataClass implements Insertable<Notification> {
+  final int id;
+  final String type;
+  final String content;
+  final DateTime timestamp;
+  final int? relatedId;
+  final bool isRead;
+  const Notification({
+    required this.id,
+    required this.type,
+    required this.content,
+    required this.timestamp,
+    this.relatedId,
+    required this.isRead,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['type'] = Variable<String>(type);
+    map['content'] = Variable<String>(content);
+    map['timestamp'] = Variable<DateTime>(timestamp);
+    if (!nullToAbsent || relatedId != null) {
+      map['related_id'] = Variable<int>(relatedId);
+    }
+    map['is_read'] = Variable<bool>(isRead);
+    return map;
+  }
+
+  NotificationsCompanion toCompanion(bool nullToAbsent) {
+    return NotificationsCompanion(
+      id: Value(id),
+      type: Value(type),
+      content: Value(content),
+      timestamp: Value(timestamp),
+      relatedId:
+          relatedId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(relatedId),
+      isRead: Value(isRead),
+    );
+  }
+
+  factory Notification.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Notification(
+      id: serializer.fromJson<int>(json['id']),
+      type: serializer.fromJson<String>(json['type']),
+      content: serializer.fromJson<String>(json['content']),
+      timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      relatedId: serializer.fromJson<int?>(json['relatedId']),
+      isRead: serializer.fromJson<bool>(json['isRead']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'type': serializer.toJson<String>(type),
+      'content': serializer.toJson<String>(content),
+      'timestamp': serializer.toJson<DateTime>(timestamp),
+      'relatedId': serializer.toJson<int?>(relatedId),
+      'isRead': serializer.toJson<bool>(isRead),
+    };
+  }
+
+  Notification copyWith({
+    int? id,
+    String? type,
+    String? content,
+    DateTime? timestamp,
+    Value<int?> relatedId = const Value.absent(),
+    bool? isRead,
+  }) => Notification(
+    id: id ?? this.id,
+    type: type ?? this.type,
+    content: content ?? this.content,
+    timestamp: timestamp ?? this.timestamp,
+    relatedId: relatedId.present ? relatedId.value : this.relatedId,
+    isRead: isRead ?? this.isRead,
+  );
+  Notification copyWithCompanion(NotificationsCompanion data) {
+    return Notification(
+      id: data.id.present ? data.id.value : this.id,
+      type: data.type.present ? data.type.value : this.type,
+      content: data.content.present ? data.content.value : this.content,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      relatedId: data.relatedId.present ? data.relatedId.value : this.relatedId,
+      isRead: data.isRead.present ? data.isRead.value : this.isRead,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Notification(')
+          ..write('id: $id, ')
+          ..write('type: $type, ')
+          ..write('content: $content, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('relatedId: $relatedId, ')
+          ..write('isRead: $isRead')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, type, content, timestamp, relatedId, isRead);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Notification &&
+          other.id == this.id &&
+          other.type == this.type &&
+          other.content == this.content &&
+          other.timestamp == this.timestamp &&
+          other.relatedId == this.relatedId &&
+          other.isRead == this.isRead);
+}
+
+class NotificationsCompanion extends UpdateCompanion<Notification> {
+  final Value<int> id;
+  final Value<String> type;
+  final Value<String> content;
+  final Value<DateTime> timestamp;
+  final Value<int?> relatedId;
+  final Value<bool> isRead;
+  const NotificationsCompanion({
+    this.id = const Value.absent(),
+    this.type = const Value.absent(),
+    this.content = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.relatedId = const Value.absent(),
+    this.isRead = const Value.absent(),
+  });
+  NotificationsCompanion.insert({
+    this.id = const Value.absent(),
+    required String type,
+    required String content,
+    required DateTime timestamp,
+    this.relatedId = const Value.absent(),
+    this.isRead = const Value.absent(),
+  }) : type = Value(type),
+       content = Value(content),
+       timestamp = Value(timestamp);
+  static Insertable<Notification> custom({
+    Expression<int>? id,
+    Expression<String>? type,
+    Expression<String>? content,
+    Expression<DateTime>? timestamp,
+    Expression<int>? relatedId,
+    Expression<bool>? isRead,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (type != null) 'type': type,
+      if (content != null) 'content': content,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (relatedId != null) 'related_id': relatedId,
+      if (isRead != null) 'is_read': isRead,
+    });
+  }
+
+  NotificationsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? type,
+    Value<String>? content,
+    Value<DateTime>? timestamp,
+    Value<int?>? relatedId,
+    Value<bool>? isRead,
+  }) {
+    return NotificationsCompanion(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      content: content ?? this.content,
+      timestamp: timestamp ?? this.timestamp,
+      relatedId: relatedId ?? this.relatedId,
+      isRead: isRead ?? this.isRead,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (relatedId.present) {
+      map['related_id'] = Variable<int>(relatedId.value);
+    }
+    if (isRead.present) {
+      map['is_read'] = Variable<bool>(isRead.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('type: $type, ')
+          ..write('content: $content, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('relatedId: $relatedId, ')
+          ..write('isRead: $isRead')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalDatabase extends GeneratedDatabase {
   _$LocalDatabase(QueryExecutor e) : super(e);
   $LocalDatabaseManager get managers => $LocalDatabaseManager(this);
@@ -4131,6 +4535,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final $NoticesTable notices = $NoticesTable(this);
   late final $UsersTable users = $UsersTable(this);
   late final $GroupMembersTable groupMembers = $GroupMembersTable(this);
+  late final $NotificationsTable notifications = $NotificationsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4147,6 +4552,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
     notices,
     users,
     groupMembers,
+    notifications,
   ];
 }
 
@@ -7471,6 +7877,232 @@ typedef $$GroupMembersTableProcessedTableManager =
       GroupMember,
       PrefetchHooks Function({bool groupId, bool userId})
     >;
+typedef $$NotificationsTableCreateCompanionBuilder =
+    NotificationsCompanion Function({
+      Value<int> id,
+      required String type,
+      required String content,
+      required DateTime timestamp,
+      Value<int?> relatedId,
+      Value<bool> isRead,
+    });
+typedef $$NotificationsTableUpdateCompanionBuilder =
+    NotificationsCompanion Function({
+      Value<int> id,
+      Value<String> type,
+      Value<String> content,
+      Value<DateTime> timestamp,
+      Value<int?> relatedId,
+      Value<bool> isRead,
+    });
+
+class $$NotificationsTableFilterComposer
+    extends Composer<_$LocalDatabase, $NotificationsTable> {
+  $$NotificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get relatedId => $composableBuilder(
+    column: $table.relatedId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRead => $composableBuilder(
+    column: $table.isRead,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotificationsTableOrderingComposer
+    extends Composer<_$LocalDatabase, $NotificationsTable> {
+  $$NotificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get relatedId => $composableBuilder(
+    column: $table.relatedId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isRead => $composableBuilder(
+    column: $table.isRead,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotificationsTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $NotificationsTable> {
+  $$NotificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<int> get relatedId =>
+      $composableBuilder(column: $table.relatedId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isRead =>
+      $composableBuilder(column: $table.isRead, builder: (column) => column);
+}
+
+class $$NotificationsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDatabase,
+          $NotificationsTable,
+          Notification,
+          $$NotificationsTableFilterComposer,
+          $$NotificationsTableOrderingComposer,
+          $$NotificationsTableAnnotationComposer,
+          $$NotificationsTableCreateCompanionBuilder,
+          $$NotificationsTableUpdateCompanionBuilder,
+          (
+            Notification,
+            BaseReferences<_$LocalDatabase, $NotificationsTable, Notification>,
+          ),
+          Notification,
+          PrefetchHooks Function()
+        > {
+  $$NotificationsTableTableManager(
+    _$LocalDatabase db,
+    $NotificationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$NotificationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () =>
+                  $$NotificationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$NotificationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<DateTime> timestamp = const Value.absent(),
+                Value<int?> relatedId = const Value.absent(),
+                Value<bool> isRead = const Value.absent(),
+              }) => NotificationsCompanion(
+                id: id,
+                type: type,
+                content: content,
+                timestamp: timestamp,
+                relatedId: relatedId,
+                isRead: isRead,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String type,
+                required String content,
+                required DateTime timestamp,
+                Value<int?> relatedId = const Value.absent(),
+                Value<bool> isRead = const Value.absent(),
+              }) => NotificationsCompanion.insert(
+                id: id,
+                type: type,
+                content: content,
+                timestamp: timestamp,
+                relatedId: relatedId,
+                isRead: isRead,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotificationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDatabase,
+      $NotificationsTable,
+      Notification,
+      $$NotificationsTableFilterComposer,
+      $$NotificationsTableOrderingComposer,
+      $$NotificationsTableAnnotationComposer,
+      $$NotificationsTableCreateCompanionBuilder,
+      $$NotificationsTableUpdateCompanionBuilder,
+      (
+        Notification,
+        BaseReferences<_$LocalDatabase, $NotificationsTable, Notification>,
+      ),
+      Notification,
+      PrefetchHooks Function()
+    >;
 
 class $LocalDatabaseManager {
   final _$LocalDatabase _db;
@@ -7497,4 +8129,6 @@ class $LocalDatabaseManager {
       $$UsersTableTableManager(_db, _db.users);
   $$GroupMembersTableTableManager get groupMembers =>
       $$GroupMembersTableTableManager(_db, _db.groupMembers);
+  $$NotificationsTableTableManager get notifications =>
+      $$NotificationsTableTableManager(_db, _db.notifications);
 }

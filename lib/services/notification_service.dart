@@ -1,6 +1,51 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:drift/drift.dart';
+import 'package:ohmo/db/drift_database.dart';
+
+Future<void> _addNotificationToDBFromPayload(String? payload) async {
+  if (payload == null || payload.isEmpty) return;
+
+  final parts = payload.split('_');
+  if (parts.length != 2) return;
+
+  final type = parts[0];
+  final id = int.tryParse(parts[1]);
+  if (id == null) return;
+
+  final db = LocalDatabaseSingleton.instance;
+  String content = '';
+
+  if (type == 'todo') {
+    final todo = await db.getTodoById(id);
+    if (todo == null) return;
+    content = todo.content;
+  } else if (type == 'routine') {
+    final routine = await db.getRoutineById(id);
+    if (routine == null) return;
+    content = routine.content;
+  } else {
+    return;
+  }
+
+  await db.insertNotification(
+    NotificationsCompanion(
+      type: Value('calender'),
+      content: Value(content),
+      timestamp: Value(DateTime.now()),
+      relatedId: Value(id),
+    ),
+  );
+  print('Notification $payload added to local DB');
+}
+
+@pragma('vm:entry-point')
+Future<void> onDidReceiveNotificationResponse(
+  NotificationResponse notificationResponse,
+) async {
+  await _addNotificationToDBFromPayload(notificationResponse.payload);
+}
 
 class NotificationService {
   NotificationService._privateConstructor();
@@ -34,7 +79,10 @@ class NotificationService {
 
     tz.initializeTimeZones();
 
-    await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await _flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
+    );
   }
 
   Future<void> requestIOSPermissions() async {

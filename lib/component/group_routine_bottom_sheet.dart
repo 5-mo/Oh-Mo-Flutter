@@ -155,12 +155,14 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
         prefix = " ";
       }
       final newText =
-          text.substring(0, atIndex) + '$prefix@$name ' + text.substring(cursorPos);
+          text.substring(0, atIndex) +
+          '$prefix@$name ' +
+          text.substring(cursorPos);
 
       contentController.value = TextEditingValue(
         text: newText,
         selection: TextSelection.fromPosition(
-          TextPosition(offset: atIndex + prefix.length+name.length + 2),
+          TextPosition(offset: atIndex + prefix.length + name.length + 2),
         ),
       );
       _contentFocusNode.requestFocus();
@@ -294,10 +296,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(6),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 4,
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
             ],
           ),
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -393,18 +392,20 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
+        final String content = contentController.text;
+
         if (contentController.text.isEmpty || selectedDays.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")));
           return;
         }
 
         try {
-          final db = LocalDatabase();
+          final db = LocalDatabaseSingleton.instance;
           final weekString = getRoutineWeek().join(',');
 
-          await db.insertRoutine(
+          final int newRoutineId = await db.insertRoutine(
             RoutinesCompanion.insert(
               groupId: drift.Value(widget.groupId),
               content: contentController.text,
@@ -418,23 +419,42 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
             ),
           );
 
+          if (content.contains('(나)') || content.contains('@모두')) {
+            final group = await db.getGroupById(widget.groupId ?? 0);
+            final groupName = group?.name ?? "현재 그룹";
+            final days = selectedDays.join(',');
+
+            String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
+            String line2 = "[Routine] $content (매주 $days)";
+            final String multiLineContent = "$line1\n$line2";
+
+            await db.insertNotification(
+              NotificationsCompanion(
+                type: drift.Value('group'),
+                content: drift.Value(multiLineContent),
+                timestamp: drift.Value(DateTime.now()),
+                relatedId: drift.Value(newRoutineId),
+                isRead: drift.Value(true),
+              ),
+            );
+          }
+
           if (widget.onRoutineAdded != null) {
             await widget.onRoutineAdded!();
           }
 
           if (mounted) {
             Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("루틴이 등록되었습니다!")),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("루틴이 등록되었습니다!")));
           }
-
         } catch (e) {
           print('루틴 저장 실패: $e');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('루틴 저장에 실패했습니다.')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('루틴 저장에 실패했습니다.')));
           }
         }
       },

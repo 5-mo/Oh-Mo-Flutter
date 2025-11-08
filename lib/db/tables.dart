@@ -96,3 +96,14 @@ class DayLogs extends Table {
   @override
   Set<Column> get primaryKey => {date};
 }
+
+class Notifications extends Table{
+  IntColumn get id=>integer().autoIncrement()();
+  TextColumn get type=>text()();
+
+  TextColumn get content=>text()();
+  DateTimeColumn get timestamp=>dateTime()();
+  IntColumn get relatedId=>integer().nullable()();
+
+  BoolColumn get isRead=>boolean().withDefault(const Constant(false))();
+}

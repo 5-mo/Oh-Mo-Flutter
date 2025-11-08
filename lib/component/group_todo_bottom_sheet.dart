@@ -1,18 +1,20 @@
 import 'package:drift/drift.dart' as drift;
-import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart' ;
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import '../models/category_item.dart';
 import 'package:extended_text_field/extended_text_field.dart';
+import 'package:intl/intl.dart';
 
 class MentionTextSpanBuilder extends SpecialTextSpanBuilder {
   @override
   SpecialText? createSpecialText(
-      String flag, {
-        TextStyle? textStyle,
-        SpecialTextGestureTapCallback? onTap,
-        int? index,
-      }) {
+    String flag, {
+    TextStyle? textStyle,
+    SpecialTextGestureTapCallback? onTap,
+    int? index,
+  }) {
     if (flag == '@') {
       return MentionText(textStyle, onTap);
     }
@@ -22,7 +24,7 @@ class MentionTextSpanBuilder extends SpecialTextSpanBuilder {
 
 class MentionText extends SpecialText {
   MentionText(TextStyle? textStyle, SpecialTextGestureTapCallback? onTap)
-      : super('@', ' ', textStyle, onTap: onTap);
+    : super('@', ' ', textStyle, onTap: onTap);
 
   @override
   InlineSpan finishText() {
@@ -57,8 +59,7 @@ class GroupTodoBottomSheet extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<GroupTodoBottomSheet> createState() =>
-      _GroupTodoBottomSheetState();
+  State<GroupTodoBottomSheet> createState() => _GroupTodoBottomSheetState();
 }
 
 class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
@@ -108,9 +109,9 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
         final painter = TextPainter(
           text: TextSpan(
             text: prefixText,
-            style: TextStyle(fontSize: 14, color: Colors.black),
+            style: const TextStyle(fontSize: 14, color: Colors.black),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         );
         painter.layout();
 
@@ -124,8 +125,8 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                 _groupMembers.keys
                     .where(
                       (member) =>
-                      member.toLowerCase().contains(query.toLowerCase()),
-                )
+                          member.toLowerCase().contains(query.toLowerCase()),
+                    )
                     .toList();
             _showMentionSuggestions = _filterMembers.isNotEmpty;
           });
@@ -152,12 +153,14 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
         prefix = " ";
       }
       final newText =
-          text.substring(0, atIndex) + '$prefix@$name ' + text.substring(cursorPos);
+          text.substring(0, atIndex) +
+          '$prefix@$name ' +
+          text.substring(cursorPos);
 
       contentController.value = TextEditingValue(
         text: newText,
         selection: TextSelection.fromPosition(
-          TextPosition(offset: atIndex + prefix.length+name.length + 2),
+          TextPosition(offset: atIndex + prefix.length + name.length + 2),
         ),
       );
       _contentFocusNode.requestFocus();
@@ -168,7 +171,6 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
       });
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +206,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
 
         if (_showMentionSuggestions)
           Padding(
-            padding:const EdgeInsets.only(bottom: 8.0),
+            padding: const EdgeInsets.only(bottom: 8.0),
             child: _buildMentionSuggestions(),
           ),
 
@@ -214,10 +216,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(6),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 4,
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
             ],
           ),
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -288,11 +287,11 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                       CircleAvatar(
                         radius: 9,
                         backgroundImage:
-                        imagePath != null ? AssetImage(imagePath) : null,
+                            imagePath != null ? AssetImage(imagePath) : null,
                         child:
-                        imagePath == null
-                            ? Icon(Icons.person, size: 11)
-                            : null,
+                            imagePath == null
+                                ? Icon(Icons.person, size: 11)
+                                : null,
                       ),
                       SizedBox(width: 6),
                       Text(
@@ -316,9 +315,9 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
         final String originalContent = contentController.text.trim();
 
         if (originalContent.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("내용을 입력해주세요.")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("내용을 입력해주세요.")));
           return;
         }
 
@@ -332,28 +331,46 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
         try {
           final db = LocalDatabaseSingleton.instance;
 
-          await db.insertTodo(
+          final int newTodoId = await db.insertTodo(
             TodosCompanion.insert(
               groupId: drift.Value(widget.groupId),
               content: finalContent,
               date: widget.selectedDate,
             ),
           );
+          if (finalContent.contains('(나)') || finalContent.contains('@모두')) {
+            final group = await db.getGroupById(widget.groupId ?? 0);
+            final groupName = group?.name ?? "ohmo";
+            final todoDateStr = DateFormat('MM/dd').format(widget.selectedDate);
+
+            String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
+            String line2 = "[To-do] $finalContent ( ~$todoDateStr까지)";
+            final String multiLineContent = "$line1\n$line2";
+
+            await db.insertNotification(
+              NotificationsCompanion(
+                type: drift.Value('group'),
+                content: drift.Value(multiLineContent),
+                timestamp: drift.Value(DateTime.now()),
+                relatedId: drift.Value(newTodoId),
+                isRead: drift.Value(true),
+              ),
+            );
+          }
           widget.onTodoAdded?.call();
 
           if (mounted) {
             Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("투두가 등록되었습니다!")),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("투두가 등록되었습니다!")));
           }
-
         } catch (e) {
           print('투두 저장 실패: $e');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('투두 저장에 실패했습니다.')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('투두 저장에 실패했습니다.')));
           }
         }
       },
@@ -377,5 +394,4 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
       ),
     );
   }
-
 }
