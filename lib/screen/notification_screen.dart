@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:ohmo/db/drift_database.dart' as db;
 
@@ -65,15 +66,30 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "새로운 알림이 없습니다.",
-                      style: TextStyle(
-                        fontFamily: 'PretendardRegular',
-                        fontSize: 16.0,
-                        color: Colors.grey,
+                  return Column(
+                    children: [
+                      SizedBox(height: 200),
+                      SvgPicture.asset('android/assets/images/notification_off.svg',width: 24,height: 24,),
+                      SizedBox(height: 7),
+                      Text(
+                        "최근 알림이 없습니다.",
+                        style: TextStyle(
+                          fontFamily: 'PretendardRegular',
+                          fontSize: 12.0,
+                          color: Colors.black,
+                        ),
                       ),
-                    ),
+                      SizedBox(height: 7),
+                      Text(
+                        textAlign: TextAlign.right,
+                        "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+                        style: TextStyle(
+                          fontFamily: 'PretendardRegular',
+                          fontSize: 8.0,
+                          color: Color(0xFF565656),
+                        ),
+                      ),
+                    ],
                   );
                 }
 
@@ -91,15 +107,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Text(
-        textAlign: TextAlign.right,
-        "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
-        style: TextStyle(
-          fontFamily: 'PretendardRegular',
-          fontSize: 8.0,
-          color: Color(0xFF565656),
-        ),
-      ),
     );
   }
 
@@ -124,6 +131,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                textAlign: TextAlign.right,
+                "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+                style: TextStyle(
+                  fontFamily: 'PretendardRegular',
+                  fontSize: 8.0,
+                  color: Color(0xFF565656),
+                ),
+              ),
               if (showHeader) ...[
                 if (index != 0) ...[
                   SizedBox(height: 15),
