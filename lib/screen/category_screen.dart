@@ -9,11 +9,14 @@ import 'package:ohmo/component/todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:ohmo/screen/group/group_main_screen.dart';
 import '../component/color_palette_bottom_sheet.dart';
 import '../customize_category.dart';
 import 'package:uuid/uuid.dart';
 import 'package:ohmo/db/drift_database.dart' show LocalDatabase;
 import 'package:ohmo/models/category_item.dart';
+
+import 'group/group_sign_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -77,6 +80,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final List<String> dummyGroupsIds = [
+      '1', '2', '3', '4', '5', '6', '7', '8'
+    ];
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -90,17 +97,43 @@ class _CategoryScreenState extends State<CategoryScreen> {
         backgroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(top: 30, left: 35, bottom: 60),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCategoryHeader(),
-            SizedBox(height: 20.0),
-            _buildRoutineAccordion(),
-            _buildTodoAccordion(),
-            _buildDaylogAccordion(),
+            Padding(
+              padding: const EdgeInsets.only(top: 30, left: 35),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCategoryHeader(),
+                  SizedBox(height: 20.0),
+                  _buildRoutineAccordion(),
+                  _buildTodoAccordion(),
+                  _buildDaylogAccordion(),
+                  SizedBox(height: 10.0),
+                  _buildDiaryIndex(),
+                ],
+              ),
+            ),
+            SizedBox(height: 60.0),
+
+            Center(
+              child: Container(width: 320, child: Divider(color: Colors.black)),
+            ),
+
             SizedBox(height: 10.0),
-            _buildDiaryIndex(),
+            _buildGroupHeader(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 35.0),
+              child: Wrap(
+                spacing: 23.0,
+                runSpacing: 23.0,
+                children:
+                    dummyGroupsIds.map((groupId) {
+                      return _buildGroupSection(groupId: groupId);
+                    }).toList(),
+              ),
+            ),
+            SizedBox(height: 60.0),
           ],
         ),
       ),
@@ -114,7 +147,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  // --- Routine Accordion (추가/삭제/수정에서 repository 사용) ---
   Widget _buildRoutineAccordion() {
     return Padding(
       padding: const EdgeInsets.only(right: 20),
@@ -316,7 +348,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     _isAddingNewRoutine = false;
                                     _newRoutineController.clear();
                                   });
-
                                 },
                               ),
                             ],
@@ -831,6 +862,203 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGroupHeader() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 50, right: 35),
+      child: Row(
+        children: [
+          Text(
+            'Group',
+            style: TextStyle(
+              fontSize: 14,
+              fontFamily: 'RubikSprayPaint',
+              color: Colors.black,
+            ),
+          ),
+          Transform.translate(offset: Offset(-10, 0)),
+          Spacer(),
+          IconButton(
+            icon: Icon(Icons.add_circle, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => GroupSignScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupSection({String? groupId}) {
+    final bool hasGroup = groupId != null && groupId.isNotEmpty;
+
+    return InkWell(
+      onTap: () {
+        if (hasGroup) {
+          try {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => GroupMainScreen(groupId: int.parse(groupId!)),
+              ),
+            );
+          } catch (e) {
+            print("Error parsing groupId:$groupId,Error:$e");
+            Fluttertoast.showToast(msg: "잘못된 그룹 ID입니다.");
+          }
+        } else {
+          print("그룹 만들기 클릭!");
+        }
+      },
+      child: Container(
+        width: 150,
+        height: 111,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.4),
+              spreadRadius: 1,
+              blurRadius: 1,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: 140,
+                  height: 70,
+                  margin: const EdgeInsets.only(top: 5),
+                  padding: const EdgeInsets.all(15.0),
+                  decoration: BoxDecoration(
+                    color:
+                        hasGroup
+                            ? const Color(0xFFFBC8D9)
+                            : const Color(0xFFF2F2F2),
+                    borderRadius: BorderRadius.circular(12.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.4),
+                        spreadRadius: 1,
+                        blurRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    hasGroup ? '사이드\n프로젝트' : '그룹\n만들기',
+                    style: TextStyle(
+                      fontFamily: 'PretendardMedium',
+                      fontSize: 12,
+                      color:
+                          hasGroup
+                              ? const Color(0xFF000000)
+                              : const Color(0xFF7B7B7B),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 25,
+                  right: 15,
+                  child: SvgPicture.asset(
+                    'android/assets/images/routine_alarm.svg',
+                  ),
+                ),
+              ],
+            ),
+            if (hasGroup)
+              Padding(
+                padding: const EdgeInsets.only(left: 10.0, top: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.8,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.5,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      1.0,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.2,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.2,
+                    ),
+                    const SizedBox(width: 5),
+                    _buildMemberProfile(
+                      'android/assets/images/clear_ohmo.png',
+                      0.2,
+                    ),
+                  ],
+                ),
+              )
+            else
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                  child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberProfile(String imagePath, double progress) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircleAvatar(radius: 8, backgroundImage: AssetImage(imagePath)),
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 3,
+              backgroundColor: Color(0xFFA5A5A5),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                const Color(0xFFFBC8D9),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

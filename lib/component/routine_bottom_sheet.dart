@@ -9,11 +9,16 @@ import '../models/category_item.dart';
 import 'package:ohmo/services/notification_service.dart';
 
 class RoutineBottomSheet extends StatefulWidget {
+  final int? groupId;
   final Future<void> Function()? onRoutineAdded;
   final Future<void> Function()? onDataChanged;
 
-  const RoutineBottomSheet({Key? key, this.onRoutineAdded, this.onDataChanged})
-    : super(key: key);
+  const RoutineBottomSheet({
+    Key? key,
+    this.groupId,
+    this.onRoutineAdded,
+    this.onDataChanged,
+}) : super(key: key);
 
   @override
   State<RoutineBottomSheet> createState() => _RoutineBottomSheetState();
@@ -460,13 +465,13 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
           final id = await db.insertRoutine(
             RoutinesCompanion.insert(
+              groupId: drift.Value(widget.groupId),
               content: contentController.text,
               colorType: drift.Value(colorIndex),
               isDone: drift.Value(false),
               startDate: drift.Value(startDate),
               endDate: drift.Value(selectedEndDate!),
               timeMinutes: drift.Value(minutes),
-              
               weekDays: drift.Value(weekString),
               categoryId: drift.Value(selectedCategoryId!),
             ),
@@ -504,7 +509,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
                   title: '오늘의 루틴 시간!',
                   body: routine.content,
                   scheduledTime: notificationTime,
-                  payload: routine.id.toString(),
+                  payload: 'routine_${routine.id}',
                 );
               }
             }

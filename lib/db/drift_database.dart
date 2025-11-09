@@ -19,32 +19,30 @@ LazyDatabase _openConnection() {
   });
 }
 
+enum Emotion { happy, soso, bad, none }
+
 // ------------------ Drift Database ------------------
 
 @DriftDatabase(
   tables: [
     Categories,
-
     DayLogQuestions,
-
     Routines,
-
     Todos,
-
     CompletedRoutines,
-
     CompletedTodos,
-
     DayLogs,
+    Notices,
+    Groups,
+    GroupMembers,
+    Notifications,
   ],
 )
-enum Emotion { happy, soso, bad, none }
-
 class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   // ------------------ Category ------------------
 
@@ -97,6 +95,61 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   // ------------------ Routine ------------------
+
+  Stream<List<Routine>> watchRoutinesByGroupId(
+    int groupId,
+    DateTime selectedDate,
+  ) {
+    final dateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    final weekDayString = selectedDate.weekday.toString();
+
+    return (select(routines)
+          ..where((tbl) => tbl.groupId.equals(groupId))
+          ..where(
+            (tbl) =>
+                (tbl.startDate.isSmallerOrEqualValue(dateOnly)) &
+                (tbl.endDate.isBiggerOrEqualValue(dateOnly)),
+          )
+          ..where((tbl) => tbl.weekDays.like('$weekDayString')))
+        .watch();
+  }
+
+  Future<int?> getMemberCountInGroup(int groupId) async {
+    final countExp = countAll();
+    final query =
+        selectOnly(groupMembers)
+          ..addColumns([countExp])
+          ..where(groupMembers.groupId.equals(groupId));
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result;
+  }
+
+  Future<int?> getCompletionCount(int routineId, DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final countExp = countAll();
+    final query =
+        selectOnly(completedRoutines)
+          ..addColumns([countExp])
+          ..where(
+            completedRoutines.routineId.equals(routineId) &
+                completedRoutines.date.equals(dateOnly),
+          );
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result;
+  }
+
+  Future<List<Routine>> getRoutinesByGroupId(int groupId) {
+    return (select(routines)
+      ..where((tbl) => tbl.groupId.equals(groupId))).get();
+  }
+
+  Future<List<Routine>> getPersonalRoutines() {
+    return (select(routines)..where((tbl) => tbl.groupId.isNull())).get();
+  }
 
   Future<int> insertRoutine(RoutinesCompanion entry) =>
       into(routines).insert(entry);
@@ -192,7 +245,21 @@ class LocalDatabase extends _$LocalDatabase {
     return list.map((c) => c.routineId).toList();
   }
 
-  // ------------------Todo ------------------
+  Future<void> deactivateRoutine(int routineId, DateTime selectedDate) async {
+    final dayBefore = selectedDate.subtract(const Duration(days: 1));
+    final dateOnly = DateTime(dayBefore.year, dayBefore.month, dayBefore.day);
+
+    await (update(routines)..where(
+      (tbl) => tbl.id.equals(routineId),
+    )).write(RoutinesCompanion(endDate: Value(dateOnly)));
+  }
+
+  // ------------------Todo------------------
+
+  Future<List<Todo>> getPersonalTodosByDate(DateTime date) {
+    return (select(todos)
+      ..where((tbl) => tbl.date.equals(date) & tbl.groupId.isNull())).get();
+  }
 
   Future<int> insertTodo(TodosCompanion entry) => into(todos).insert(entry);
 
@@ -272,18 +339,46 @@ class LocalDatabase extends _$LocalDatabase {
     return list.map((c) => c.todoId).toList();
   }
 
-  Future<List<Todo>> getTodosBetween(DateTime start,DateTime end){
-    final startOfDay=DateTime(start.year,start.month,start.day);
-    final endOfDay=DateTime(end.year,end.month,end.day,23,59,59);
+  Future<List<Todo>> getTodosBetween(DateTime start, DateTime end) {
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
 
-    return(select(todos)
-        ..where((t)=>t.date.isBetweenValues(startOfDay, endOfDay)))
+    return (select(todos)
+      ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))).get();
+  }
+
+  Future<void> updateTodoCompletion(int id, bool isDone) {
+    return (update(todos)..where(
+      (tbl) => tbl.id.equals(id),
+    )).write(TodosCompanion(isDone: Value(isDone)));
+  }
+
+  Future<int?> getTodoCompletionCount(int todoId, DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final countExp = countAll();
+    final query =
+        selectOnly(completedTodos)
+          ..addColumns([countExp])
+          ..where(
+            completedTodos.todoId.equals(todoId) &
+                completedTodos.date.equals(dateOnly),
+          );
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result;
+  }
+
+  Future<List<Todo>> getTodosByGroupIdAndDate(int groupId, DateTime date) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return (select(todos)
+          ..where((tbl) => tbl.groupId.equals(groupId))
+          ..where((tbl) => tbl.date.isBetweenValues(startOfDay, endOfDay)))
         .get();
   }
 
-  Future<void> updateTodoCompletion(int id,bool isDone){
-    return(update(todos)..where((tbl)=>tbl.id.equals(id)))
-        .write(TodosCompanion(isDone:Value(isDone)));
+  Future<List<Todo>> getTodosByGroupId(int groupId) {
+    return (select(todos)..where((tbl) => tbl.groupId.equals(groupId))).get();
   }
 
   // ------------------ DayLog Entry------------------
@@ -297,6 +392,46 @@ class LocalDatabase extends _$LocalDatabase {
 
     return (select(dayLogs)
       ..where((tbl) => tbl.date.equals(dateOnly))).getSingleOrNull();
+  }
+
+  // ------------------ Notice ------------------
+
+  Future<int> insertNotice(NoticesCompanion entry) {
+    return into(notices).insert(entry);
+  }
+
+  Future<List<Notice>> getAllNotices() {
+    return (select(notices)
+          ..where((n) => n.isDeleted.equals(false))
+          ..orderBy([
+            (n) =>
+                OrderingTerm(expression: n.createdAt, mode: OrderingMode.desc),
+          ]))
+        .get();
+  }
+
+  Future<Notice?> getNoticeById(int id) {
+    return (select(notices)..where((n) => n.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<int> updateNoticeContent(int id, String newContent) {
+    return (update(notices)..where(
+      (n) => n.id.equals(id),
+    )).write(NoticesCompanion(content: Value(newContent)));
+  }
+
+  Future<int> deleteNotice(int id) {
+    return (delete(notices)..where((n) => n.id.equals(id))).go();
+  }
+
+  Future<List<Notice>> getNoticesForGroup(int groupId) {
+    return (select(notices)
+          ..where((n) => n.groupId.equals(groupId) & n.isDeleted.equals(false))
+          ..orderBy([
+            (n) =>
+                OrderingTerm(expression: n.createdAt, mode: OrderingMode.desc),
+          ]))
+        .get();
   }
 
   // ------------------ Search------------------
@@ -390,6 +525,38 @@ class LocalDatabase extends _$LocalDatabase {
     } catch (e) {
       return [];
     }
+  }
+
+  // ------------------ Group------------------
+  Future<Group?> getGroupById(int id) {
+    return (select(groups)..where((g) => g.id.equals(id))).getSingleOrNull();
+  }
+
+  // ------------------ Notification ------------------
+
+  Future<int> insertNotification(NotificationsCompanion entry) {
+    return into(notifications).insert(entry);
+  }
+
+  Stream<List<Notification>> watchAllNotifications() {
+    return (select(notifications)..orderBy([
+      (n) => OrderingTerm(expression: n.timestamp, mode: OrderingMode.desc),
+    ])).watch();
+  }
+
+  Future<int> markAllNotificationsAsRead() {
+    return (update(notifications)
+      ..where((n) => n.isRead.equals(false)))
+        .write(const NotificationsCompanion(isRead: Value(true)));
+  }
+
+  Stream<int> watchUnreadNotificationCount() {
+    final unreadCount = countAll(
+      filter: notifications.isRead.equals(false),
+    );
+    final query = selectOnly(notifications)..addColumns([unreadCount]);
+
+    return query.map((row) => row.read(unreadCount)!).watchSingle();
   }
 }
 

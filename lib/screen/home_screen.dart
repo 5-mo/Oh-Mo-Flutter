@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ohmo/component/main_calendar.dart';
+import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/screen/daylog_screen.dart';
 import 'package:ohmo/screen/my_screen.dart';
 import 'package:ohmo/component/routine_banner.dart';
@@ -11,11 +12,13 @@ import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'dart:convert';
+import '../component/routine_bottom_sheet.dart';
 import '../const/colors.dart';
 import '../customize_category.dart';
 import '../db/drift_database.dart' as db;
 import '../models/routine.dart';
 import '../models/todo.dart';
+import 'notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -31,7 +34,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late int _selectedIndex;
   final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
     DateTime.now(),
@@ -40,7 +43,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
   bool _hideRoutineUI = false;
   bool _hideTodoUI = false;
-
 
   @override
   void initState() {
@@ -57,14 +59,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
   }
 
   @override
-  void dispose(){
+  void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state){
-    if(state==AppLifecycleState.resumed){
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
       print("앱이 다시 활성화되어 데이터를 새로고침합니다.");
       _loadDataForDate(_selectedDateNotifier.value);
     }
@@ -84,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final allRoutines = await database.getAllRoutines();
+    final allRoutines = await database.getPersonalRoutines();
     final completedIds = await database.getCompletedRoutineIds(date);
 
     return allRoutines.map((r) {
@@ -104,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver{
 
   Future<List<Todo>> fetchTodos(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final fetched = await database.getTodosByDate(date);
+    final fetched = await database.getPersonalTodosByDate(date);
 
     return fetched.map((t) {
       return Todo(
@@ -247,8 +249,8 @@ class HomeScreenBody extends StatefulWidget {
   final ValueNotifier<List<Todo>> todosNotifier;
   final ValueNotifier<DateTime> selectedDateNotifier;
   final VoidCallback? onDataChanged;
-  final VoidCallback? onRoutineAdded;
-  final VoidCallback? onTodoAdded;
+  final Future<void> Function()? onRoutineAdded;
+  final Future<void> Function()? onTodoAdded;
   final ValueChanged<DateTime>? onDateChanged;
   final bool hideRoutineUI;
   final bool hideTodoUI;
@@ -312,10 +314,28 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                MainCalendar(
-                  selectedDate: selectedDate,
-                  onDaySelected: onDaySelected,
-                  eventLoader: (_) => [],
+            StreamBuilder<int>(
+            stream: db.LocalDatabaseSingleton.instance
+                .watchUnreadNotificationCount(),
+            builder: (context, snapshot) {
+              final int unreadCount = snapshot.data ?? 0;
+
+              final bool hasUnread = unreadCount > 0;
+              return MainCalendar(
+                selectedDate: selectedDate,
+                onDaySelected: onDaySelected,
+                eventLoader: (_) => [],
+                hasUnread: hasUnread,
+                onAlarmIconPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationScreen(),
+                    ),
+                  );
+                },
+              );
+            },
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -323,7 +343,26 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                     children: [
                       if (!widget.hideRoutineUI)
                         RoutineBanner(
-                          onRoutineAdded: widget.onRoutineAdded ?? () {},
+                          onAddPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              isDismissible: true,
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(59),
+                                  topLeft: Radius.circular(59),
+                                ),
+                              ),
+                              builder:
+                                  (_) => RoutineBottomSheet(
+                                    groupId: null,
+                                    onRoutineAdded:
+                                        widget.onRoutineAdded ?? () async {},
+                                  ),
+                            );
+                          },
                         ),
                       ValueListenableBuilder<List<Routine>>(
                         valueListenable: widget.routinesNotifier,
@@ -374,8 +413,26 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                         SizedBox(height: 20),
                         Divider(color: Colors.grey),
                         TodoBanner(
-                          onTodoAdded: widget.onTodoAdded ?? () {},
-                          selectedDate: selectedDate,
+                          onAddPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              isDismissible: true,
+                              backgroundColor: Colors.white,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(59),
+                                  topLeft: Radius.circular(59),
+                                ),
+                              ),
+                              builder:
+                                  (_) => TodoBottomSheet(
+                                    selectedDate: selectedDate,
+                                    onTodoAdded:
+                                        widget.onTodoAdded ?? () async {},
+                                  ),
+                            );
+                          },
                         ),
                         ValueListenableBuilder<List<Todo>>(
                           valueListenable: widget.todosNotifier,

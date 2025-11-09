@@ -3,8 +3,16 @@ import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 
 class RoutineBanner extends StatelessWidget {
-  final VoidCallback onRoutineAdded;
-  const RoutineBanner({Key? key, required this.onRoutineAdded}) : super(key: key);
+  final VoidCallback onAddPressed;
+  final int? groupId;
+  final Offset? addButtonOffset;
+
+  const RoutineBanner({
+    Key? key,
+    required this.onAddPressed,
+    this.groupId,
+    this.addButtonOffset,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -18,33 +26,10 @@ class RoutineBanner extends StatelessWidget {
           children: [
             Text('Routine', style: textStyle),
             Transform.translate(
-              offset: Offset(5, 0),
+              offset: addButtonOffset ?? Offset(12, 0),
               child: IconButton(
                 icon: SvgPicture.asset('android/assets/images/plus.svg'),
-                onPressed: () async {
-                  final result = await showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    isDismissible: true,
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.only(
-                        topRight: Radius.circular(59),
-                        topLeft: Radius.circular(59),
-                      ),
-                    ),
-                    builder: (_) => RoutineBottomSheet(
-                      onRoutineAdded: () async {
-                        onRoutineAdded();
-                      },
-                    ),
-                  );
-
-                  if (result == true) {
-                    onRoutineAdded();
-                  }
-                },
-
+                onPressed: onAddPressed,
               ),
             ),
           ],

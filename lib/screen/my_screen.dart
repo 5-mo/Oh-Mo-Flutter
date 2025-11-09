@@ -367,7 +367,6 @@ class _MyScreenState extends State<MyScreen> {
       ),
 
       child: Center(
-        child: Center(
           child: Row(
             children: [
               SizedBox(width: 20.0),
@@ -379,7 +378,6 @@ class _MyScreenState extends State<MyScreen> {
               ),
             ],
           ),
-        ),
       ),
     );
   }

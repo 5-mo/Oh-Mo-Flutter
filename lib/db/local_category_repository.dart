@@ -6,6 +6,8 @@ class LocalCategoryRepository {
 
   LocalCategoryRepository(this._db);
 
+
+
   // ------------------ Category ------------------
   Future<List<CategoryItem>> fetchCategories({
     required String scheduleType,

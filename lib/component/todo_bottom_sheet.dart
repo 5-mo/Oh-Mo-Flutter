@@ -355,15 +355,15 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           );
 
           if (isChecked) {
-            final notificationTime = fullTodoDate; // 정시 알람
+            final notificationTime = fullTodoDate;
 
             if (notificationTime.isAfter(DateTime.now())) {
               await NotificationService().scheduleNotification(
-                id: id, // 투두의 ID를 알람 ID로 사용
+                id: id,
                 title: '오늘의 할 일!',
                 body: contentController.text,
                 scheduledTime: notificationTime,
-                payload: 'todo_$id', // 'todo_' 접두사를 붙여 구분
+                payload: 'todo_$id',
               );
             }
           }
