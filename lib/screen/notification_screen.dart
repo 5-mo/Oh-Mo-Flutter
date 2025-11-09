@@ -69,7 +69,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   return Column(
                     children: [
                       SizedBox(height: 200),
-                      SvgPicture.asset('android/assets/images/notification_off.svg',width: 24,height: 24,),
+                      SvgPicture.asset(
+                        'android/assets/images/notification_off.svg',
+                        width: 24,
+                        height: 24,
+                      ),
                       SizedBox(height: 7),
                       Text(
                         "최근 알림이 없습니다.",
@@ -131,13 +135,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                textAlign: TextAlign.right,
-                "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
-                style: TextStyle(
-                  fontFamily: 'PretendardRegular',
-                  fontSize: 8.0,
-                  color: Color(0xFF565656),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다       ",
+                  style: TextStyle(
+                    fontFamily: 'PretendardRegular',
+                    fontSize: 8.0,
+                    color: Color(0xFF565656),
+                  ),
                 ),
               ),
               if (showHeader) ...[
