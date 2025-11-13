@@ -16,6 +16,7 @@ class RoutineCard extends StatefulWidget {
   final int scheduleId;
   final bool isDone;
   final Future<void> Function()? onStatusChanged;
+  final VoidCallback? onDataChanged;
 
   const RoutineCard({
     required this.content,
@@ -26,6 +27,7 @@ class RoutineCard extends StatefulWidget {
     this.deletePopupBuilder,
     required this.isDone,
     this.onStatusChanged,
+    this.onDataChanged,
     Key? key,
   }) : super(key: key);
 
@@ -100,33 +102,33 @@ class _RoutineCardState extends State<RoutineCard> {
             const SizedBox(width: 30.0),
 
             Expanded(
-              child: _isEditing
-                  ? TextField(
-                controller: _controller,
-                style: textStyle,
-                autofocus: true,
-                onSubmitted: (value) async {
-                  setState(() => _isEditing = false);
-                  widget.onEdit(value);
+              child:
+                  _isEditing
+                      ? TextField(
+                        controller: _controller,
+                        style: textStyle,
+                        autofocus: true,
+                        onSubmitted: (value) async {
+                          setState(() => _isEditing = false);
+                          widget.onEdit(value);
 
-                  final db = LocalDatabase();
-                  await db.updateRoutine(
-                    RoutinesCompanion(
-                      id: Value(widget.scheduleId),
-                      content: Value(value),
-                      colorType: Value(_selectedColorType.index),
-                    ),
-                  );
-                },
-                onTapOutside: (_) {
-                  setState(() => _isEditing = false);
-                  widget.onEdit(_controller.text);
-                },
-              )
-                  : GestureDetector(
-                onTap: () => setState(() => _isEditing = true),
-                child: Text(_controller.text, style: textStyle),
-              ),
+                          final db = LocalDatabase();
+                          await db.updateRoutine(
+                            RoutinesCompanion(
+                              id: Value(widget.scheduleId),
+                              content: Value(value),
+                            ),
+                          );
+                        },
+                        onTapOutside: (_) {
+                          setState(() => _isEditing = false);
+                          widget.onEdit(_controller.text);
+                        },
+                      )
+                      : GestureDetector(
+                        onTap: () => setState(() => _isEditing = true),
+                        child: Text(_controller.text, style: textStyle),
+                      ),
             ),
 
             GestureDetector(
@@ -154,26 +156,40 @@ class _RoutineCardState extends State<RoutineCard> {
                     ),
                   );
                   final routine = await db.getRoutineById(widget.scheduleId);
-                  if (routine == null || routine.weekDays==null|| routine.endDate == null||routine.timeMinutes==null) {
+                  if (routine == null ||
+                      routine.weekDays == null ||
+                      routine.endDate == null ||
+                      routine.timeMinutes == null) {
                     return;
                   }
-                  final weekDays = routine.weekDays!.split(',').map(int.parse).toList();
+                  final weekDays =
+                      routine.weekDays!.split(',').map(int.parse).toList();
 
                   DateTime today = DateTime.now();
-                  DateTime startDate = DateTime(today.year, today.month, today.day);
+                  DateTime startDate = DateTime(
+                    today.year,
+                    today.month,
+                    today.day,
+                  );
                   for (var i = 0; i < 365; i++) {
                     DateTime currentDay = startDate.add(Duration(days: i));
                     if (currentDay.isAfter(routine.endDate!)) break;
 
                     if (weekDays.contains(currentDay.weekday)) {
-                      final routineTime = DateTime(currentDay.year, currentDay.month, currentDay.day)
-                          .add(Duration(minutes: routine.timeMinutes!));
+                      final routineTime = DateTime(
+                        currentDay.year,
+                        currentDay.month,
+                        currentDay.day,
+                      ).add(Duration(minutes: routine.timeMinutes!));
 
-                      final notificationTime = routineTime.subtract(Duration(minutes: minutes));
+                      final notificationTime = routineTime.subtract(
+                        Duration(minutes: minutes),
+                      );
 
                       if (notificationTime.isBefore(DateTime.now())) continue;
 
-                      int uniqueNotificationId = widget.scheduleId * 100000000 +
+                      int uniqueNotificationId =
+                          widget.scheduleId * 100000000 +
                           notificationTime.year * 10000 +
                           notificationTime.month * 100 +
                           notificationTime.day;
@@ -193,39 +209,40 @@ class _RoutineCardState extends State<RoutineCard> {
                   );
                 }
               },
-              child: SvgPicture.asset('android/assets/images/routine_alarm.svg'),
+              child: SvgPicture.asset(
+                'android/assets/images/routine_alarm.svg',
+              ),
             ),
             const SizedBox(width: 8.0),
 
             widget.showCheckbox
                 ? Checkbox(
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: const VisualDensity(
-                horizontal: VisualDensity.minimumDensity,
-                vertical: VisualDensity.minimumDensity,
-              ),
-              value: _isChecked,
-              onChanged: (bool? value) async {
-                setState(() => _isChecked = value ?? false);
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: const VisualDensity(
+                    horizontal: VisualDensity.minimumDensity,
+                    vertical: VisualDensity.minimumDensity,
+                  ),
+                  value: _isChecked,
+                  onChanged: (bool? value) async {
+                    setState(() => _isChecked = value ?? false);
 
-                try {
-                  final db = LocalDatabase();
-                  await db.toggleRoutineStatus(widget.scheduleId);
+                    try {
+                      final db = LocalDatabase();
+                      await db.toggleRoutineStatus(widget.scheduleId);
 
-                  if (widget.onStatusChanged != null) {
-                    await widget.onStatusChanged!();
-                  }
-                } catch (e) {
-                  print('루틴 상태 변경 실패: $e');
-                  setState(() => _isChecked = !(_isChecked));
-                }
-              },
-              activeColor: Colors.black,
-              checkColor: Colors.white,
-              fillColor: MaterialStateProperty.all(Colors.black),
-            )
+                      if (widget.onStatusChanged != null) {
+                        await widget.onStatusChanged!();
+                      }
+                    } catch (e) {
+                      print('루틴 상태 변경 실패: $e');
+                      setState(() => _isChecked = !(_isChecked));
+                    }
+                  },
+                  activeColor: Colors.black,
+                  checkColor: Colors.white,
+                  fillColor: MaterialStateProperty.all(Colors.black),
+                )
                 : SizedBox.shrink(),
-
           ],
         ),
       ),
@@ -233,7 +250,7 @@ class _RoutineCardState extends State<RoutineCard> {
   }
 
   void _openColorPicker(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<ColorType>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -243,10 +260,28 @@ class _RoutineCardState extends State<RoutineCard> {
           topLeft: Radius.circular(59),
         ),
       ),
-      builder: (context) => ColorPaletteBottomSheet(
-        selectedColorType: _selectedColorType,
-        onColorSelected: (colorType) => setState(() => _selectedColorType = colorType),
-      ),
-    );
+      builder:
+          (context) => ColorPaletteBottomSheet(
+            selectedColorType: _selectedColorType,
+            onColorSelected:
+                (colorType) => setState(() => _selectedColorType = colorType),
+          ),
+    ).then((selectedColor) async {
+      if (selectedColor != null) {
+        try {
+          final db = LocalDatabaseSingleton.instance;
+          await db.updateCategoryAndChildrenColor(
+            categoryId: widget.scheduleId,
+            newColor: selectedColor,
+          );
+          widget.onDataChanged?.call();
+        } catch (e) {
+          print("카테고리 색상 변경 실패: $e");
+          setState(() => _selectedColorType = widget.colorType);
+        }
+      } else {
+        setState(() => _selectedColorType = widget.colorType);
+      }
+    });
   }
 }
