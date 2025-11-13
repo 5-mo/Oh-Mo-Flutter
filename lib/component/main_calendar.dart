@@ -23,6 +23,7 @@ class MainCalendar extends StatefulWidget {
   final VoidCallback? onAlarmIconPressed;
   final double? alarmIconSize;
   final bool hasUnread;
+  final ColorType markerColor;
 
   MainCalendar({
     required this.onDaySelected,
@@ -40,6 +41,7 @@ class MainCalendar extends StatefulWidget {
     this.onAlarmIconPressed,
     this.alarmIconSize,
     required this.hasUnread,
+    this.markerColor = ColorType.pinkLight,
   });
 
   @override
@@ -221,7 +223,7 @@ class _MainCalendarState extends State<MainCalendar> {
                             width: 40.0,
                             decoration: BoxDecoration(
                               color: ColorManager.getColor(
-                                ColorType.pinkLight,
+                                widget.markerColor,
                               ).withOpacity(0.8),
                               borderRadius: BorderRadius.circular(4),
                             ),

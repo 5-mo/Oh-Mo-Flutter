@@ -11,9 +11,11 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:ohmo/screen/group/group_main_screen.dart';
 import '../component/color_palette_bottom_sheet.dart';
+import '../component/group_settings_bottom_sheet.dart';
 import '../customize_category.dart';
 import 'package:uuid/uuid.dart';
-import 'package:ohmo/db/drift_database.dart' show LocalDatabase;
+import 'package:ohmo/db/drift_database.dart'
+    show LocalDatabase, LocalDatabaseSingleton, Group;
 import 'package:ohmo/models/category_item.dart';
 
 import 'group/group_sign_screen.dart';
@@ -26,6 +28,7 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
+  static const currentUserId = 1; //db 연결
   List<CategoryItem> routines = [];
   List<CategoryItem> todos = [];
   List<DayLogQuestionItem> daylogQuestions = [];
@@ -51,17 +54,20 @@ class _CategoryScreenState extends State<CategoryScreen> {
   ColorType _selectedColorType = ColorType.pinkLight;
 
   late LocalCategoryRepository _repository;
+  late LocalDatabase _db;
+  List<Group> _groups = [];
+
   final uuid = Uuid();
 
   @override
   void initState() {
     super.initState();
-    final database = LocalDatabase();
-    _repository = LocalCategoryRepository(database);
-    _loadLocalCategories();
+    _db = LocalDatabaseSingleton.instance;
+    _repository = LocalCategoryRepository(_db);
+    _loadAllData();
   }
 
-  void _loadLocalCategories() async {
+  void _loadAllData() async {
     final fetchedRoutines = await _repository.fetchCategories(
       scheduleType: 'ROUTINE',
     );
@@ -70,20 +76,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
     final fetchedDaylogs = await _repository.fetchDayLogQuestions();
 
+    final fetchedGroups = await _db.getGroupsForUser(currentUserId);
+
     setState(() {
       routines = fetchedRoutines;
       todos = fetchedTodos;
       daylogQuestions = fetchedDaylogs;
+      _groups = fetchedGroups;
       if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<String> dummyGroupsIds = [
-      '1', '2', '3', '4', '5', '6', '7', '8'
-    ];
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -98,6 +103,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       ),
       body: SingleChildScrollView(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 30, left: 35),
@@ -127,10 +133,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
               child: Wrap(
                 spacing: 23.0,
                 runSpacing: 23.0,
-                children:
-                    dummyGroupsIds.map((groupId) {
-                      return _buildGroupSection(groupId: groupId);
-                    }).toList(),
+                children: [
+                  ..._groups.map((group) {
+                    return _buildGroupSection(group: group);
+                  }).toList(),
+                  if (_groups.isEmpty) _buildCreateGroupCard(),
+                ],
               ),
             ),
             SizedBox(height: 60.0),
@@ -475,6 +483,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       ...todos.map((todo) {
                         return TodoCard(
                           key: ValueKey(todo.id),
+                          onDataChanged: () => _loadAllData(),
                           content: todo.categoryName,
                           scheduleId: todo.id,
                           colorType: ColorTypeExtension.fromString(
@@ -883,14 +892,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Spacer(),
           IconButton(
             icon: Icon(Icons.add_circle, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => GroupSignScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => GroupSignScreen()),
               );
+              _loadAllData();
             },
           ),
         ],
@@ -898,26 +905,20 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Widget _buildGroupSection({String? groupId}) {
-    final bool hasGroup = groupId != null && groupId.isNotEmpty;
-
+  Widget _buildGroupSection({required Group group}) {
+    final Color color = ColorManager.getColor(
+      ColorType.values[group.colorType],
+    );
     return InkWell(
-      onTap: () {
-        if (hasGroup) {
-          try {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) => GroupMainScreen(groupId: int.parse(groupId!)),
-              ),
-            );
-          } catch (e) {
-            print("Error parsing groupId:$groupId,Error:$e");
-            Fluttertoast.showToast(msg: "잘못된 그룹 ID입니다.");
-          }
-        } else {
-          print("그룹 만들기 클릭!");
+      onTap: () async {
+        final bool? needsRefresh = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GroupMainScreen(groupId: group.id),
+          ),
+        );
+        if (needsRefresh == true) {
+          _loadAllData();
         }
       },
       child: Container(
@@ -944,10 +945,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   margin: const EdgeInsets.only(top: 5),
                   padding: const EdgeInsets.all(15.0),
                   decoration: BoxDecoration(
-                    color:
-                        hasGroup
-                            ? const Color(0xFFFBC8D9)
-                            : const Color(0xFFF2F2F2),
+                    color: color,
                     borderRadius: BorderRadius.circular(12.0),
                     boxShadow: [
                       BoxShadow(
@@ -958,79 +956,168 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     ],
                   ),
                   child: Text(
-                    hasGroup ? '사이드\n프로젝트' : '그룹\n만들기',
+                    group.name.replaceAll(' ', '\n'),
                     style: TextStyle(
                       fontFamily: 'PretendardMedium',
                       fontSize: 12,
-                      color:
-                          hasGroup
-                              ? const Color(0xFF000000)
-                              : const Color(0xFF7B7B7B),
+                      color: const Color(0xFF000000),
                     ),
                   ),
                 ),
                 Positioned(
-                  top: 25,
-                  right: 15,
-                  child: SvgPicture.asset(
-                    'android/assets/images/routine_alarm.svg',
+                  top: 17,
+                  right: 7,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final bool? needsRefresh =
+                          await showModalBottomSheet<bool>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(59),
+                                topLeft: Radius.circular(59),
+                              ),
+                            ),
+                            builder: (BuildContext bContext) {
+                              return GroupSettingsBottomSheet(
+                                groupId: group.id,
+                              );
+                            },
+                          );
+                      if (needsRefresh == true) {
+                        _loadAllData();
+                      }
+                    },
+                    child: Container(
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.all(8.0),
+                      child: SvgPicture.asset(
+                        'android/assets/images/routine_alarm.svg',
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            if (hasGroup)
-              Padding(
-                padding: const EdgeInsets.only(left: 10.0, top: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    _buildMemberProfile(
-                      'android/assets/images/clear_ohmo.png',
-                      0.8,
-                    ),
-                    const SizedBox(width: 4),
-                    _buildMemberProfile(
-                      'android/assets/images/clear_ohmo.png',
-                      0.5,
-                    ),
-                    const SizedBox(width: 4),
-                    _buildMemberProfile(
-                      'android/assets/images/clear_ohmo.png',
-                      1.0,
-                    ),
-                    const SizedBox(width: 4),
-                    _buildMemberProfile(
-                      'android/assets/images/clear_ohmo.png',
-                      0.2,
-                    ),
-                    const SizedBox(width: 4),
-                    _buildMemberProfile(
-                      'android/assets/images/clear_ohmo.png',
-                      0.2,
-                    ),
-                    const SizedBox(width: 5),
-                    _buildMemberProfile(
-                      'android/assets/images/clear_ohmo.png',
-                      0.2,
-                    ),
-                  ],
-                ),
-              )
-            else
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-                  child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
-                ),
+            Padding(
+              padding: const EdgeInsets.only(left: 10.0, top: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.8,
+                    color,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.5,
+                    color,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    1.0,
+                    color,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.2,
+                    color,
+                  ),
+                  const SizedBox(width: 4),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.2,
+                    color,
+                  ),
+                  const SizedBox(width: 5),
+                  _buildMemberProfile(
+                    'android/assets/images/clear_ohmo.png',
+                    0.2,
+                    color,
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMemberProfile(String imagePath, double progress) {
+  Widget _buildCreateGroupCard() {
+    return InkWell(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => GroupSignScreen()),
+        );
+        _loadAllData();
+      },
+      child: Container(
+        width: 150,
+        height: 111,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.4),
+              spreadRadius: 1,
+              blurRadius: 1,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 140,
+              height: 70,
+              margin: const EdgeInsets.only(top: 5),
+              padding: const EdgeInsets.all(15.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F2F2),
+                borderRadius: BorderRadius.circular(12.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.4),
+                    spreadRadius: 1,
+                    blurRadius: 1,
+                  ),
+                ],
+              ),
+              child: Text(
+                '그룹\n만들기',
+                style: TextStyle(
+                  fontFamily: 'PretendardMedium',
+                  fontSize: 12,
+                  color: const Color(0xFF7B7B7B),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                child: Icon(Icons.add, size: 17, color: Color(0xFF7B7B7B)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberProfile(
+    String imagePath,
+    double progress,
+    Color groupColor,
+  ) {
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -1053,9 +1140,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               value: progress,
               strokeWidth: 3,
               backgroundColor: Color(0xFFA5A5A5),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                const Color(0xFFFBC8D9),
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(groupColor),
             ),
           ),
         ],

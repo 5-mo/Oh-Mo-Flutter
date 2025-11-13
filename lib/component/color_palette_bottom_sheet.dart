@@ -91,7 +91,7 @@ class _ColorPaletteBottomSheetState extends State<ColorPaletteBottomSheet> {
       child: GestureDetector(
         onTap: () {
           widget.onColorSelected(tempSelectedColor);
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(tempSelectedColor);
         },
         child: Container(
           width: 334,

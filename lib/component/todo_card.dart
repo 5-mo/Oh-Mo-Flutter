@@ -17,6 +17,7 @@ class TodoCard extends StatefulWidget {
   final bool isDone;
   final Future<void> Function()? onStatusChanged;
   final Function(int id, DateTime newDate)? onDateChanged;
+  final VoidCallback? onDataChanged;
 
   const TodoCard({
     required this.content,
@@ -28,6 +29,7 @@ class TodoCard extends StatefulWidget {
     required this.isDone,
     this.onStatusChanged,
     this.onDateChanged,
+    this.onDataChanged,
     Key? key,
   }) : super(key: key);
 
@@ -115,7 +117,6 @@ class _TodoCardState extends State<TodoCard> {
                             TodosCompanion(
                               id: Value(widget.scheduleId),
                               content: Value(value),
-                              colorType: Value(_selectedColorType.index),
                             ),
                           );
                         },
@@ -222,7 +223,7 @@ class _TodoCardState extends State<TodoCard> {
   }
 
   void _openColorPicker(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<ColorType>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -234,19 +235,28 @@ class _TodoCardState extends State<TodoCard> {
       ),
       builder:
           (context) => ColorPaletteBottomSheet(
-            selectedColorType: _selectedColorType,
-            onColorSelected: (colorType) async {
-              setState(() => _selectedColorType = colorType);
+        selectedColorType: _selectedColorType,
+        onColorSelected:
+            (colorType) => setState(() => _selectedColorType = colorType),
+      ),
+    ).then((selectedColor) async {
+      if (selectedColor != null) {
+        try {
+          final db = LocalDatabaseSingleton.instance;
+          await db.updateCategoryAndChildrenColor(
+            categoryId: widget.scheduleId,
+            newColor: selectedColor,
+          );
 
-              final db = LocalDatabase();
-              await db.updateTodo(
-                TodosCompanion(
-                  id: Value(widget.scheduleId),
-                  colorType: Value(colorType.index),
-                ),
-              );
-            },
-          ),
-    );
+          widget.onDataChanged?.call();
+
+        } catch (e) {
+          print("카테고리 색상 변경 실패: $e");
+          setState(() => _selectedColorType = widget.colorType);
+        }
+      } else {
+        setState(() => _selectedColorType = widget.colorType);
+      }
+    });
   }
 }

@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:ohmo/component/group_routine_bottom_sheet.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
+import '../../component/color_palette_bottom_sheet.dart';
 import '../../component/delete_bottom_sheet.dart';
 import '../../component/group_routine_card.dart';
+import '../../component/group_settings_bottom_sheet.dart';
 import '../../component/group_todo_bottom_sheet.dart';
 import '../../component/group_todo_card.dart';
 import '../../component/main_calendar.dart';
@@ -52,12 +54,14 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
-
+  ColorType _currentColor = ColorType.pinkLight;
   int _memberCount = 0;
   Map<int, int> _routineCompletionCounts = {};
   Map<int, int> _todoCompletionCounts = {};
+  String _groupName = '...';
 
   Map<DateTime, List<CalendarEvent>> _eventsCache = {};
+  bool _needsRefresh = false;
 
   @override
   void initState() {
@@ -149,6 +153,13 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Future<void> _fetchGroupData(DateTime date) async {
+    final group = await _db.getGroupById(widget.groupId);
+    if (group == null) {
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+      return;
+    }
     final routineIds = await _db.getCompletedRoutineIds(date);
     final allRoutines = await _db.getRoutinesByGroupId(widget.groupId);
     final routines =
@@ -174,6 +185,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     }
     if (mounted) {
       setState(() {
+        if (group != null) {
+          _currentColor = ColorType.values[group.colorType];
+          _groupName = group.name;
+        }
         _completedRoutineIds = routineIds.toSet();
         _completedTodoIds = todoIds.toSet();
         _memberCount = memberCount ?? 0;
@@ -221,34 +236,41 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        surfaceTintColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.chevron_left),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, _needsRefresh);
+        return false;
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          surfaceTintColor: Colors.white,
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left),
+            onPressed: () {
+              Navigator.pop(context, _needsRefresh);
+            },
+          ),
+          backgroundColor: ColorManager.getColor(_currentColor),
         ),
-        backgroundColor: ColorManager.getColor(ColorType.pinkLight),
-      ),
-      backgroundColor: ColorManager.getColor(ColorType.pinkLight),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            children: [
-              Row(children: [_buildGroupName(), Spacer(), _buildSetting()]),
-              SizedBox(height: 10.0),
-              NoticeSection(
-                groupId: widget.groupId,
-                onNoticeChanged: () => _refreshAllData(selectedDate),
-              ),
-              SizedBox(height: 10.0),
-              _buildGroupCalendar(),
-              SizedBox(height: 60.0),
-            ],
+        backgroundColor: ColorManager.getColor(_currentColor),
+
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              children: [
+                Row(children: [_buildGroupName(), Spacer(), _buildSetting()]),
+                SizedBox(height: 10.0),
+                NoticeSection(
+                  groupId: widget.groupId,
+                  onNoticeChanged: () => _refreshAllData(selectedDate),
+                ),
+                SizedBox(height: 10.0),
+                _buildGroupCalendar(),
+                SizedBox(height: 60.0),
+              ],
+            ),
           ),
         ),
       ),
@@ -259,7 +281,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22.0),
       child: Text(
-        '사이드 프로젝트',
+        _groupName,
         style: TextStyle(fontFamily: 'PretendardRegular', fontSize: 24.0),
       ),
     );
@@ -267,9 +289,31 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   Widget _buildSetting() {
     return IconButton(
-      onPressed: () {},
+      onPressed: () async {
+        final result = await showModalBottomSheet<dynamic>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(59),
+              topRight: Radius.circular(59),
+            ),
+          ),
+          builder: (_) => GroupSettingsBottomSheet(groupId: widget.groupId),
+        );
+        if (result == 'leave') {
+          _needsRefresh = true;
+          if (mounted) {
+            Navigator.pop(context, _needsRefresh);
+          }
+        } else if (result == true) {
+          _needsRefresh = true;
+          await _fetchGroupData(selectedDate);
+        }
+      },
       padding: const EdgeInsets.symmetric(horizontal: 22.0),
-      constraints: BoxConstraints(),
+      constraints: const BoxConstraints(),
       icon: SvgPicture.asset('android/assets/images/setting.svg'),
     );
   }
@@ -323,7 +367,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             headerDateFormat: '  MMM',
             onAlarmIconPressed: null,
             hasUnread: false,
+            markerColor: _currentColor,
           ),
+
           Padding(
             padding: const EdgeInsets.only(left: 10.0),
             child: RoutineBanner(

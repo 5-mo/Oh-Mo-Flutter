@@ -5,7 +5,21 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../const/colors.dart';
+
 part 'drift_database.g.dart';
+
+class MemberInfo {
+  final int userId;
+  final String nickname;
+  final String role;
+
+  MemberInfo({
+    required this.userId,
+    required this.nickname,
+    required this.role,
+  });
+}
 
 // ------------------ DB 연결 ------------------
 
@@ -70,6 +84,28 @@ class LocalDatabase extends _$LocalDatabase {
     return (update(categories)..where(
       (c) => c.id.equals(id),
     )).write(CategoriesCompanion(isDeleted: Value(true)));
+  }
+
+  Future<void> updateCategoryAndChildrenColor({
+    required int categoryId,
+    required ColorType newColor,
+  }) {
+    return transaction(() async {
+      final newColorName = newColor.name;
+      final newColorIndex = newColor.index;
+
+      await (update(categories)..where(
+        (c) => c.id.equals(categoryId),
+      )).write(CategoriesCompanion(color: Value(newColorName)));
+
+      await (update(routines)..where(
+        (r) => r.categoryId.equals(categoryId),
+      )).write(RoutinesCompanion(colorType: Value(newColorIndex)));
+
+      await (update(todos)..where(
+        (t) => t.categoryId.equals(categoryId),
+      )).write(TodosCompanion(colorType: Value(newColorIndex)));
+    });
   }
 
   // ------------------ DayLog ------------------
@@ -532,6 +568,117 @@ class LocalDatabase extends _$LocalDatabase {
     return (select(groups)..where((g) => g.id.equals(id))).getSingleOrNull();
   }
 
+  Future<int> updateGroupColor(int groupId, ColorType color) {
+    return (update(groups)..where(
+      (g) => g.id.equals(groupId),
+    )).write(GroupsCompanion(colorType: Value(color.index)));
+  }
+
+  Future<List<Group>> getAllGroups() {
+    return select(groups).get();
+  }
+
+  Future<List<Group>> getGroupsForUser(int userId) {
+    final query = select(groupMembers)
+      ..where((tbl) => tbl.userId.equals(userId));
+
+    final joinQuery = query.join([
+      innerJoin(groups, groups.id.equalsExp(groupMembers.groupId)),
+    ]);
+    return joinQuery.map((row) => row.readTable(groups)).get();
+  }
+
+  Future<String?> getMemberRole(int groupId, int userId) async {
+    final member =
+        await (select(groupMembers)..where(
+          (tbl) => tbl.groupId.equals(groupId) & tbl.userId.equals(userId),
+        )).getSingleOrNull();
+    return member?.role;
+  }
+
+  Future<int> createNewGroupAndAssignOwner(
+    GroupsCompanion groupData,
+    int ownerId,
+  ) async {
+    return await transaction(() async {
+      final newGroup = await into(groups).insertReturning(groupData);
+      final newGroupId = newGroup.id;
+
+      await into(groupMembers).insert(
+        GroupMembersCompanion.insert(
+          groupId: newGroupId,
+          userId: ownerId,
+          role: Value('OWNER'),
+        ),
+      );
+      return newGroupId;
+    });
+  }
+
+  Future<List<MemberInfo>> getMembersForGroup(int groupId) async {
+    final query = select(groupMembers)
+      ..where((gm) => gm.groupId.equals(groupId));
+
+    final joinQuery = query.join([
+      innerJoin(users, users.id.equalsExp(groupMembers.userId)),
+    ]);
+    final result = await joinQuery.get();
+
+    return result.map((row) {
+      final user = row.readTable(users);
+      final member = row.readTable(groupMembers);
+      return MemberInfo(
+        userId: user.id,
+        nickname: user.nickname,
+        role: member.role,
+      );
+    }).toList();
+  }
+
+  Future<int> removeMemberFromGroup(int groupId, int userId) {
+    return (delete(groupMembers)..where(
+      (gm) => gm.groupId.equals(groupId) & gm.userId.equals(userId),
+    )).go();
+  }
+
+  Future<void> leaveGroup(int groupId, int userId) {
+    return (delete(groupMembers)..where(
+      (tbl) => tbl.groupId.equals(groupId) & tbl.userId.equals(userId),
+    )).go();
+  }
+
+  Future<void> deleteGroup(int groupId) {
+    return transaction(() async {
+      await (delete(groupMembers)
+        ..where((tbl) => tbl.groupId.equals(groupId))).go();
+      await (delete(routines)
+        ..where((tbl) => tbl.groupId.equals(groupId))).go();
+
+      await (delete(todos)..where((tbl) => tbl.groupId.equals(groupId))).go();
+
+      await (delete(notices)..where((tbl) => tbl.groupId.equals(groupId))).go();
+      await (delete(groups)..where((tbl) => tbl.id.equals(groupId))).go();
+    });
+  }
+
+  Future<void> delegateOwnership(int groupId, int newOwnerId, int oldOwnerId) {
+    return transaction(() async {
+      await (update(groupMembers)..where(
+        (tbl) => tbl.groupId.equals(groupId) & tbl.userId.equals(oldOwnerId),
+      )).write(const GroupMembersCompanion(role: Value('MEMBER')));
+
+      await (update(groupMembers)..where(
+        (tbl) => tbl.groupId.equals(groupId) & tbl.userId.equals(newOwnerId),
+      )).write(const GroupMembersCompanion(role: Value('OWNER')));
+    });
+  }
+
+  Future<void> updateGroupPassword(int groupId, String newPassword) {
+    return (update(groups)..where(
+      (g) => g.id.equals(groupId),
+    )).write(GroupsCompanion(password: Value(newPassword)));
+  }
+
   // ------------------ Notification ------------------
 
   Future<int> insertNotification(NotificationsCompanion entry) {
@@ -545,15 +692,13 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   Future<int> markAllNotificationsAsRead() {
-    return (update(notifications)
-      ..where((n) => n.isRead.equals(false)))
-        .write(const NotificationsCompanion(isRead: Value(true)));
+    return (update(notifications)..where(
+      (n) => n.isRead.equals(false),
+    )).write(const NotificationsCompanion(isRead: Value(true)));
   }
 
   Stream<int> watchUnreadNotificationCount() {
-    final unreadCount = countAll(
-      filter: notifications.isRead.equals(false),
-    );
+    final unreadCount = countAll(filter: notifications.isRead.equals(false));
     final query = selectOnly(notifications)..addColumns([unreadCount]);
 
     return query.map((row) => row.read(unreadCount)!).watchSingle();

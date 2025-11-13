@@ -6,8 +6,9 @@ import 'dart:async';
 
 class InvitingIdBottomSheet extends StatefulWidget {
   final int groupId;
+  final String title;
 
-  const InvitingIdBottomSheet({Key? key, required this.groupId})
+  const InvitingIdBottomSheet({Key? key, required this.groupId,this.title="아이디로 초대하기"})
     : super(key: key);
 
   @override
@@ -72,7 +73,7 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "아이디로 초대하기",
+                widget.title,
                 style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
               ),
               SizedBox(height: 3),
