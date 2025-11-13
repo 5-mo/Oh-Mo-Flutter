@@ -18,7 +18,7 @@ class RoutineBottomSheet extends StatefulWidget {
     this.groupId,
     this.onRoutineAdded,
     this.onDataChanged,
-}) : super(key: key);
+  }) : super(key: key);
 
   @override
   State<RoutineBottomSheet> createState() => _RoutineBottomSheetState();
@@ -431,36 +431,40 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        if (selectedEndDate == null ||
-            selectedTime == null ||
-            contentController.text.isEmpty ||
-            selectedDays.isEmpty ||
-            selectedCategoryId == null) {
+        if (contentController.text.isEmpty || selectedDays.isEmpty) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text("모든 필드를 입력해주세요")));
+          ).showSnackBar(SnackBar(content: Text("내용과 반복 요일은 필수입니다.")));
           return;
         }
         try {
-          final db = LocalDatabase();
+          final db = LocalDatabaseSingleton.instance;
 
-          final selectedCategory = routines.firstWhere(
-            (c) => c.id == selectedCategoryId,
-          );
+          int colorIndex;
+          int? categoryId = selectedCategoryId;
 
-          int colorIndex = 0;
-          if (selectedCategory.colorType != null) {
+          if (selectedCategoryId != null) {
+            final selectedCategory = routines.firstWhere(
+              (c) => c.id == selectedCategoryId,
+            );
             try {
               colorIndex =
                   ColorTypeExtension.fromString(
                     selectedCategory.colorType!,
                   ).index;
-            } catch (_) {}
+            } catch (_) {
+              colorIndex = 0;
+            }
+          } else {
+            colorIndex = ColorType.uncategorizedBlack.index;
           }
 
-          final minutes = selectedTime!.hour * 60 + selectedTime!.minute;
-          final weekString = getRoutineWeek().join(',');
+          final int? minutes =
+              (selectedTime == null)
+                  ? null
+                  : selectedTime!.hour * 60 + selectedTime!.minute;
 
+          final weekString = getRoutineWeek().join(',');
           final startDate = DateTime.now();
 
           final id = await db.insertRoutine(
@@ -470,18 +474,23 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
               colorType: drift.Value(colorIndex),
               isDone: drift.Value(false),
               startDate: drift.Value(startDate),
-              endDate: drift.Value(selectedEndDate!),
+              endDate: drift.Value(selectedEndDate),
               timeMinutes: drift.Value(minutes),
               weekDays: drift.Value(weekString),
-              categoryId: drift.Value(selectedCategoryId!),
+              categoryId: drift.Value(categoryId),
             ),
           );
 
-          if (isChecked) {
+          if (isChecked && selectedTime != null && selectedEndDate != null) {
             final routine = await db.getRoutineById(id);
-            if (routine == null || routine.weekDays == null || routine.endDate == null || routine.timeMinutes == null) return;
+            if (routine == null ||
+                routine.weekDays == null ||
+                routine.endDate == null ||
+                routine.timeMinutes == null)
+              return;
 
-            final weekDays = routine.weekDays!.split(',').map(int.parse).toList();
+            final weekDays =
+                routine.weekDays!.split(',').map(int.parse).toList();
 
             DateTime today = DateTime.now();
             DateTime startDate = DateTime(today.year, today.month, today.day);
@@ -499,7 +508,8 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
                 if (notificationTime.isBefore(DateTime.now())) continue;
 
-                int uniqueNotificationId = routine.id * 100000000 +
+                int uniqueNotificationId =
+                    routine.id * 100000000 +
                     notificationTime.year * 10000 +
                     notificationTime.month * 100 +
                     notificationTime.day;

@@ -27,6 +27,7 @@ class TodoBottomSheet extends StatefulWidget {
 
 class _TodoBottomSheetState extends State<TodoBottomSheet> {
   bool isChecked = false;
+
   DateTime get selectedDate => widget.selectedDate;
 
   List<CategoryItem> todos = [];
@@ -58,7 +59,10 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 children: [
                   Text(
                     "날짜 및 시간",
-                    style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'PretendardBold',
+                    ),
                   ),
                   _buildAlarmToggleSection(),
                 ],
@@ -69,7 +73,10 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 children: [
                   Text(
                     selectedDateStr,
-                    style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'PretendardRegular',
+                    ),
                   ),
                   _buildTimePickerButton(),
                 ],
@@ -123,9 +130,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                   dayPeriodTextColor: Colors.black,
                 ),
                 textButtonTheme: TextButtonThemeData(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.black),
                 ),
               ),
               child: child!,
@@ -186,63 +191,66 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: todos.map((category) {
-          final isSelected = category.id == selectedCategoryId;
-          Color circleColor;
-          try {
-            circleColor = ColorManager.getColor(
-              ColorTypeExtension.fromString(
-                category.colorType ?? 'pinkLight',
-              ),
-            );
-          } catch (_) {
-            circleColor = Colors.grey;
-          }
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: GestureDetector(
-              onTap: () => setState(() => selectedCategoryId = category.id),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 4,
+        children:
+            todos.map((category) {
+              final isSelected = category.id == selectedCategoryId;
+              Color circleColor;
+              try {
+                circleColor = ColorManager.getColor(
+                  ColorTypeExtension.fromString(
+                    category.colorType ?? 'pinkLight',
+                  ),
+                );
+              } catch (_) {
+                circleColor = Colors.grey;
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: GestureDetector(
+                  onTap: () => setState(() => selectedCategoryId = category.id),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                        ),
+                      ],
+                      border: Border.all(
+                        color: isSelected ? Colors.grey : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
-                  ],
-                  border: Border.all(
-                    color: isSelected ? Colors.grey : Colors.transparent,
-                    width: 2,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: circleColor,
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          category.categoryName,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight:
+                                isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: circleColor,
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      category.categoryName,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+              );
+            }).toList(),
       ),
     );
   }
@@ -307,46 +315,58 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        if (selectedTime == null ||
-            contentController.text.isEmpty ||
-            selectedCategoryId == null) {
+        if (contentController.text.isEmpty) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text("모든 필드를 입력해주세요")));
+          ).showSnackBar(SnackBar(content: Text("내용을 입력해주세요")));
           return;
         }
 
         try {
           final db = LocalDatabaseSingleton.instance;
-          final minutes = selectedTime!.hour * 60 + selectedTime!.minute;
-
-          final selectedCategory = todos.firstWhere(
-                (c) => c.id == selectedCategoryId,
-          );
+          final int? minutes =
+              (selectedTime == null)
+                  ? null
+                  : selectedTime!.hour * 60 + selectedTime!.minute;
 
           int colorIndex = 0;
-          if (selectedCategory.colorType != null) {
+
+          int? categoryId = selectedCategoryId;
+
+          if (selectedCategoryId != null) {
+            final selectedCategory = todos.firstWhere(
+              (c) => c.id == selectedCategoryId,
+            );
             try {
               colorIndex =
                   ColorTypeExtension.fromString(
                     selectedCategory.colorType!,
                   ).index;
-            } catch (_) {}
+            } catch (_) {
+              colorIndex = 0;
+            }
+          } else {
+            colorIndex = ColorType.uncategorizedBlack.index;
           }
 
-          final fullTodoDate = DateTime(
-            selectedDate.year,
-            selectedDate.month,
-            selectedDate.day,
-            selectedTime!.hour,
-            selectedTime!.minute,
-          );
+          final DateTime fullTodoDate;
+          if (selectedTime != null) {
+            fullTodoDate = DateTime(
+              selectedDate.year,
+              selectedDate.month,
+              selectedDate.day,
+              selectedTime!.hour,
+              selectedTime!.minute,
+            );
+          } else {
+            fullTodoDate = selectedDate;
+          }
 
           final id = await db.insertTodo(
             TodosCompanion.insert(
               content: contentController.text,
               colorType: drift.Value(colorIndex),
-              categoryId: drift.Value(selectedCategoryId!),
+              categoryId: drift.Value(categoryId),
               scheduleType: drift.Value('TO_DO'),
               timeMinutes: drift.Value(minutes),
               isDone: drift.Value(false),
@@ -354,7 +374,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             ),
           );
 
-          if (isChecked) {
+          if (isChecked && selectedTime != null) {
             final notificationTime = fullTodoDate;
 
             if (notificationTime.isAfter(DateTime.now())) {

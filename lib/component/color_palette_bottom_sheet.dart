@@ -27,7 +27,9 @@ class _ColorPaletteBottomSheetState extends State<ColorPaletteBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = ColorType.values;
+    final colors = ColorType.values
+        .where((c) => c != ColorType.uncategorizedBlack)
+        .toList();
 
     return Container(
       padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),

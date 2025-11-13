@@ -36,12 +36,22 @@ enum ColorType {
   goldenYellow,
   forestGreen,
   sandBrown,
+  uncategorizedBlack,
 }
 
 extension ColorTypeExtension on ColorType {
   static ColorType fromString(String colorString) {
+    final intValue = int.tryParse(colorString);
+    if (intValue != null) {
+      if (intValue >= 0 && intValue < ColorType.values.length) {
+        return ColorType.values[intValue];
+      } else {
+        return ColorType.pinkLight;
+      }
+    }
+
     return ColorType.values.firstWhere(
-      (e) => e.name == colorString,
+          (e) => e.name == colorString,
       orElse: () => ColorType.pinkLight,
     );
   }
@@ -79,6 +89,7 @@ class ColorManager {
     ColorType.goldenYellow: Color(0xFFE1A967),
     ColorType.forestGreen: Color(0xFF48604E),
     ColorType.sandBrown: Color(0xFFD7A88F),
+    ColorType.uncategorizedBlack: Color(0xFF000000),
   };
 
   static Color getColor(ColorType colorType) {
