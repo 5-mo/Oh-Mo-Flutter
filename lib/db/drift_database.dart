@@ -293,8 +293,12 @@ class LocalDatabase extends _$LocalDatabase {
   // ------------------Todo------------------
 
   Future<List<Todo>> getPersonalTodosByDate(DateTime date) {
-    return (select(todos)
-      ..where((tbl) => tbl.date.equals(date) & tbl.groupId.isNull())).get();
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    return (select(todos)..where(
+      (tbl) =>
+          tbl.date.isBetweenValues(startOfDay, endOfDay) & tbl.groupId.isNull(),
+    )).get();
   }
 
   Future<int> insertTodo(TodosCompanion entry) => into(todos).insert(entry);

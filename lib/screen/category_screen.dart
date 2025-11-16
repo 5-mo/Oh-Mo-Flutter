@@ -2,10 +2,10 @@ import 'package:expansion_tile_card/expansion_tile_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/component/delete_popup.dart';
-import 'package:ohmo/component/routine_card.dart';
+import 'package:ohmo/component/category_routine_card.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/local_category_repository.dart';
-import 'package:ohmo/component/todo_card.dart';
+import 'package:ohmo/component/category_todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -264,13 +264,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ...routines.map((routine) {
-                        return RoutineCard(
+                        return CategoryRoutineCard(
                           key: ValueKey(routine.id),
                           content: routine.categoryName,
                           colorType: ColorTypeExtension.fromString(
                             routine.colorType,
                           ),
                           showCheckbox: false,
+                          isColorPickerEnabled: true,
                           isDone: false,
                           scheduleId: routine.id,
                           deletePopupBuilder: (context) {
@@ -481,7 +482,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ...todos.map((todo) {
-                        return TodoCard(
+                        return CategoryTodoCard(
                           key: ValueKey(todo.id),
                           onDataChanged: () => _loadAllData(),
                           content: todo.categoryName,
@@ -490,6 +491,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             todo.colorType,
                           ),
                           showCheckbox: false,
+                          isColorPickerEnabled: true,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
                               onDelete: () async {

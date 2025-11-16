@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
@@ -13,12 +14,14 @@ class TodoBottomSheet extends StatefulWidget {
   final DateTime selectedDate;
   final Future<void> Function()? onTodoAdded;
   final Future<void> Function()? onDataChanged;
+  final int? todoIdToEdit;
 
   const TodoBottomSheet({
     Key? key,
     required this.selectedDate,
     this.onTodoAdded,
     this.onDataChanged,
+    this.todoIdToEdit,
   }) : super(key: key);
 
   @override
@@ -28,23 +31,80 @@ class TodoBottomSheet extends StatefulWidget {
 class _TodoBottomSheetState extends State<TodoBottomSheet> {
   bool isChecked = false;
 
-  DateTime get selectedDate => widget.selectedDate;
+  late DateTime _currentDate;
 
   List<CategoryItem> todos = [];
   int? selectedCategoryId;
   final TextEditingController contentController = TextEditingController();
   TimeOfDay? selectedTime;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCategories();
+    _currentDate = widget.selectedDate;
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    await _loadCategories();
+
+    if (widget.todoIdToEdit != null) {
+      await _loadDataForEdit(widget.todoIdToEdit!);
+    }
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadDataForEdit(int todoId) async {
+    final db = LocalDatabaseSingleton.instance;
+    final todo = await db.getTodoById(todoId);
+    if (todo == null) return;
+
+    setState(() {
+      contentController.text = todo.content;
+      _currentDate = todo.date;
+
+      if (todo.timeMinutes != null) {
+        if (todo.timeMinutes == 0 &&
+            (todo.date.hour != 0 || todo.date.minute != 0)) {
+          selectedTime = TimeOfDay.fromDateTime(todo.date);
+        } else if (todo.timeMinutes! > 0) {
+          selectedTime = null;
+        }
+        isChecked = true;
+        if (todo.date.hour != 0 || todo.date.minute != 0) {
+          selectedTime = TimeOfDay.fromDateTime(todo.date);
+        } else {
+          selectedTime = null;
+        }
+      } else {
+        isChecked = false;
+        if (todo.date.hour != 0 || todo.date.minute != 0) {
+          selectedTime = TimeOfDay.fromDateTime(todo.date);
+        } else {
+          selectedTime = null;
+        }
+      }
+      if (todos.any((cat) => cat.id == todo.categoryId)) {
+        selectedCategoryId = todo.categoryId;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    String selectedDateStr = DateFormat('M월 d일').format(selectedDate);
+    String selectedDateStr = DateFormat('M월  d일  ').format(_currentDate);
+
+    if (_isLoading) {
+      return Container(
+        height: 300,
+        child: Center(child: CupertinoActivityIndicator()),
+      );
+    }
 
     return SafeArea(
       child: Container(
@@ -167,22 +227,30 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           "카테고리",
           style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
         ),
-        SizedBox(height: 16),
+        SizedBox(height: 10),
         if (todos.isEmpty)
           Center(
-            child: Text(
-              "투두 카테고리를 설정해볼까요?",
-              style: TextStyle(
-                fontSize: 10,
-                fontFamily: 'PretendardSemiBold',
-                color: DARK_GREY_COLOR,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  "투두 카테고리를 설정해볼까요?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'PretendardMedium',
+                    color: Color(0xFFA5A5A5),
+                  ),
+                ),
+                SizedBox(height: 7),
+                _buildCategoryButton(),
+              ],
             ),
           )
         else
           _buildCategoryChoiceChips(),
-        SizedBox(height: 16),
-        Center(child: _buildCategoryButton()),
+        SizedBox(height: 10),
+        Center(child: SizedBox(height: 5)),
       ],
     );
   }
@@ -191,66 +259,118 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children:
-            todos.map((category) {
-              final isSelected = category.id == selectedCategoryId;
-              Color circleColor;
-              try {
-                circleColor = ColorManager.getColor(
-                  ColorTypeExtension.fromString(
-                    category.colorType ?? 'pinkLight',
-                  ),
-                );
-              } catch (_) {
-                circleColor = Colors.grey;
-              }
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: GestureDetector(
-                  onTap: () => setState(() => selectedCategoryId = category.id),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                      border: Border.all(
-                        color: isSelected ? Colors.grey : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: circleColor,
-                          ),
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          category.categoryName,
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight:
-                                isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+        children: [
+          ...todos.map((category) {
+            final isSelected = category.id == selectedCategoryId;
+            Color circleColor;
+            try {
+              circleColor = ColorManager.getColor(
+                ColorTypeExtension.fromString(
+                  category.colorType ?? 'pinkLight',
                 ),
               );
-            }).toList(),
+            } catch (_) {
+              circleColor = Colors.grey;
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      selectedCategoryId = null;
+                    } else {
+                      selectedCategoryId = category.id;
+                    }
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.black : Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                      ),
+                    ],
+                    border: Border.all(color: Colors.transparent, width: 0),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: circleColor,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        category.categoryName,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontSize: 16,
+                          fontFamily: 'PretendardRegular',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+          _buildAddCategoryButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddCategoryButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => CategoryScreen()),
+          ).then((_) => _loadInitialData());
+          if (widget.onDataChanged != null) {
+            widget.onDataChanged!();
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+            ],
+            border: Border.all(color: Colors.transparent, width: 0),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SvgPicture.asset(
+                'android/assets/images/dashed_circle.svg',
+                width: 12,
+                height: 12,
+              ),
+              SizedBox(width: 8),
+              Text(
+                "추가",
+                style: TextStyle(
+                  color: Color(0xFF6E6767),
+                  fontFamily: 'PretendardRegular',
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -305,7 +425,10 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: TextField(
             controller: contentController,
-            decoration: InputDecoration(border: InputBorder.none),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.only(bottom: 6),
+            ),
           ),
         ),
       ],
@@ -321,14 +444,21 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           ).showSnackBar(SnackBar(content: Text("내용을 입력해주세요")));
           return;
         }
+        if (isChecked && selectedTime == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("알람을 켜려면 '시간 선택'은 필수입니다.")));
+          return;
+        }
 
         try {
           final db = LocalDatabaseSingleton.instance;
-          final int? minutes =
-              (selectedTime == null)
-                  ? null
-                  : selectedTime!.hour * 60 + selectedTime!.minute;
-
+          final int? alarmMinutesValue;
+          if (isChecked) {
+            alarmMinutesValue = 0;
+          } else {
+            alarmMinutesValue = null;
+          }
           int colorIndex = 0;
 
           int? categoryId = selectedCategoryId;
@@ -352,38 +482,56 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           final DateTime fullTodoDate;
           if (selectedTime != null) {
             fullTodoDate = DateTime(
-              selectedDate.year,
-              selectedDate.month,
-              selectedDate.day,
+              _currentDate.year,
+              _currentDate.month,
+              _currentDate.day,
               selectedTime!.hour,
               selectedTime!.minute,
             );
           } else {
-            fullTodoDate = selectedDate;
+            fullTodoDate = _currentDate;
           }
 
-          final id = await db.insertTodo(
-            TodosCompanion.insert(
-              content: contentController.text,
-              colorType: drift.Value(colorIndex),
-              categoryId: drift.Value(categoryId),
-              scheduleType: drift.Value('TO_DO'),
-              timeMinutes: drift.Value(minutes),
-              isDone: drift.Value(false),
-              date: fullTodoDate,
-            ),
-          );
+          int todoId;
+
+          if (widget.todoIdToEdit != null) {
+            await db.updateTodo(
+              TodosCompanion(
+                id: drift.Value(widget.todoIdToEdit!),
+                content: drift.Value(contentController.text),
+                colorType: drift.Value(colorIndex),
+                categoryId: drift.Value(categoryId),
+                timeMinutes: drift.Value(alarmMinutesValue),
+                date: drift.Value(fullTodoDate),
+              ),
+            );
+            todoId = widget.todoIdToEdit!;
+          } else {
+            todoId = await db.insertTodo(
+              TodosCompanion.insert(
+                content: contentController.text,
+                colorType: drift.Value(colorIndex),
+                categoryId: drift.Value(categoryId),
+                scheduleType: drift.Value('TO_DO'),
+                timeMinutes: drift.Value(alarmMinutesValue),
+                isDone: drift.Value(false),
+                date: fullTodoDate,
+              ),
+            );
+          }
+
+          await NotificationService().cancelNotification(todoId);
 
           if (isChecked && selectedTime != null) {
             final notificationTime = fullTodoDate;
 
             if (notificationTime.isAfter(DateTime.now())) {
               await NotificationService().scheduleNotification(
-                id: id,
+                id: todoId,
                 title: '오늘의 할 일!',
                 body: contentController.text,
                 scheduledTime: notificationTime,
-                payload: 'todo_$id',
+                payload: 'todo_$todoId',
               );
             }
           }
@@ -423,7 +571,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     );
   }
 
-  void _loadCategories() async {
+  Future<void> _loadCategories() async {
     try {
       final localDb = LocalDatabaseSingleton.instance;
       final categoryRepo = LocalCategoryRepository(localDb);
@@ -431,10 +579,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
       final loadedTodos = await categoryRepo.fetchCategories(
         scheduleType: 'TO_DO',
       );
-      setState(() {
-        todos = loadedTodos;
-        if (todos.isNotEmpty) selectedCategoryId = todos.first.id;
-      });
+      todos = loadedTodos;
     } catch (e) {
       print('카테고리 로드 실패: $e');
     }

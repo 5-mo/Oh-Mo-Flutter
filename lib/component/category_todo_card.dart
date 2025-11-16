@@ -7,20 +7,22 @@ import '../services/notification_service.dart';
 import 'alarm_bottom_sheet.dart';
 import 'color_palette_bottom_sheet.dart';
 
-class RoutineCard extends StatefulWidget {
+class CategoryTodoCard extends StatefulWidget {
   final String content;
+  final Function(String) onEdit;
   final bool showCheckbox;
   final Widget Function(BuildContext)? deletePopupBuilder;
   final ColorType colorType;
   final int scheduleId;
   final bool isDone;
   final Future<void> Function()? onStatusChanged;
+  final Function(int id,DateTime newDate)? onDateChanged;
   final VoidCallback? onDataChanged;
   final bool isColorPickerEnabled;
-  final VoidCallback? onEditPressed;
 
-  const RoutineCard({
+  const CategoryTodoCard({
     required this.content,
+    required this.onEdit,
     required this.colorType,
     required this.scheduleId,
     this.showCheckbox = true,
@@ -28,29 +30,36 @@ class RoutineCard extends StatefulWidget {
     required this.isDone,
     this.onStatusChanged,
     this.onDataChanged,
+    this.onDateChanged,
     this.isColorPickerEnabled = true,
-    this.onEditPressed,
     Key? key,
   }) : super(key: key);
 
   @override
-  _RoutineCardState createState() => _RoutineCardState();
+  _CategoryTodoCardState createState() => _CategoryTodoCardState();
 }
 
-class _RoutineCardState extends State<RoutineCard> {
+class _CategoryTodoCardState extends State<CategoryTodoCard> {
   late bool _isChecked;
+  bool _isEditing = false;
+  late TextEditingController _controller;
   ColorType _selectedColorType = ColorType.pinkLight;
 
   @override
   void initState() {
     super.initState();
     _isChecked = widget.isDone;
+    _controller = TextEditingController(text: widget.content);
     _selectedColorType = widget.colorType;
   }
 
   @override
-  void didUpdateWidget(covariant RoutineCard oldWidget) {
+  void didUpdateWidget(covariant CategoryTodoCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.content != widget.content) {
+      _controller.text = widget.content;
+    }
 
     if (oldWidget.isDone != widget.isDone) {
       _isChecked = widget.isDone;
@@ -63,6 +72,7 @@ class _RoutineCardState extends State<RoutineCard> {
 
   @override
   void dispose() {
+    _controller.dispose();
     super.dispose();
   }
 
@@ -84,9 +94,9 @@ class _RoutineCardState extends State<RoutineCard> {
           children: [
             GestureDetector(
               onTap:
-                  widget.isColorPickerEnabled
-                      ? () => _openColorPicker(context)
-                      : null,
+              widget.isColorPickerEnabled
+                  ? () => _openColorPicker(context)
+                  : null,
               child: Container(
                 width: 12,
                 height: 12,
@@ -99,8 +109,31 @@ class _RoutineCardState extends State<RoutineCard> {
             const SizedBox(width: 30.0),
 
             Expanded(
-              child: GestureDetector(
-                onTap: widget.onEditPressed,
+              child:
+              _isEditing
+                  ? TextField(
+                controller: _controller,
+                style: textStyle,
+                autofocus: true,
+                onSubmitted: (value) async {
+                  setState(() => _isEditing = false);
+                  widget.onEdit(value);
+
+                  final db = LocalDatabaseSingleton.instance;
+                  await db.updateTodo(
+                    TodosCompanion(
+                      id: Value(widget.scheduleId),
+                      content: Value(value),
+                    ),
+                  );
+                },
+                onTapOutside: (_) {
+                  setState(() => _isEditing = false);
+                  widget.onEdit(_controller.text);
+                },
+              )
+                  : GestureDetector(
+                onTap: () => setState(() => _isEditing = true),
                 child: Text(widget.content, style: textStyle),
               ),
             ),
@@ -119,10 +152,10 @@ class _RoutineCardState extends State<RoutineCard> {
                     ),
                   ),
                   builder:
-                      (context) => RoutineAlarm(
-                        routineId: widget.scheduleId,
-                        onDataChanged: widget.onDataChanged,
-                      ),
+                      (context) =>RoutineAlarm(
+                    routineId: widget.scheduleId,
+                    onDataChanged: widget.onDataChanged,
+                  ),
                 );
 
                 if (minutes != null) {
@@ -141,7 +174,7 @@ class _RoutineCardState extends State<RoutineCard> {
                     return;
                   }
                   final weekDays =
-                      routine.weekDays!.split(',').map(int.parse).toList();
+                  routine.weekDays!.split(',').map(int.parse).toList();
 
                   DateTime today = DateTime.now();
                   DateTime startDate = DateTime(
@@ -168,9 +201,9 @@ class _RoutineCardState extends State<RoutineCard> {
 
                       int uniqueNotificationId =
                           widget.scheduleId * 100000000 +
-                          notificationTime.year * 10000 +
-                          notificationTime.month * 100 +
-                          notificationTime.day;
+                              notificationTime.year * 10000 +
+                              notificationTime.month * 100 +
+                              notificationTime.day;
 
                       await NotificationService().scheduleNotification(
                         id: uniqueNotificationId,
@@ -195,31 +228,31 @@ class _RoutineCardState extends State<RoutineCard> {
 
             widget.showCheckbox
                 ? Checkbox(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: VisualDensity.minimumDensity,
-                    vertical: VisualDensity.minimumDensity,
-                  ),
-                  value: _isChecked,
-                  onChanged: (bool? value) async {
-                    setState(() => _isChecked = value ?? false);
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(
+                horizontal: VisualDensity.minimumDensity,
+                vertical: VisualDensity.minimumDensity,
+              ),
+              value: _isChecked,
+              onChanged: (bool? value) async {
+                setState(() => _isChecked = value ?? false);
 
-                    try {
-                      final db = LocalDatabase();
-                      await db.toggleRoutineStatus(widget.scheduleId);
+                try {
+                  final db = LocalDatabaseSingleton.instance;
+                  await db.toggleRoutineStatus(widget.scheduleId);
 
-                      if (widget.onStatusChanged != null) {
-                        await widget.onStatusChanged!();
-                      }
-                    } catch (e) {
-                      print('루틴 상태 변경 실패: $e');
-                      setState(() => _isChecked = !(_isChecked));
-                    }
-                  },
-                  activeColor: Colors.black,
-                  checkColor: Colors.white,
-                  fillColor: MaterialStateProperty.all(Colors.black),
-                )
+                  if (widget.onStatusChanged != null) {
+                    await widget.onStatusChanged!();
+                  }
+                } catch (e) {
+                  print('루틴 상태 변경 실패: $e');
+                  setState(() => _isChecked = !(_isChecked));
+                }
+              },
+              activeColor: Colors.black,
+              checkColor: Colors.white,
+              fillColor: MaterialStateProperty.all(Colors.black),
+            )
                 : SizedBox.shrink(),
           ],
         ),
@@ -240,10 +273,10 @@ class _RoutineCardState extends State<RoutineCard> {
       ),
       builder:
           (context) => ColorPaletteBottomSheet(
-            selectedColorType: _selectedColorType,
-            onColorSelected:
-                (colorType) => setState(() => _selectedColorType = colorType),
-          ),
+        selectedColorType: _selectedColorType,
+        onColorSelected:
+            (colorType) => setState(() => _selectedColorType = colorType),
+      ),
     ).then((selectedColor) async {
       if (selectedColor != null) {
         try {

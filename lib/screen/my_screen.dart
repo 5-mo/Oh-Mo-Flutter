@@ -14,8 +14,13 @@ import '../db/drift_database.dart' as db;
 class MyScreen extends StatefulWidget {
   final Function(int) onTabChange;
   final ValueNotifier<DateTime> selectedDateNotifier;
+  final VoidCallback? onDataChanged;
 
-  MyScreen({required this.onTabChange, required this.selectedDateNotifier});
+  MyScreen({
+    required this.onTabChange,
+    required this.selectedDateNotifier,
+    this.onDataChanged,
+  });
 
   @override
   _MyScreenState createState() => _MyScreenState();
@@ -367,17 +372,17 @@ class _MyScreenState extends State<MyScreen> {
       ),
 
       child: Center(
-          child: Row(
-            children: [
-              SizedBox(width: 20.0),
-              SvgPicture.asset('android/assets/images/notion.svg'),
-              SizedBox(width: 30.0),
-              Text(
-                'Notion 연결 및 업데이트',
-                style: TextStyle(fontSize: 18, fontFamily: 'PretendardRegular'),
-              ),
-            ],
-          ),
+        child: Row(
+          children: [
+            SizedBox(width: 20.0),
+            SvgPicture.asset('android/assets/images/notion.svg'),
+            SizedBox(width: 30.0),
+            Text(
+              'Notion 연결 및 업데이트',
+              style: TextStyle(fontSize: 18, fontFamily: 'PretendardRegular'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -388,7 +393,9 @@ class _MyScreenState extends State<MyScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => CategoryScreen()),
-        );
+        ).then((_) {
+          widget.onDataChanged?.call();
+        });
       },
       child: Text(
         '카테고리 관리',
@@ -402,7 +409,13 @@ class _MyScreenState extends State<MyScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => DiaryCollectionScreen(selectedDateNotifier: widget.selectedDateNotifier, onTabChange: widget.onTabChange)),
+          MaterialPageRoute(
+            builder:
+                (context) => DiaryCollectionScreen(
+                  selectedDateNotifier: widget.selectedDateNotifier,
+                  onTabChange: widget.onTabChange,
+                ),
+          ),
         );
       },
       child: Text(

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
@@ -12,12 +13,16 @@ class RoutineBottomSheet extends StatefulWidget {
   final int? groupId;
   final Future<void> Function()? onRoutineAdded;
   final Future<void> Function()? onDataChanged;
+  final int? routineIdToEdit;
+  final DateTime? selectedDate;
 
   const RoutineBottomSheet({
     Key? key,
     this.groupId,
     this.onRoutineAdded,
     this.onDataChanged,
+    this.routineIdToEdit,
+    this.selectedDate,
   }) : super(key: key);
 
   @override
@@ -26,6 +31,15 @@ class RoutineBottomSheet extends StatefulWidget {
 
 class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+  final Map<int, String> _dayMapReverse = {
+    1: '월',
+    2: '화',
+    3: '수',
+    4: '목',
+    5: '금',
+    6: '토',
+    7: '일',
+  };
   List<CategoryItem> routines = [];
   int? selectedCategoryId;
   List<String> selectedDays = [];
@@ -34,11 +48,63 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   DateTime? selectedEndDate;
   TimeOfDay? selectedTime;
   bool isChecked = false;
+  bool _isLoading = false;
+  String? _originalWeekDaysString;
 
   @override
   void initState() {
     super.initState();
-    _loadCategories();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    await _loadCategories();
+
+    if (widget.routineIdToEdit != null) {
+      await _loadDataForEdit(widget.routineIdToEdit!);
+    }
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadDataForEdit(int routineId) async {
+    final db = LocalDatabaseSingleton.instance;
+    final routine = await db.getRoutineById(routineId);
+    if (routine == null) return;
+
+    setState(() {
+      contentController.text = routine.content;
+      if (routine.endDate == null || routine.endDate!.year == 3000) {
+        selectedEndDate = null;
+      } else {
+        selectedEndDate = routine.endDate;
+      }
+
+      _originalWeekDaysString = routine.weekDays;
+
+      if (routine.weekDays != null && routine.weekDays!.isNotEmpty) {
+        selectedDays =
+            routine.weekDays!
+                .split(',')
+                .map((e) => _dayMapReverse[int.tryParse(e)])
+                .where((day) => day != null)
+                .cast<String>()
+                .toList();
+      }
+
+      if (routine.timeMinutes != null) {
+        selectedTime = TimeOfDay(
+          hour: routine.timeMinutes! ~/ 60,
+          minute: routine.timeMinutes! % 60,
+        );
+      }
+
+      if (routines.any((cat) => cat.id == routine.categoryId)) {
+        selectedCategoryId = routine.categoryId;
+      }
+
+      isChecked = routine.alarmMinutes != null;
+    });
   }
 
   void toggleDay(String day) {
@@ -69,6 +135,13 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
+    if (_isLoading) {
+      return Container(
+        height: 300,
+        child: Center(child: CupertinoActivityIndicator()),
+      );
+    }
+
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.all(30.0),
@@ -76,21 +149,34 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Row(
+                children: [
+                  Text(
+                    "루틴 반복 요일",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'PretendardBold',
+                    ),
+                  ),
+                  SizedBox(width: 155),
+                  _buildAlarmToggleSection(),
+                ],
+              ),
               _buildRepeatDaysSection(),
               SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildAlarmToggleSection(),
-                  Column(
+                  Row(
                     children: [
-                      _buildRoutineClosingDateButton(),
-                      SizedBox(height: 10),
                       _buildRoutineTimeButton(),
+                      SizedBox(width: 20),
+                      _buildRoutineClosingDateButton(),
                     ],
                   ),
                 ],
               ),
+              SizedBox(height: 25),
               _buildCategorySelectionSection(),
               _buildContentInputSection(),
               SizedBox(height: 20),
@@ -107,10 +193,6 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "루틴 반복 요일",
-          style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
-        ),
         SizedBox(height: 16),
         Row(
           children:
@@ -201,7 +283,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
         if (pickedDate != null) setState(() => selectedEndDate = pickedDate);
       },
       child: Container(
-        width: 195,
+        width: 154,
         height: 37,
         decoration: BoxDecoration(
           color: Colors.white,
@@ -214,7 +296,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           child: Text(
             selectedEndDate != null
                 ? "${selectedEndDate!.year}-${selectedEndDate!.month.toString().padLeft(2, '0')}-${selectedEndDate!.day.toString().padLeft(2, '0')}"
-                : '종료 날짜 선택',
+                : '종료 날짜',
             style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
           ),
         ),
@@ -252,7 +334,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
         if (pickedTime != null) setState(() => selectedTime = pickedTime);
       },
       child: Container(
-        width: 195,
+        width: 154,
         height: 37,
         decoration: BoxDecoration(
           color: Colors.white,
@@ -279,22 +361,30 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           "카테고리",
           style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
         ),
-        SizedBox(height: 16),
+        SizedBox(height: 10),
         if (routines.isEmpty)
           Center(
-            child: Text(
-              "루틴 카테고리를 설정해볼까요?",
-              style: TextStyle(
-                fontSize: 10,
-                fontFamily: 'PretendardSemiBold',
-                color: DARK_GREY_COLOR,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  "루틴 카테고리를 설정해볼까요?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'PretendardMedium',
+                    color: Color(0xFFA5A5A5),
+                  ),
+                ),
+                SizedBox(height: 7),
+                _buildCategoryButton(),
+              ],
             ),
           )
         else
           _buildCategoryChoiceChips(),
-        SizedBox(height: 16),
-        Center(child: _buildCategoryButton()),
+        SizedBox(height: 10),
+        Center(child: SizedBox(height: 5)),
       ],
     );
   }
@@ -303,67 +393,119 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children:
-            routines.map((category) {
-              final isSelected = category.id == selectedCategoryId;
-              final colorString = category.colorType ?? 'pinkLight';
-              late Color circleColor;
-              try {
-                final ColorType colorType = ColorTypeExtension.fromString(
-                  colorString,
-                );
-                circleColor = ColorManager.getColor(colorType);
-              } catch (e) {
-                circleColor = Colors.grey;
-              }
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: GestureDetector(
-                  onTap: () => setState(() => selectedCategoryId = category.id),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                      border: Border.all(
-                        color: isSelected ? Colors.grey : Colors.transparent,
-                        width: 2,
+        children: [
+          ...routines.map((category) {
+            final isSelected = category.id == selectedCategoryId;
+            final colorString = category.colorType ?? 'pinkLight';
+            late Color circleColor;
+            try {
+              final ColorType colorType = ColorTypeExtension.fromString(
+                colorString,
+              );
+              circleColor = ColorManager.getColor(colorType);
+            } catch (e) {
+              circleColor = Colors.grey;
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      selectedCategoryId = null;
+                    } else {
+                      selectedCategoryId = category.id;
+                    }
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.black : Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 3,
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: circleColor,
-                          ),
+                    ],
+                    border: Border.all(color: Colors.transparent, width: 0),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: circleColor,
                         ),
-                        SizedBox(width: 6),
-                        Text(
-                          category.categoryName,
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight:
-                                isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                          ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        category.categoryName,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontSize: 16,
+                          fontFamily: 'PretendardRegular',
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            }).toList(),
+              ),
+            );
+          }).toList(),
+          _buildAddCategoryButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddCategoryButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => CategoryScreen()),
+          ).then((_) => _loadInitialData()); //
+          if (widget.onDataChanged != null) {
+            widget.onDataChanged!();
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 3),
+            ],
+            border: Border.all(color: Colors.transparent, width: 0),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SvgPicture.asset(
+                'android/assets/images/dashed_circle.svg',
+                width: 12,
+                height: 12,
+              ),
+              SizedBox(width: 8),
+              Text(
+                "추가",
+                style: TextStyle(
+                  color: Color(0xFF6E6767),
+                  fontFamily: 'PretendardRegular',
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -374,7 +516,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => CategoryScreen()),
-        ).then((_) => _loadCategories());
+        ).then((_) => _loadInitialData());
         if (widget.onDataChanged != null) {
           widget.onDataChanged!();
         }
@@ -421,7 +563,10 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: TextField(
             controller: contentController,
-            decoration: InputDecoration(border: InputBorder.none),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.only(bottom: 6),
+            ),
           ),
         ),
       ],
@@ -431,112 +576,125 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
+        if (isChecked && selectedTime == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("알람을 설정하려면 '시간 선택'은 필수입니다.")));
+          return;
+        }
+        if (isChecked && selectedEndDate == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("알람을 설정하려면 '종료 날짜'는 필수입니다.")));
+          return;
+        }
         if (contentController.text.isEmpty || selectedDays.isEmpty) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text("내용과 반복 요일은 필수입니다.")));
           return;
         }
-        try {
-          final db = LocalDatabaseSingleton.instance;
 
-          int colorIndex;
-          int? categoryId = selectedCategoryId;
-
-          if (selectedCategoryId != null) {
-            final selectedCategory = routines.firstWhere(
-              (c) => c.id == selectedCategoryId,
-            );
-            try {
-              colorIndex =
-                  ColorTypeExtension.fromString(
-                    selectedCategory.colorType!,
-                  ).index;
-            } catch (_) {
-              colorIndex = 0;
-            }
-          } else {
-            colorIndex = ColorType.uncategorizedBlack.index;
+        final db = LocalDatabaseSingleton.instance;
+        int colorIndex;
+        int? categoryId = selectedCategoryId;
+        if (selectedCategoryId != null) {
+          final selectedCategory = routines.firstWhere(
+            (c) => c.id == selectedCategoryId,
+          );
+          try {
+            colorIndex =
+                ColorTypeExtension.fromString(
+                  selectedCategory.colorType!,
+                ).index;
+          } catch (_) {
+            colorIndex = 0;
           }
+        } else {
+          colorIndex = ColorType.uncategorizedBlack.index;
+        }
+        final int? minutes =
+            (selectedTime == null)
+                ? null
+                : selectedTime!.hour * 60 + selectedTime!.minute;
+        final weekString = getRoutineWeek().join(',');
+        final int? alarmMinutesValue;
+        if (isChecked) {
+          alarmMinutesValue = 0;
+        } else {
+          alarmMinutesValue = null;
+        }
 
-          final int? minutes =
-              (selectedTime == null)
-                  ? null
-                  : selectedTime!.hour * 60 + selectedTime!.minute;
+        final DateTime endDateToSave =
+            selectedEndDate ?? DateTime(3000, 12, 31);
 
-          final weekString = getRoutineWeek().join(',');
-          final startDate = DateTime.now();
-
-          final id = await db.insertRoutine(
-            RoutinesCompanion.insert(
-              groupId: drift.Value(widget.groupId),
-              content: contentController.text,
-              colorType: drift.Value(colorIndex),
-              isDone: drift.Value(false),
-              startDate: drift.Value(startDate),
-              endDate: drift.Value(selectedEndDate),
-              timeMinutes: drift.Value(minutes),
-              weekDays: drift.Value(weekString),
-              categoryId: drift.Value(categoryId),
-            ),
+        if (widget.routineIdToEdit != null &&
+            _originalWeekDaysString != weekString) {
+          final newRoutineData = RoutinesCompanion(
+            content: drift.Value(contentController.text),
+            colorType: drift.Value(colorIndex),
+            endDate: drift.Value(endDateToSave),
+            timeMinutes: drift.Value(minutes),
+            weekDays: drift.Value(weekString),
+            categoryId: drift.Value(categoryId),
+            alarmMinutes: drift.Value(alarmMinutesValue),
           );
 
-          if (isChecked && selectedTime != null && selectedEndDate != null) {
-            final routine = await db.getRoutineById(id);
-            if (routine == null ||
-                routine.weekDays == null ||
-                routine.endDate == null ||
-                routine.timeMinutes == null)
-              return;
+          _showSplitRoutinePopup(db, newRoutineData);
+        } else {
+          try {
+            int routineId;
+            if (widget.routineIdToEdit != null) {
+              await db.updateRoutine(
+                RoutinesCompanion(
+                  id: drift.Value(widget.routineIdToEdit!),
+                  content: drift.Value(contentController.text),
+                  colorType: drift.Value(colorIndex),
+                  endDate: drift.Value(endDateToSave),
+                  timeMinutes: drift.Value(minutes),
+                  weekDays: drift.Value(weekString),
+                  categoryId: drift.Value(categoryId),
+                  alarmMinutes: drift.Value(alarmMinutesValue),
+                ),
+              );
+              routineId = widget.routineIdToEdit!;
+            } else {
+              final startDate = widget.selectedDate ?? DateTime.now();
+              final id = await db.insertRoutine(
+                RoutinesCompanion.insert(
+                  groupId: drift.Value(widget.groupId),
+                  content: contentController.text,
+                  colorType: drift.Value(colorIndex),
+                  isDone: drift.Value(false),
+                  startDate: drift.Value(startDate),
+                  endDate: drift.Value(endDateToSave),
+                  timeMinutes: drift.Value(minutes),
+                  weekDays: drift.Value(weekString),
+                  categoryId: drift.Value(categoryId),
+                  alarmMinutes: drift.Value(alarmMinutesValue),
+                ),
+              );
+              routineId = id;
+            }
 
-            final weekDays =
-                routine.weekDays!.split(',').map(int.parse).toList();
+            if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+            if (widget.onDataChanged != null) await widget.onDataChanged!();
 
-            DateTime today = DateTime.now();
-            DateTime startDate = DateTime(today.year, today.month, today.day);
+            if (!mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("루틴 저장 완료!")));
+            Navigator.of(context).pop();
 
-            for (var i = 0; i < 365; i++) {
-              DateTime currentDay = startDate.add(Duration(days: i));
-              if (currentDay.isAfter(routine.endDate!)) break;
-
-              if (weekDays.contains(currentDay.weekday)) {
-                final notificationTime = DateTime(
-                  currentDay.year,
-                  currentDay.month,
-                  currentDay.day,
-                ).add(Duration(minutes: routine.timeMinutes!));
-
-                if (notificationTime.isBefore(DateTime.now())) continue;
-
-                int uniqueNotificationId =
-                    routine.id * 100000000 +
-                    notificationTime.year * 10000 +
-                    notificationTime.month * 100 +
-                    notificationTime.day;
-
-                await NotificationService().scheduleNotification(
-                  id: uniqueNotificationId,
-                  title: '오늘의 루틴 시간!',
-                  body: routine.content,
-                  scheduledTime: notificationTime,
-                  payload: 'routine_${routine.id}',
-                );
-              }
+            _updateNotifications(routineId);
+          } catch (e) {
+            print('루틴 저장 실패: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('루틴 저장 실패')));
             }
           }
-
-          if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
-          if (widget.onDataChanged != null) await widget.onDataChanged!();
-
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("루틴 등록 완료!")));
-        } catch (e) {
-          print('루틴 저장 실패: $e');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('루틴 저장 실패')));
         }
       },
       child: Container(
@@ -560,19 +718,266 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     );
   }
 
-  void _loadCategories() async {
+  void _showSplitRoutinePopup(
+    LocalDatabase db,
+    RoutinesCompanion newRoutineData,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          backgroundColor: Colors.white,
+          contentPadding: EdgeInsets.symmetric(horizontal: 50, vertical: 40),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "요일 변경",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontFamily: 'PretendardBold',
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 20),
+              Text(
+                "루틴 요일 변경 시 오늘부터 적용할까요?",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontFamily: 'PretendardRegular',
+                  color: Colors.black,
+                ),
+              ),
+              Text(
+                "이전 루틴은 그대로 저장됩니다.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontFamily: 'PretendardBold',
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 35),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  minimumSize: Size(277, 54),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  _splitRoutine(db, newRoutineData, DateTime.now());
+                },
+                child: Text(
+                  "오늘부터 적용하기",
+                  style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
+                ),
+              ),
+              SizedBox(height: 5),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  minimumSize: Size(277, 43),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                    side: BorderSide(color: Colors.black.withOpacity(0.25)),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  final pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now().add(Duration(days: 1)),
+                    firstDate: DateTime.now().add(Duration(days: 1)),
+                    lastDate: DateTime(3000),
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.light().copyWith(
+                          primaryColor: Colors.black,
+                          colorScheme: const ColorScheme.light(
+                            primary: Colors.black,
+                          ),
+                          buttonTheme: const ButtonThemeData(
+                            textTheme: ButtonTextTheme.primary,
+                          ),
+                          textButtonTheme: TextButtonThemeData(
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.black,
+                            ),
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (pickedDate != null) {
+                    _splitRoutine(db, newRoutineData, pickedDate);
+                  }
+                },
+                child: Text(
+                  "날짜 선택하기",
+                  style: TextStyle(fontFamily: 'PretendardBold', fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _splitRoutine(
+    LocalDatabase db,
+    RoutinesCompanion newRoutineData,
+    DateTime splitDate,
+  ) async {
+    final normalizedSplitDate = DateTime(
+      splitDate.year,
+      splitDate.month,
+      splitDate.day,
+    );
+
+    setState(() => _isLoading = true);
+
     try {
-      final localDb = LocalDatabase();
+      final oldRoutineEndDate = normalizedSplitDate.subtract(Duration(days: 1));
+      await db.updateRoutine(
+        RoutinesCompanion(
+          id: drift.Value(widget.routineIdToEdit!),
+          endDate: drift.Value(oldRoutineEndDate),
+        ),
+      );
+
+      final newRoutineId = await db.insertRoutine(
+        newRoutineData.copyWith(
+          startDate: drift.Value(normalizedSplitDate),
+          groupId: drift.Value(widget.groupId),
+          isDone: drift.Value(false),
+        ),
+      );
+
+      await _updateNotifications(widget.routineIdToEdit!);
+      await _updateNotifications(newRoutineId);
+
+      if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+      if (widget.onDataChanged != null) await widget.onDataChanged!();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("루틴이 분할 저장되었습니다.")));
+      Navigator.of(context).pop();
+    } catch (e) {
+      print('루틴 분할 저장 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('루틴 분할 저장 실패')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _updateNotifications(int routineId) async {
+    try {
+      final db = LocalDatabaseSingleton.instance;
+      final routine = await db.getRoutineById(routineId);
+      if (routine == null ||
+          routine.weekDays == null ||
+          routine.endDate == null ||
+          routine.timeMinutes == null ||
+          routine.startDate == null) {
+        await _cancelAllScheduledNotifications(routineId);
+        return;
+      }
+
+      await _cancelAllScheduledNotifications(routineId);
+
+      if (isChecked) {
+        final weekDays = routine.weekDays!.split(',').map(int.parse).toList();
+
+        DateTime today = DateTime.now();
+        DateTime todayDateOnly = DateTime(today.year, today.month, today.day);
+
+        DateTime startDate =
+            routine.startDate!.isAfter(todayDateOnly)
+                ? routine.startDate!
+                : todayDateOnly;
+
+        final daysToIterate = routine.endDate!.difference(startDate).inDays + 1;
+
+        for (var i = 0; i < (daysToIterate < 0 ? 0 : daysToIterate); i++) {
+          DateTime currentDay = startDate.add(Duration(days: i));
+
+          if (weekDays.contains(currentDay.weekday)) {
+            final notificationTime = DateTime(
+              currentDay.year,
+              currentDay.month,
+              currentDay.day,
+            ).add(Duration(minutes: routine.timeMinutes!));
+
+            if (notificationTime.isBefore(DateTime.now())) continue;
+
+            int uniqueNotificationId =
+                routine.id * 100000000 +
+                notificationTime.year * 10000 +
+                notificationTime.month * 100 +
+                notificationTime.day;
+
+            await NotificationService().scheduleNotification(
+              id: uniqueNotificationId,
+              title: '오늘의 루틴 시간!',
+              body: routine.content,
+              scheduledTime: notificationTime,
+              payload: 'routine_${routine.id}',
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print("Failed to update notifications in background: $e");
+    }
+  }
+
+  Future<void> _cancelAllScheduledNotifications(int routineId) async {
+    DateTime today = DateTime.now();
+    DateTime startDate = DateTime(today.year, today.month, today.day);
+
+    for (var i = 0; i < 730; i++) {
+      DateTime currentDay = startDate.add(Duration(days: i));
+
+      int uniqueNotificationId =
+          routineId * 100000000 +
+          currentDay.year * 10000 +
+          currentDay.month * 100 +
+          currentDay.day;
+
+      await NotificationService().cancelNotification(uniqueNotificationId);
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final localDb = LocalDatabaseSingleton.instance;
       final categoryRepo = LocalCategoryRepository(localDb);
 
       final loadedRoutines = await categoryRepo.fetchCategories(
         scheduleType: 'ROUTINE',
       );
 
-      setState(() {
-        routines = loadedRoutines;
-        if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
-      });
+      routines = loadedRoutines;
     } catch (e) {
       print('카테고리 로드 실패: $e');
     }

@@ -123,5 +123,10 @@ class NotificationService {
       payload: payload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
+
+
+  }
+  Future<void> cancelNotification(int id) async {
+    await _flutterLocalNotificationsPlugin.cancel(id);
   }
 }

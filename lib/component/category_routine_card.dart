@@ -7,8 +7,9 @@ import '../services/notification_service.dart';
 import 'alarm_bottom_sheet.dart';
 import 'color_palette_bottom_sheet.dart';
 
-class RoutineCard extends StatefulWidget {
+class CategoryRoutineCard extends StatefulWidget {
   final String content;
+  final Function(String) onEdit;
   final bool showCheckbox;
   final Widget Function(BuildContext)? deletePopupBuilder;
   final ColorType colorType;
@@ -17,10 +18,10 @@ class RoutineCard extends StatefulWidget {
   final Future<void> Function()? onStatusChanged;
   final VoidCallback? onDataChanged;
   final bool isColorPickerEnabled;
-  final VoidCallback? onEditPressed;
 
-  const RoutineCard({
+  const CategoryRoutineCard({
     required this.content,
+    required this.onEdit,
     required this.colorType,
     required this.scheduleId,
     this.showCheckbox = true,
@@ -29,28 +30,34 @@ class RoutineCard extends StatefulWidget {
     this.onStatusChanged,
     this.onDataChanged,
     this.isColorPickerEnabled = true,
-    this.onEditPressed,
     Key? key,
   }) : super(key: key);
 
   @override
-  _RoutineCardState createState() => _RoutineCardState();
+  _CategoryRoutineCardState createState() => _CategoryRoutineCardState();
 }
 
-class _RoutineCardState extends State<RoutineCard> {
+class _CategoryRoutineCardState extends State<CategoryRoutineCard> {
   late bool _isChecked;
+  bool _isEditing = false;
+  late TextEditingController _controller;
   ColorType _selectedColorType = ColorType.pinkLight;
 
   @override
   void initState() {
     super.initState();
     _isChecked = widget.isDone;
+    _controller = TextEditingController(text: widget.content);
     _selectedColorType = widget.colorType;
   }
 
   @override
-  void didUpdateWidget(covariant RoutineCard oldWidget) {
+  void didUpdateWidget(covariant CategoryRoutineCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.content != widget.content) {
+      _controller.text = widget.content;
+    }
 
     if (oldWidget.isDone != widget.isDone) {
       _isChecked = widget.isDone;
@@ -63,6 +70,7 @@ class _RoutineCardState extends State<RoutineCard> {
 
   @override
   void dispose() {
+    _controller.dispose();
     super.dispose();
   }
 
@@ -99,10 +107,33 @@ class _RoutineCardState extends State<RoutineCard> {
             const SizedBox(width: 30.0),
 
             Expanded(
-              child: GestureDetector(
-                onTap: widget.onEditPressed,
-                child: Text(widget.content, style: textStyle),
-              ),
+              child:
+                  _isEditing
+                      ? TextField(
+                        controller: _controller,
+                        style: textStyle,
+                        autofocus: true,
+                        onSubmitted: (value) async {
+                          setState(() => _isEditing = false);
+                          widget.onEdit(value);
+
+                          final db = LocalDatabaseSingleton.instance;
+                          await db.updateRoutine(
+                            RoutinesCompanion(
+                              id: Value(widget.scheduleId),
+                              content: Value(value),
+                            ),
+                          );
+                        },
+                        onTapOutside: (_) {
+                          setState(() => _isEditing = false);
+                          widget.onEdit(_controller.text);
+                        },
+                      )
+                      : GestureDetector(
+                        onTap: () => setState(() => _isEditing = true),
+                        child: Text(widget.content, style: textStyle),
+                      ),
             ),
 
             GestureDetector(
@@ -205,7 +236,7 @@ class _RoutineCardState extends State<RoutineCard> {
                     setState(() => _isChecked = value ?? false);
 
                     try {
-                      final db = LocalDatabase();
+                      final db = LocalDatabaseSingleton.instance;
                       await db.toggleRoutineStatus(widget.scheduleId);
 
                       if (widget.onStatusChanged != null) {

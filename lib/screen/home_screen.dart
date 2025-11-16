@@ -12,13 +12,16 @@ import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'dart:convert';
+import '../component/alarm_bottom_sheet.dart';
 import '../component/routine_bottom_sheet.dart';
 import '../const/colors.dart';
 import '../customize_category.dart';
 import '../db/drift_database.dart' as db;
 import '../models/routine.dart';
 import '../models/todo.dart';
+import '../services/notification_service.dart';
 import 'notification_screen.dart';
+import 'package:drift/drift.dart' hide Column;
 
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -229,6 +232,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       MyScreen(
         onTabChange: _onTabChange,
         selectedDateNotifier: _selectedDateNotifier,
+        onDataChanged: () async {
+          await _loadDataForDate(_selectedDateNotifier.value);
+          await WidgetUpdater.update();
+        },
       ),
     ];
 
@@ -285,11 +292,14 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
       routine.startDate!.month,
       routine.startDate!.day,
     );
-    final end = DateTime(
-      routine.endDate.year,
-      routine.endDate.month,
-      routine.endDate.day,
-    );
+    final end =
+        routine.endDate == null
+            ? DateTime(3000, 12, 31)
+            : DateTime(
+              routine.endDate!.year,
+              routine.endDate!.month,
+              routine.endDate!.day,
+            );
     return !dateOnly.isBefore(start) &&
         !dateOnly.isAfter(end) &&
         routine.daysOfWeek.contains(dateOnly.weekday);
@@ -299,6 +309,84 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
     final todoDate = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
     final selected = DateTime(date.year, date.month, date.day);
     return todoDate == selected;
+  }
+
+  Future<void> _showTodoAlarmSheet(Todo todo) async {
+    final currentTodo = await db.LocalDatabaseSingleton.instance.getTodoById(
+      todo.id,
+    );
+    if (currentTodo == null || !mounted) return;
+
+    final result = await showModalBottomSheet<dynamic>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(59),
+          topLeft: Radius.circular(59),
+        ),
+      ),
+      builder:
+          (context) => TodoAlarm(
+            currentDate: currentTodo.date,
+            todoId: currentTodo.id,
+            onDataChanged: widget.onDataChanged,
+          ),
+    );
+
+    if (result != null && result is DateTime) {
+      await db.LocalDatabaseSingleton.instance.updateTodoDate(
+        currentTodo.id,
+        result,
+      );
+      widget.onDataChanged?.call();
+    } else if (result != null && result == 0) {
+      await db.LocalDatabaseSingleton.instance.updateTodo(
+        db.TodosCompanion(id: Value(currentTodo.id), alarmMinutes: Value(null)),
+      );
+      await NotificationService().cancelNotification(currentTodo.id);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('알람이 삭제되었습니다!')));
+      }
+      widget.onDataChanged?.call();
+    } else if (result != null && result is int && result > 0) {
+      final minutes = result;
+
+      await db.LocalDatabaseSingleton.instance.updateTodo(
+        db.TodosCompanion(
+          id: Value(currentTodo.id),
+          alarmMinutes: Value(minutes),
+        ),
+      );
+      final updatedTodo = await db.LocalDatabaseSingleton.instance.getTodoById(
+        currentTodo.id,
+      );
+      if (updatedTodo == null) return;
+
+      final todoTime = updatedTodo.date;
+      final notificationTime = todoTime.subtract(Duration(minutes: minutes));
+
+      if (notificationTime.isAfter(DateTime.now())) {
+        await NotificationService().cancelNotification(updatedTodo.id);
+        await NotificationService().scheduleNotification(
+          id: updatedTodo.id,
+          title: '오늘의 할 일!',
+          body: updatedTodo.content,
+          scheduledTime: notificationTime,
+          payload: 'todo_${updatedTodo.id}',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('${minutes}분 전 알람이 설정되었습니다!')));
+      }
+      widget.onDataChanged?.call();
+    }
   }
 
   @override
@@ -314,28 +402,29 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-            StreamBuilder<int>(
-            stream: db.LocalDatabaseSingleton.instance
-                .watchUnreadNotificationCount(),
-            builder: (context, snapshot) {
-              final int unreadCount = snapshot.data ?? 0;
+                StreamBuilder<int>(
+                  stream:
+                      db.LocalDatabaseSingleton.instance
+                          .watchUnreadNotificationCount(),
+                  builder: (context, snapshot) {
+                    final int unreadCount = snapshot.data ?? 0;
 
-              final bool hasUnread = unreadCount > 0;
-              return MainCalendar(
-                selectedDate: selectedDate,
-                onDaySelected: onDaySelected,
-                eventLoader: (_) => [],
-                hasUnread: hasUnread,
-                onAlarmIconPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => NotificationScreen(),
-                    ),
-                  );
-                },
-              );
-            },
+                    final bool hasUnread = unreadCount > 0;
+                    return MainCalendar(
+                      selectedDate: selectedDate,
+                      onDaySelected: onDaySelected,
+                      eventLoader: (_) => [],
+                      hasUnread: hasUnread,
+                      onAlarmIconPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NotificationScreen(),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -360,6 +449,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                     groupId: null,
                                     onRoutineAdded:
                                         widget.onRoutineAdded ?? () async {},
+                                    selectedDate: selectedDate,
                                   ),
                             );
                           },
@@ -382,12 +472,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                         colorType: routine.colorType,
                                         scheduleId: routine.id,
                                         isDone: routine.isDone,
-                                        onEdit: (newContent) async {
-                                          setState(() {
-                                            routine.content = newContent;
-                                          });
-                                          widget.onDataChanged?.call();
-                                        },
+                                        onDataChanged: widget.onDataChanged,
                                         onStatusChanged: () async {
                                           await db
                                               .LocalDatabaseSingleton
@@ -402,6 +487,32 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                     !routine.isDone,
                                           );
                                           widget.onDataChanged?.call();
+                                        },
+                                        isColorPickerEnabled: false,
+                                        onEditPressed: () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            isDismissible: true,
+                                            backgroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.only(
+                                                topRight: Radius.circular(59),
+                                                topLeft: Radius.circular(59),
+                                              ),
+                                            ),
+                                            builder:
+                                                (_) => RoutineBottomSheet(
+                                                  routineIdToEdit: routine.id,
+                                                  onRoutineAdded:
+                                                      widget.onRoutineAdded,
+                                                  onDataChanged: () async {
+                                                    widget.onDataChanged
+                                                        ?.call();
+                                                  },
+                                                  selectedDate: selectedDate,
+                                                ),
+                                          );
                                         },
                                       ),
                                     )
@@ -452,22 +563,28 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                           colorType: todo.colorType,
                                           scheduleId: todo.id,
                                           isDone: todo.isDone,
-                                          onEdit: (newContent) {
-                                            setState(() {
-                                              todo.content = newContent;
-                                            });
-                                            widget.onDataChanged?.call();
-                                          },
+                                          onDataChanged: widget.onDataChanged,
                                           onStatusChanged: () async {
-                                            await db
-                                                .LocalDatabaseSingleton
-                                                .instance
-                                                .toggleTodoCompletion(
-                                                  todo.id,
-                                                  selectedDate,
-                                                );
+                                            final newIsDone = !todo.isDone;
 
-                                            widget.onDataChanged?.call();
+                                            try {
+                                              await db
+                                                  .LocalDatabaseSingleton
+                                                  .instance
+                                                  .updateTodo(
+                                                    db.TodosCompanion(
+                                                      id: Value(todo.id),
+                                                      isDone: Value(newIsDone),
+                                                    ),
+                                                  );
+                                              setState(() {
+                                                todo.isDone = newIsDone;
+                                              });
+
+                                              widget.onDataChanged?.call();
+                                            } catch (e) {
+                                              print("Todo 업데이트 실패: $e");
+                                            }
                                           },
                                           onDateChanged: (id, newDate) async {
                                             await db
@@ -475,6 +592,43 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                 .instance
                                                 .updateTodoDate(id, newDate);
                                             widget.onDataChanged?.call();
+                                          },
+                                          isColorPickerEnabled: false,
+                                          onEditPressed: () {
+                                            showModalBottomSheet(
+                                              context: context,
+                                              isScrollControlled: true,
+                                              isDismissible: true,
+                                              backgroundColor: Colors.white,
+                                              shape:
+                                                  const RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                          topRight:
+                                                              Radius.circular(
+                                                                59,
+                                                              ),
+                                                          topLeft:
+                                                              Radius.circular(
+                                                                59,
+                                                              ),
+                                                        ),
+                                                  ),
+                                              builder:
+                                                  (_) => TodoBottomSheet(
+                                                    todoIdToEdit: todo.id,
+                                                    selectedDate: selectedDate,
+                                                    onTodoAdded:
+                                                        widget.onTodoAdded,
+                                                    onDataChanged: () async {
+                                                      widget.onDataChanged
+                                                          ?.call();
+                                                    },
+                                                  ),
+                                            );
+                                          },
+                                          onAlarmPressed: () {
+                                            _showTodoAlarmSheet(todo);
                                           },
                                         ),
                                       )

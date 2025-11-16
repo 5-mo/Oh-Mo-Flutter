@@ -9,7 +9,6 @@ import 'package:ohmo/services/notification_service.dart';
 
 class TodoCard extends StatefulWidget {
   final String content;
-  final Function(String) onEdit;
   final bool showCheckbox;
   final Widget Function(BuildContext context)? deletePopupBuilder;
   final ColorType colorType;
@@ -18,10 +17,12 @@ class TodoCard extends StatefulWidget {
   final Future<void> Function()? onStatusChanged;
   final Function(int id, DateTime newDate)? onDateChanged;
   final VoidCallback? onDataChanged;
+  final bool isColorPickerEnabled;
+  final VoidCallback? onEditPressed;
+  final VoidCallback? onAlarmPressed;
 
   const TodoCard({
     required this.content,
-    required this.onEdit,
     required this.colorType,
     this.showCheckbox = true,
     this.deletePopupBuilder,
@@ -30,6 +31,9 @@ class TodoCard extends StatefulWidget {
     this.onStatusChanged,
     this.onDateChanged,
     this.onDataChanged,
+    this.isColorPickerEnabled = true,
+    this.onEditPressed,
+    this.onAlarmPressed,
     Key? key,
   }) : super(key: key);
 
@@ -38,31 +42,17 @@ class TodoCard extends StatefulWidget {
 }
 
 class _TodoCardState extends State<TodoCard> {
-  late bool _isChecked;
-  bool _isEditing = false;
-  late TextEditingController _controller;
   ColorType _selectedColorType = ColorType.pinkLight;
 
   @override
   void initState() {
     super.initState();
-    _isChecked = widget.isDone;
-    _controller = TextEditingController(text: widget.content);
     _selectedColorType = widget.colorType;
   }
 
   @override
   void didUpdateWidget(covariant TodoCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.content != widget.content) {
-      _controller.text = widget.content;
-    }
-
-    if (oldWidget.isDone != widget.isDone) {
-      _isChecked = widget.isDone;
-    }
-
     if (oldWidget.colorType != widget.colorType) {
       _selectedColorType = widget.colorType;
     }
@@ -70,7 +60,6 @@ class _TodoCardState extends State<TodoCard> {
 
   @override
   void dispose() {
-    _controller.dispose();
     super.dispose();
   }
 
@@ -79,9 +68,10 @@ class _TodoCardState extends State<TodoCard> {
     final textStyle = TextStyle(
       fontSize: 16.0,
       fontFamily: 'PretendardRegular',
-      decoration: _isChecked ? TextDecoration.lineThrough : TextDecoration.none,
-      color: _isChecked ? Middle_GREY_COLOR : Colors.black,
-      decorationColor: _isChecked ? Middle_GREY_COLOR : Colors.black,
+      decoration:
+      widget.isDone ? TextDecoration.lineThrough : TextDecoration.none,
+      color: widget.isDone ? Middle_GREY_COLOR : Colors.black,
+      decorationColor: widget.isDone ? Middle_GREY_COLOR : Colors.black,
     );
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -90,7 +80,9 @@ class _TodoCardState extends State<TodoCard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             GestureDetector(
-              onTap: () => _openColorPicker(context),
+              onTap: widget.isColorPickerEnabled
+                  ? () => _openColorPicker(context)
+                  : null,
               child: Container(
                 width: 12,
                 height: 12,
@@ -102,39 +94,18 @@ class _TodoCardState extends State<TodoCard> {
             ),
             const SizedBox(width: 30.0),
             Expanded(
-              child:
-                  _isEditing
-                      ? TextField(
-                        controller: _controller,
-                        style: textStyle,
-                        autofocus: true,
-                        onSubmitted: (value) async {
-                          setState(() => _isEditing = false);
-                          widget.onEdit(value);
-
-                          final db = LocalDatabaseSingleton.instance;
-                          await db.updateTodo(
-                            TodosCompanion(
-                              id: Value(widget.scheduleId),
-                              content: Value(value),
-                            ),
-                          );
-                        },
-                        onTapOutside: (_) {
-                          setState(() => _isEditing = false);
-                          widget.onEdit(_controller.text);
-                        },
-                      )
-                      : GestureDetector(
-                        onTap: () => setState(() => _isEditing = true),
-                        child: Text(_controller.text, style: textStyle),
-                      ),
+              child: GestureDetector(
+                onTap: widget.onEditPressed,
+                child: Text(widget.content, style: textStyle),
+              ),
             ),
             GestureDetector(
               onTap: () async {
-                final db=LocalDatabaseSingleton.instance;
-                final todo=await db.getTodoById(widget.scheduleId);
-                if(todo==null)return;
+                final db = LocalDatabaseSingleton.instance;
+                final todo = await db.getTodoById(widget.scheduleId);
+                if (todo == null) return;
+
+                if (!mounted) return; //
 
                 final result = await showModalBottomSheet<dynamic>(
                   context: context,
@@ -147,14 +118,33 @@ class _TodoCardState extends State<TodoCard> {
                       topLeft: Radius.circular(59),
                     ),
                   ),
-                  builder: (context) => TodoAlarm(currentDate:todo.date),
+                  builder:
+                      (context) => TodoAlarm(
+                    currentDate: todo.date,
+                    todoId: widget.scheduleId,
+                    onDataChanged: widget.onDataChanged,
+                  ),
                 );
 
                 if (result != null && result is DateTime) {
                   widget.onDateChanged?.call(widget.scheduleId, result);
-                } else if (result != null && result is int) {
+                } else if (result != null && result == 0) {
+                  await db.updateTodo(
+                    TodosCompanion(
+                      id: Value(widget.scheduleId),
+                      alarmMinutes: Value(null),
+                    ),
+                  );
+                  await NotificationService().cancelNotification(
+                    widget.scheduleId,
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('알람이 삭제되었습니다!')));
+                  }
+                } else if (result != null && result is int && result > 0) {
                   final minutes = result;
-                  final db = LocalDatabaseSingleton.instance;
 
                   await db.updateTodo(
                     TodosCompanion(
@@ -162,27 +152,30 @@ class _TodoCardState extends State<TodoCard> {
                       alarmMinutes: Value(minutes),
                     ),
                   );
+                  final updatedTodo = await db.getTodoById(widget.scheduleId);
+                  if (updatedTodo == null) return;
+                  final todoTime = updatedTodo.date;
 
-                  final todo = await db.getTodoById(widget.scheduleId);
-                  if (todo == null) return;
-                  final todoTime = todo.date;
                   final notificationTime = todoTime.subtract(
                     Duration(minutes: minutes),
                   );
 
                   if (notificationTime.isAfter(DateTime.now())) {
+                    await NotificationService().cancelNotification(updatedTodo.id);
                     await NotificationService().scheduleNotification(
-                      id: todo.id,
+                      id: updatedTodo.id,
                       title: '오늘의 할 일!',
-                      body: todo.content,
+                      body: updatedTodo.content,
                       scheduledTime: notificationTime,
-                      payload: 'todo_${todo.id}',
+                      payload: 'todo_${updatedTodo.id}',
                     );
                   }
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${minutes}분 전 알람이 설정되었습니다!')),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${minutes}분 전 알람이 설정되었습니다!')),
+                    );
+                  }
                 }
               },
               child: SvgPicture.asset('android/assets/images/todo_alarm.svg'),
@@ -190,31 +183,21 @@ class _TodoCardState extends State<TodoCard> {
             const SizedBox(width: 8.0),
             widget.showCheckbox
                 ? Checkbox(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: VisualDensity.minimumDensity,
-                    vertical: VisualDensity.minimumDensity,
-                  ),
-                  value: _isChecked,
-                  onChanged: (bool? value) async {
-                    setState(() => _isChecked = value ?? false);
-
-                    try {
-                      final db = LocalDatabase();
-                      await db.toggleTodoStatus(widget.scheduleId);
-
-                      if (widget.onStatusChanged != null) {
-                        await widget.onStatusChanged!();
-                      }
-                    } catch (e) {
-                      print('투두 상태 변경 실패: $e');
-                      setState(() => _isChecked = !(_isChecked));
-                    }
-                  },
-                  activeColor: Colors.black,
-                  checkColor: Colors.white,
-                  fillColor: MaterialStateProperty.all(Colors.black),
-                )
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(
+                horizontal: VisualDensity.minimumDensity,
+                vertical: VisualDensity.minimumDensity,
+              ),
+              value: widget.isDone,
+              onChanged: (bool? value) async {
+                if (widget.onStatusChanged != null) {
+                  await widget.onStatusChanged!();
+                }
+              },
+              activeColor: Colors.black,
+              checkColor: Colors.white,
+              fillColor: MaterialStateProperty.all(Colors.black),
+            )
                 : SizedBox.shrink(),
           ],
         ),
@@ -233,11 +216,10 @@ class _TodoCardState extends State<TodoCard> {
           topLeft: Radius.circular(59),
         ),
       ),
-      builder:
-          (context) => ColorPaletteBottomSheet(
+      builder: (context) => ColorPaletteBottomSheet(
         selectedColorType: _selectedColorType,
-        onColorSelected:
-            (colorType) => setState(() => _selectedColorType = colorType),
+        onColorSelected: (colorType) =>
+            setState(() => _selectedColorType = colorType),
       ),
     ).then((selectedColor) async {
       if (selectedColor != null) {
@@ -249,13 +231,16 @@ class _TodoCardState extends State<TodoCard> {
           );
 
           widget.onDataChanged?.call();
-
         } catch (e) {
           print("카테고리 색상 변경 실패: $e");
-          setState(() => _selectedColorType = widget.colorType);
+          if (mounted) {
+            setState(() => _selectedColorType = widget.colorType);
+          }
         }
       } else {
-        setState(() => _selectedColorType = widget.colorType);
+        if (mounted) {
+          setState(() => _selectedColorType = widget.colorType);
+        }
       }
     });
   }
