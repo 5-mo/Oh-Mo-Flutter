@@ -44,6 +44,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   );
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
+  final ValueNotifier<Map<DateTime,List<Todo>>>_calendarTodosNotifier=
+  ValueNotifier({});
+  late DateTime _currentFocusedMonth;
+
   bool _hideRoutineUI = false;
   bool _hideTodoUI = false;
 
@@ -57,7 +61,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     final today = DateTime.now();
+    _currentFocusedMonth=DateTime(today.year,today.month);
     _loadDataForDate(today);
+    _loadDataForMonth(today);
     WidgetUpdater.update();
   }
 
@@ -192,10 +198,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await _loadTodoDeletionStatus();
   }
 
+  Future<void> _loadDataForMonth(DateTime month) async {
+    _currentFocusedMonth = DateTime(month.year, month.month, 1);
+
+    final firstDay = _currentFocusedMonth;
+    final lastDay = DateTime(month.year, month.month + 1, 0);
+
+    final database = db.LocalDatabaseSingleton.instance;
+
+    final fetched = await database.getTodosBetween(firstDay, lastDay);
+
+    final monthTodos = fetched.map((t) {
+      return Todo(
+        id: t.id,
+        content: t.content,
+        Date: t.date,
+        colorType: ColorType.values[t.colorType],
+        isDone: t.isDone,
+        alarm: false,
+      );
+    }).toList();
+
+    final todoMap = _groupTodosByDay(monthTodos);
+
+    _calendarTodosNotifier.value = todoMap;
+  }
+
+  Map<DateTime, List<Todo>> _groupTodosByDay(List<Todo> todos) {
+    final Map<DateTime, List<Todo>> map = {};
+    for (final todo in todos) {
+      final day = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
+      (map[day] ??= []).add(todo);
+    }
+    return map;
+  }
+
   void _onDateChanged(DateTime newDate) async {
     _selectedDateNotifier.value = newDate;
     await _loadDataForDate(newDate);
     await WidgetUpdater.update();
+    if (newDate.month != _currentFocusedMonth.month ||
+        newDate.year != _currentFocusedMonth.year) {
+      await _loadDataForMonth(newDate);
+    }
   }
 
   @override
@@ -208,16 +253,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         hideRoutineUI: _hideRoutineUI,
         hideTodoUI: _hideTodoUI,
         onDateChanged: _onDateChanged,
+        calendarTodosNotifier: _calendarTodosNotifier,
+        onPageChanged: _loadDataForMonth,
+
         onRoutineAdded: () async {
           await _loadDataForDate(_selectedDateNotifier.value);
+          await _loadDataForMonth(_selectedDateNotifier.value);
           await WidgetUpdater.update();
         },
         onTodoAdded: () async {
           await _loadDataForDate(_selectedDateNotifier.value);
+          await _loadDataForMonth(_selectedDateNotifier.value);
           await WidgetUpdater.update();
         },
         onDataChanged: () async {
           await _loadDataForDate(_selectedDateNotifier.value);
+          await _loadDataForMonth(_selectedDateNotifier.value);
           await WidgetUpdater.update();
         },
       ),
@@ -255,6 +306,8 @@ class HomeScreenBody extends StatefulWidget {
   final ValueNotifier<List<Routine>> routinesNotifier;
   final ValueNotifier<List<Todo>> todosNotifier;
   final ValueNotifier<DateTime> selectedDateNotifier;
+  final ValueNotifier<Map<DateTime, List<Todo>>> calendarTodosNotifier;
+  final void Function(DateTime)? onPageChanged;
   final VoidCallback? onDataChanged;
   final Future<void> Function()? onRoutineAdded;
   final Future<void> Function()? onTodoAdded;
@@ -267,6 +320,8 @@ class HomeScreenBody extends StatefulWidget {
     required this.routinesNotifier,
     required this.todosNotifier,
     required this.selectedDateNotifier,
+    required this.calendarTodosNotifier,
+    this.onPageChanged,
     this.onDataChanged,
     this.onRoutineAdded,
     this.onTodoAdded,
@@ -408,12 +463,18 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                           .watchUnreadNotificationCount(),
                   builder: (context, snapshot) {
                     final int unreadCount = snapshot.data ?? 0;
-
                     final bool hasUnread = unreadCount > 0;
+
                     return MainCalendar(
                       selectedDate: selectedDate,
                       onDaySelected: onDaySelected,
-                      eventLoader: (_) => [],
+                      eventLoader: (day) {
+                        final normalizedDay =
+                        DateTime(day.year, day.month, day.day);
+                        return widget.calendarTodosNotifier.value[normalizedDay] ??
+                            [];
+                      },
+                      onPageChanged: widget.onPageChanged,
                       hasUnread: hasUnread,
                       onAlarmIconPressed: () {
                         Navigator.push(

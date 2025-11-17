@@ -384,7 +384,9 @@ class LocalDatabase extends _$LocalDatabase {
     final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
 
     return (select(todos)
-      ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))).get();
+          ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))
+          ..where((t) => t.groupId.isNull()))
+        .get();
   }
 
   Future<void> updateTodoCompletion(int id, bool isDone) {
