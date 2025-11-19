@@ -16,15 +16,26 @@ class NotificationScreen extends StatefulWidget {
 class _NotificationScreenState extends State<NotificationScreen> {
   final db.LocalDatabase _db = db.LocalDatabaseSingleton.instance;
   late final Stream<List<db.Notification>> _notificationStream;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-
     _markAllAsRead();
 
     _notificationStream = _db.watchAllNotifications();
+    _timer = Timer.periodic(Duration(minutes: 1), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
+
+@override
+void dispose() {
+  _timer?.cancel();
+  super.dispose();
+}
 
   void _markAllAsRead() {
     unawaited(_db.markAllNotificationsAsRead());
@@ -65,7 +76,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   return Center(child: CircularProgressIndicator());
                 }
 
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                final allNotifications = snapshot.data ?? [];
+                final now = DateTime.now();
+
+                if (allNotifications.isNotEmpty) {
+                }
+
+                final visibleNotifications = allNotifications.where((notification) {
+                  return notification.timestamp.isBefore(now) ||
+                      notification.timestamp.isAtSameMomentAs(now);
+
+                }).toList();
+
+                visibleNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+                if (visibleNotifications.isEmpty) {
                   return Column(
                     children: [
                       SizedBox(height: 200),
@@ -97,8 +122,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   );
                 }
 
-                final notifications = snapshot.data!;
-                return _buildNotificationList(notifications);
+                return _buildNotificationList(visibleNotifications);
               },
             ),
           ),
@@ -111,6 +135,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Text(
+          "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+          style: TextStyle(
+            fontFamily: 'PretendardRegular',
+            fontSize: 8.0,
+            color: Color(0xFF565656),
+          ),
+        ),
+      ),
     );
   }
 
@@ -135,17 +170,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다       ",
-                  style: TextStyle(
-                    fontFamily: 'PretendardRegular',
-                    fontSize: 8.0,
-                    color: Color(0xFF565656),
-                  ),
-                ),
-              ),
               if (showHeader) ...[
                 if (index != 0) ...[
                   SizedBox(height: 15),
@@ -169,13 +193,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
       orElse: () => NotificationType.group,
     );
     String displayContent = item.content;
-    if (type == NotificationType.calender) {
-      final timeString = DateFormat('HH:mm').format(item.timestamp);
-      displayContent = '$timeString ${item.content}';
-    }
+
     Widget contentWidget;
     String? tag;
     int tagIndex = -1;
+
     if (displayContent.contains('[공지]')) {
       tag = '[공지]';
       tagIndex = displayContent.indexOf(tag);
@@ -187,7 +209,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
       tagIndex = displayContent.indexOf(tag);
     }
 
-    if (type == NotificationType.group && tagIndex != -1 && tag != null) {
+    if ((type == NotificationType.group || type == NotificationType.calender) &&
+        tagIndex != -1 && tag != null) {
       final String part1 = displayContent.substring(0, tagIndex);
       final String part2 = tag;
       final String part3 = displayContent.substring(tagIndex + tag.length);

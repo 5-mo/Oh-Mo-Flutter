@@ -533,6 +533,21 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 scheduledTime: notificationTime,
                 payload: 'todo_$todoId',
               );
+              try {
+                await db
+                    .into(db.notifications)
+                    .insert(
+                      NotificationsCompanion.insert(
+                        type: 'calender',
+                        content: '[To-do] ${contentController.text}',
+                        timestamp: notificationTime,
+                        isRead: const drift.Value(false),
+                      ),
+                    );
+                print("DB 알림 테이블 저장 완료");
+              } catch (e) {
+                print("DB 알림 테이블 저장 실패: $e");
+              }
             }
           }
 

@@ -6,6 +6,7 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/screen/category_screen.dart';
+import '../db/drift_database.dart';
 import '../models/category_item.dart';
 import 'package:ohmo/services/notification_service.dart';
 
@@ -943,6 +944,19 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
               scheduledTime: notificationTime,
               payload: 'routine_${routine.id}',
             );
+            try {
+              await db
+                  .into(db.notifications)
+                  .insert(
+                    NotificationsCompanion.insert(
+                      type: 'calender',
+                      content: '[Routine] ${routine.content}',
+                      timestamp: notificationTime,
+                      isRead: const drift.Value(false),
+                    ),
+                  );
+            } catch (e) {
+            }
           }
         }
       }

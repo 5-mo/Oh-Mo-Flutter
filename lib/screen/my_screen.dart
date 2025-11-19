@@ -237,8 +237,6 @@ class _MyScreenState extends State<MyScreen> {
           SizedBox(width: 40.0),
           Expanded(
             child: TextField(
-              controller: _searchController,
-              autofocus: true,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,

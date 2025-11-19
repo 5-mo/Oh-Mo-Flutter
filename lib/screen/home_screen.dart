@@ -22,6 +22,7 @@ import '../models/todo.dart';
 import '../services/notification_service.dart';
 import 'notification_screen.dart';
 import 'package:drift/drift.dart' hide Column;
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -44,8 +45,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   );
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
-  final ValueNotifier<Map<DateTime,List<Todo>>>_calendarTodosNotifier=
-  ValueNotifier({});
+  final ValueNotifier<Map<DateTime, List<Todo>>> _calendarTodosNotifier =
+      ValueNotifier({});
   late DateTime _currentFocusedMonth;
 
   bool _hideRoutineUI = false;
@@ -61,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     final today = DateTime.now();
-    _currentFocusedMonth=DateTime(today.year,today.month);
+    _currentFocusedMonth = DateTime(today.year, today.month);
     _loadDataForDate(today);
     _loadDataForMonth(today);
     WidgetUpdater.update();
@@ -208,16 +209,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final fetched = await database.getTodosBetween(firstDay, lastDay);
 
-    final monthTodos = fetched.map((t) {
-      return Todo(
-        id: t.id,
-        content: t.content,
-        Date: t.date,
-        colorType: ColorType.values[t.colorType],
-        isDone: t.isDone,
-        alarm: false,
-      );
-    }).toList();
+    final monthTodos =
+        fetched.map((t) {
+          return Todo(
+            id: t.id,
+            content: t.content,
+            Date: t.date,
+            colorType: ColorType.values[t.colorType],
+            isDone: t.isDone,
+            alarm: false,
+          );
+        }).toList();
 
     final todoMap = _groupTodosByDay(monthTodos);
 
@@ -422,8 +424,15 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
       );
       if (updatedTodo == null) return;
 
-      final todoTime = updatedTodo.date;
-      final notificationTime = todoTime.subtract(Duration(minutes: minutes));
+      final notificationTime = updatedTodo.date.subtract(
+        Duration(minutes: minutes),
+      );
+
+      final originalTimeStr = DateFormat('HH:mm').format(updatedTodo.date);
+
+      await (db.LocalDatabaseSingleton.instance.delete(db.LocalDatabaseSingleton.instance.notifications)
+        ..where((tbl) => tbl.content.like('%${updatedTodo.content}%')))
+          .go();
 
       if (notificationTime.isAfter(DateTime.now())) {
         await NotificationService().cancelNotification(updatedTodo.id);
@@ -434,7 +443,19 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
           scheduledTime: notificationTime,
           payload: 'todo_${updatedTodo.id}',
         );
-      }
+        try {
+          await db.LocalDatabaseSingleton.instance
+              .into(db.LocalDatabaseSingleton.instance.notifications)
+              .insert(
+                db.NotificationsCompanion.insert(
+                  type: 'calender',
+                  content: '[To-do] $originalTimeStr ${updatedTodo.content}',
+                  timestamp: notificationTime,
+                  isRead: const Value(false),
+                ),
+              );
+        } catch (e) {}
+      } else {}
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -457,21 +478,35 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                StreamBuilder<int>(
+                StreamBuilder<List<db.Notification>>(
                   stream:
                       db.LocalDatabaseSingleton.instance
-                          .watchUnreadNotificationCount(),
+                          .watchAllNotifications(),
                   builder: (context, snapshot) {
-                    final int unreadCount = snapshot.data ?? 0;
+                    final notifications = snapshot.data ?? [];
+                    final now = DateTime.now();
+
+                    final int unreadCount =
+                        notifications.where((n) {
+                          final isTimeArrived =
+                              n.timestamp.isBefore(now) ||
+                              n.timestamp.isAtSameMomentAs(now);
+                          return !n.isRead && isTimeArrived;
+                        }).length;
                     final bool hasUnread = unreadCount > 0;
 
                     return MainCalendar(
                       selectedDate: selectedDate,
                       onDaySelected: onDaySelected,
                       eventLoader: (day) {
-                        final normalizedDay =
-                        DateTime(day.year, day.month, day.day);
-                        return widget.calendarTodosNotifier.value[normalizedDay] ??
+                        final normalizedDay = DateTime(
+                          day.year,
+                          day.month,
+                          day.day,
+                        );
+                        return widget
+                                .calendarTodosNotifier
+                                .value[normalizedDay] ??
                             [];
                       },
                       onPageChanged: widget.onPageChanged,
