@@ -387,13 +387,16 @@ class _MyScreenState extends State<MyScreen> {
 
   Widget _buildCategoryManaging(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final bool? result = await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => CategoryScreen()),
-        ).then((_) {
-          widget.onDataChanged?.call();
-        });
+        );
+        if (result == true) {
+          if (widget.onDataChanged != null) {
+            widget.onDataChanged!();
+          }
+        }
       },
       child: Text(
         '카테고리 관리',

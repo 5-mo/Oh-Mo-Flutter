@@ -43,8 +43,10 @@ class LocalCategoryRepository {
     await _db.updateCategoryName(id, newName);
   }
 
-  Future<void> deleteCategory(int id) async {
-    await _db.deleteCategory(id);
+  Future<void> deleteCategory(int categoryId) async {
+    await _db.updateChildrenOnCategoryDelete(categoryId);
+
+    await _db.deleteCategoryById(categoryId);
   }
 
   Future<void> softDeleteCategory(int id) async {

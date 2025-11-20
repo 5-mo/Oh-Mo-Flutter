@@ -33,6 +33,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   List<CategoryItem> todos = [];
   List<DayLogQuestionItem> daylogQuestions = [];
   int? selectedCategoryId;
+  bool _needsRefresh = false;
 
   String _newEmoji = '🙂';
   TextEditingController _newQuestionController = TextEditingController();
@@ -89,60 +90,70 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        surfaceTintColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.chevron_left),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        Navigator.pop(context, _needsRefresh);
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          surfaceTintColor: Colors.white,
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left),
+            onPressed: () {
+              Navigator.pop(context, _needsRefresh);
+            },
+          ),
+          backgroundColor: Colors.white,
         ),
-        backgroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 30, left: 35),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCategoryHeader(),
-                  SizedBox(height: 20.0),
-                  _buildRoutineAccordion(),
-                  _buildTodoAccordion(),
-                  _buildDaylogAccordion(),
-                  SizedBox(height: 10.0),
-                  _buildDiaryIndex(),
-                ],
+        body: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 30, left: 35),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCategoryHeader(),
+                    SizedBox(height: 20.0),
+                    _buildRoutineAccordion(),
+                    _buildTodoAccordion(),
+                    _buildDaylogAccordion(),
+                    SizedBox(height: 10.0),
+                    _buildDiaryIndex(),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: 60.0),
+              SizedBox(height: 60.0),
 
-            Center(
-              child: Container(width: 320, child: Divider(color: Colors.black)),
-            ),
-
-            SizedBox(height: 10.0),
-            _buildGroupHeader(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 35.0),
-              child: Wrap(
-                spacing: 23.0,
-                runSpacing: 23.0,
-                children: [
-                  ..._groups.map((group) {
-                    return _buildGroupSection(group: group);
-                  }).toList(),
-                  if (_groups.isEmpty) _buildCreateGroupCard(),
-                ],
+              Center(
+                child: Container(
+                  width: 320,
+                  child: Divider(color: Colors.black),
+                ),
               ),
-            ),
-            SizedBox(height: 60.0),
-          ],
+
+              SizedBox(height: 10.0),
+              _buildGroupHeader(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 35.0),
+                child: Wrap(
+                  spacing: 23.0,
+                  runSpacing: 23.0,
+                  children: [
+                    ..._groups.map((group) {
+                      return _buildGroupSection(group: group);
+                    }).toList(),
+                    if (_groups.isEmpty) _buildCreateGroupCard(),
+                  ],
+                ),
+              ),
+              SizedBox(height: 60.0),
+            ],
+          ),
         ),
       ),
     );
@@ -172,6 +183,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       (context) => DeletePopup(
                         onDelete: () async {
                           await RoutineVisibilityHelper.setVisibility(false);
+                          if (mounted) {
+                            setState(() {
+                              _isRoutineDeleted = true;
+                              _needsRefresh = true;
+                            });
+                          }
                           Navigator.pop(context, true);
                         },
                         messageHeader: '루틴 삭제',
@@ -195,7 +212,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
             SlidableAction(
               onPressed: (_) async {
                 await RoutineVisibilityHelper.setVisibility(true);
-                Navigator.pop(context, true);
+                if (mounted) {
+                  setState(() {
+                    _isRoutineDeleted = false;
+                    _needsRefresh = true;
+                  });
+                }
               },
               foregroundColor: Colors.green,
               icon: Icons.restore,
@@ -270,9 +292,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           colorType: ColorTypeExtension.fromString(
                             routine.colorType,
                           ),
-                          showCheckbox: false,
                           isColorPickerEnabled: true,
-                          isDone: false,
                           scheduleId: routine.id,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
@@ -282,6 +302,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   routines.removeWhere(
                                     (item) => item.id == routine.id,
                                   );
+                                  _needsRefresh = true;
                                 });
                               },
                               messageHeader: '삭제',
@@ -295,6 +316,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             );
                             setState(() {
                               routine.categoryName = newContent;
+                              _needsRefresh = true;
+                            });
+                          },
+                          onDataChanged: () {
+                            setState(() {
+                              _loadAllData();
+                              _needsRefresh = true;
                             });
                           },
                         );
@@ -356,6 +384,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     routines.add(newItem);
                                     _isAddingNewRoutine = false;
                                     _newRoutineController.clear();
+                                    _needsRefresh = true;
                                   });
                                 },
                               ),
@@ -390,6 +419,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       (context) => DeletePopup(
                         onDelete: () async {
                           await TodoVisibilityHelper.setVisibility(false);
+                          if (mounted) {
+                            setState(() {
+                              _isTodoDeleted = true;
+                              _needsRefresh = true;
+                            });
+                          }
                           Navigator.pop(context, true);
                         },
                         messageHeader: '투두리스트 삭제',
@@ -413,7 +448,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
             SlidableAction(
               onPressed: (_) async {
                 await TodoVisibilityHelper.setVisibility(true);
-                Navigator.pop(context, true);
+                if (mounted) {
+                  setState(() {
+                    _isTodoDeleted = false;
+                    _needsRefresh = true;
+                  });
+                }
               },
               foregroundColor: Colors.green,
               icon: Icons.restore,
@@ -490,7 +530,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           colorType: ColorTypeExtension.fromString(
                             todo.colorType,
                           ),
-                          showCheckbox: false,
                           isColorPickerEnabled: true,
                           deletePopupBuilder: (context) {
                             return DeletePopup(
@@ -500,6 +539,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   todos.removeWhere(
                                     (item) => item.id == todo.id,
                                   );
+                                  _needsRefresh = true;
                                 });
                               },
                               messageHeader: '삭제',
@@ -513,9 +553,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             );
                             setState(() {
                               todo.categoryName = newContent;
+                              _needsRefresh = true;
                             });
                           },
-                          isDone: false,
                         );
                       }).toList(),
 
@@ -575,6 +615,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     todos.add(newItem);
                                     _isAddingNewTodo = false;
                                     _newTodoController.clear();
+                                    _needsRefresh = true;
                                   });
                                 },
                               ),
@@ -777,6 +818,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                             daylogQuestions.removeWhere(
                                               (item) => item.id == question.id,
                                             );
+                                            _needsRefresh = true;
                                           });
                                         },
                                         messageHeader: '삭제',
