@@ -902,6 +902,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     daylogQuestions.add(newItem);
                                     _isAddingNewQuestion = false;
                                     _newQuestionController.clear();
+                                    _needsRefresh = true;
                                   });
                                 },
                               ),
