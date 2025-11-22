@@ -42,6 +42,20 @@ class QuestionVisibilityHelper {
   }
 }
 
+class GroupVisibilityHelper {
+  static const String _key = 'isGroupVisible';
+
+  static Future<bool> getVisibility() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_key) ?? true;
+  }
+
+  static Future<void> setVisibility(bool isVisible) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_key, isVisible);
+  }
+}
+
 class DiaryVisibilityHelper {
   static const String _key = 'isDiaryVisible';
 

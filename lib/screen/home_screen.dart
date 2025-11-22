@@ -430,9 +430,9 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
 
       final originalTimeStr = DateFormat('HH:mm').format(updatedTodo.date);
 
-      await (db.LocalDatabaseSingleton.instance.delete(db.LocalDatabaseSingleton.instance.notifications)
-        ..where((tbl) => tbl.content.like('%${updatedTodo.content}%')))
-          .go();
+      await (db.LocalDatabaseSingleton.instance.delete(
+        db.LocalDatabaseSingleton.instance.notifications,
+      )..where((tbl) => tbl.content.like('%${updatedTodo.content}%'))).go();
 
       if (notificationTime.isAfter(DateTime.now())) {
         await NotificationService().cancelNotification(updatedTodo.id);
@@ -526,7 +526,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Column(
                     children: [
-                      if (!widget.hideRoutineUI)
+                      if (!widget.hideRoutineUI) ...[
                         RoutineBanner(
                           onAddPressed: () {
                             showModalBottomSheet(
@@ -550,75 +550,78 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                             );
                           },
                         ),
-                      ValueListenableBuilder<List<Routine>>(
-                        valueListenable: widget.routinesNotifier,
-                        builder: (context, routines, _) {
-                          final visibleRoutines =
-                              routines
-                                  .where(
-                                    (r) => _isRoutineVisible(r, selectedDate),
-                                  )
-                                  .toList();
-                          return Column(
-                            children:
-                                visibleRoutines
-                                    .map(
-                                      (routine) => RoutineCard(
-                                        content: routine.content,
-                                        colorType: routine.colorType,
-                                        scheduleId: routine.id,
-                                        isDone: routine.isDone,
-                                        onDataChanged: widget.onDataChanged,
-                                        onStatusChanged: () async {
-                                          await db
-                                              .LocalDatabaseSingleton
-                                              .instance
-                                              .toggleRoutineCompletion(
-                                                routine.id,
-                                                selectedDate,
-                                              );
-                                          setState(
-                                            () =>
-                                                routine.isDone =
-                                                    !routine.isDone,
-                                          );
-                                          widget.onDataChanged?.call();
-                                        },
-                                        isColorPickerEnabled: false,
-                                        onEditPressed: () {
-                                          showModalBottomSheet(
-                                            context: context,
-                                            isScrollControlled: true,
-                                            isDismissible: true,
-                                            backgroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.only(
-                                                topRight: Radius.circular(59),
-                                                topLeft: Radius.circular(59),
-                                              ),
-                                            ),
-                                            builder:
-                                                (_) => RoutineBottomSheet(
-                                                  routineIdToEdit: routine.id,
-                                                  onRoutineAdded:
-                                                      widget.onRoutineAdded,
-                                                  onDataChanged: () async {
-                                                    widget.onDataChanged
-                                                        ?.call();
-                                                  },
-                                                  selectedDate: selectedDate,
-                                                ),
-                                          );
-                                        },
-                                      ),
+                        ValueListenableBuilder<List<Routine>>(
+                          valueListenable: widget.routinesNotifier,
+                          builder: (context, routines, _) {
+                            final visibleRoutines =
+                                routines
+                                    .where(
+                                      (r) => _isRoutineVisible(r, selectedDate),
                                     )
-                                    .toList(),
-                          );
-                        },
-                      ),
-                      if (!widget.hideTodoUI) ...[
+                                    .toList();
+                            return Column(
+                              children:
+                                  visibleRoutines
+                                      .map(
+                                        (routine) => RoutineCard(
+                                          content: routine.content,
+                                          colorType: routine.colorType,
+                                          scheduleId: routine.id,
+                                          isDone: routine.isDone,
+                                          onDataChanged: widget.onDataChanged,
+                                          onStatusChanged: () async {
+                                            await db
+                                                .LocalDatabaseSingleton
+                                                .instance
+                                                .toggleRoutineCompletion(
+                                                  routine.id,
+                                                  selectedDate,
+                                                );
+                                            setState(
+                                              () =>
+                                                  routine.isDone =
+                                                      !routine.isDone,
+                                            );
+                                            widget.onDataChanged?.call();
+                                          },
+                                          isColorPickerEnabled: false,
+                                          onEditPressed: () {
+                                            showModalBottomSheet(
+                                              context: context,
+                                              isScrollControlled: true,
+                                              isDismissible: true,
+                                              backgroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.only(
+                                                  topRight: Radius.circular(59),
+                                                  topLeft: Radius.circular(59),
+                                                ),
+                                              ),
+                                              builder:
+                                                  (_) => RoutineBottomSheet(
+                                                    routineIdToEdit: routine.id,
+                                                    onRoutineAdded:
+                                                        widget.onRoutineAdded,
+                                                    onDataChanged: () async {
+                                                      widget.onDataChanged
+                                                          ?.call();
+                                                    },
+                                                    selectedDate: selectedDate,
+                                                  ),
+                                            );
+                                          },
+                                        ),
+                                      )
+                                      .toList(),
+                            );
+                          },
+                        ),
+                      ],
+                      if (!widget.hideRoutineUI && !widget.hideTodoUI) ...[
                         SizedBox(height: 20),
                         Divider(color: Colors.grey),
+                      ],
+                      if (!widget.hideTodoUI) ...[
                         TodoBanner(
                           onAddPressed: () {
                             showModalBottomSheet(
