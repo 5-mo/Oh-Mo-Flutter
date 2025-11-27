@@ -5,6 +5,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../const/colors.dart';
 import '../screen/group/group_main_screen.dart';
+import '../models/todo.dart';
 
 class MainCalendar extends StatefulWidget {
   final OnDaySelected onDaySelected;
@@ -50,7 +51,24 @@ class MainCalendar extends StatefulWidget {
 
 class _MainCalendarState extends State<MainCalendar> {
   CalendarFormat _format = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
+  late DateTime _focusedDay;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusedDay = widget.selectedDate;
+  }
+
+  @override
+  void didUpdateWidget(MainCalendar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.selectedDate != oldWidget.selectedDate) {
+      setState(() {
+        _focusedDay = widget.selectedDate;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +152,12 @@ class _MainCalendarState extends State<MainCalendar> {
         width: widget.formatButtonSize ?? 19.0,
         height: widget.formatButtonSize ?? 19.0,
       ),
-      onPressed: () => setState(() => _format = format),
+      onPressed: () {
+        setState(() {
+          _format = format;
+          _focusedDay = widget.selectedDate;
+        });
+      },
     );
   }
 
@@ -155,14 +178,9 @@ class _MainCalendarState extends State<MainCalendar> {
         color: Colors.black,
       ),
       selectedDecoration: BoxDecoration(
-        color: Colors.blue,
+        color: Colors.black,
         shape: BoxShape.circle,
       ),
-      //markerSize: 6.0,
-      //markersMaxCount: 4,
-      //markersAlignment: Alignment(0.0, 5.0),
-      //markerMargin: EdgeInsets.symmetric(horizontal: 2.0, vertical: 5.0),
-      //markerDecoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle),
       isTodayHighlighted: true,
       todayDecoration: BoxDecoration(
         color: Colors.transparent,
@@ -183,6 +201,9 @@ class _MainCalendarState extends State<MainCalendar> {
         focusedDay: _focusedDay,
         firstDay: DateTime(1800, 1, 1),
         lastDay: DateTime(3000, 1, 1),
+        selectedDayPredicate: (day) {
+          return isSameDay(widget.selectedDate, day);
+        },
         calendarFormat: _format,
         onFormatChanged: (format) => setState(() => _format = format),
         availableCalendarFormats: {
@@ -201,46 +222,75 @@ class _MainCalendarState extends State<MainCalendar> {
           setState(() {
             _focusedDay = focusedDay;
           });
+          widget.onPageChanged?.call(focusedDay);
         },
 
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, date, events) {
             if (events.isNotEmpty) {
-              final event = events.first as CalendarEvent;
-              return Positioned(
-                left: 0,
-                right: 0,
-                bottom: bottomPosition,
-                child: Center(
-                  child:
-                      event.isFullyCompleted()
-                          ? Image.asset(
-                            'android/assets/images/clear_ohmo.png',
-                            width: 20,
-                            height: 20,
-                          )
-                          : Container(
-                            width: 40.0,
-                            decoration: BoxDecoration(
-                              color: ColorManager.getColor(
-                                widget.markerColor,
-                              ).withOpacity(0.8),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              event.toString(),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 8.0,
-                                fontWeight: FontWeight.bold,
+              final event = events.first;
+              final bool isWeekFormat = _format == CalendarFormat.week;
+              if (event is CalendarEvent) {
+                final double bottomPosition = isWeekFormat ? 3 : -9;
+                return Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: bottomPosition,
+                  child: Center(
+                    child:
+                        event.isFullyCompleted()
+                            ? Image.asset(
+                              'android/assets/images/clear_ohmo.png',
+                              width: 20,
+                              height: 20,
+                            )
+                            : Container(
+                              width: 40.0,
+                              decoration: BoxDecoration(
+                                color: ColorManager.getColor(
+                                  widget.markerColor,
+                                ).withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                              child: Text(
+                                event.toString(),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 8.0,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                             ),
-                          ),
-                ),
-              );
+                  ),
+                );
+              } else if (event is Todo) {
+                final double bottomPositionNew = isWeekFormat ? 14.0 : -2;
+                final todos = events.cast<Todo>();
+                final todosToShow = todos.take(4).toList();
+                return Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: bottomPositionNew,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children:
+                        todosToShow.map((todo) {
+                          return Container(
+                            width: 6.0,
+                            height: 6.0,
+                            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: ColorManager.getColor(todo.colorType),
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                );
+              }
             }
             return null;
           },

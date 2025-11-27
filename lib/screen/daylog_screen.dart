@@ -112,7 +112,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     final database = db.LocalDatabaseSingleton.instance;
     _repository = LocalCategoryRepository(database);
-    _loadDbQuestions();
+
+    _loadAndInitializeQuestions();
 
     _loadDayLogData(_focusedDay);
 
@@ -142,6 +143,40 @@ class _DaylogScreenState extends State<DaylogScreen> {
         _updateFocusedDay(widget.selectedDateNotifier.value);
       }
     });
+  }
+
+  Future<void> _loadAndInitializeQuestions() async {
+    List<DayLogQuestionItem> fetchedQuestions =
+        await _repository.fetchDayLogQuestions();
+    if (fetchedQuestions.isEmpty) {
+      await _insertDefaultQuestions();
+      fetchedQuestions = await _repository.fetchDayLogQuestions();
+    }
+
+    if (mounted) {
+      setState(() {
+        _dbQuestions = fetchedQuestions;
+      });
+    }
+  }
+
+  Future<void> _insertDefaultQuestions() async {
+    final defaultQuestions = [
+      {'emoji': '💰', 'text': '오늘의 소비는?'},
+      {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
+    ];
+    final database = db.LocalDatabaseSingleton.instance;
+
+    for (var item in defaultQuestions) {
+      await database
+          .into(database.dayLogQuestions)
+          .insert(
+            db.DayLogQuestionsCompanion(
+              question: Value(item['text']!),
+              emoji: Value(item['emoji']!),
+            ),
+          );
+    }
   }
 
   @override
@@ -1061,15 +1096,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
   }
 
-  Future<void> _loadDbQuestions() async {
-    final fetchedQuestions = await _repository.fetchDayLogQuestions();
-    if (mounted) {
-      setState(() {
-        _dbQuestions = fetchedQuestions;
-      });
-    }
-  }
-
   Widget _buildQuestionBanner() {
     final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
     return Container(
@@ -1087,29 +1113,30 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildQuestionButtons() {
-    final staticQuestionStrings = ['💰 오늘의 소비는?', '😊 오늘의 내가 감사했던 일은?'];
+    final allQuestionStrings =
+        _dbQuestions.map((q) {
+          if (q.emoji.isNotEmpty) {
+            return '${q.emoji} ${q.question}';
+          }
+          return q.question;
+        }).toList();
+    return Align(
+      alignment: Alignment.centerLeft,
 
-    final dynamicQuestionStrings =
-        _dbQuestions.map((q) => '${q.emoji} ${q.question}').toList();
-
-    final allQuestionStrings = [
-      ...staticQuestionStrings,
-      ...dynamicQuestionStrings,
-    ];
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 40.0),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        child: Row(
-          children:
-              allQuestionStrings.map((questionText) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: _buildQuestionButton(questionText),
-                );
-              }).toList(),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.0),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          child: Row(
+            children:
+                allQuestionStrings.map((questionText) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: _buildQuestionButton(questionText),
+                  );
+                }).toList(),
+          ),
         ),
       ),
     );

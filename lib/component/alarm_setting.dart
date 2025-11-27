@@ -29,6 +29,8 @@ class _AlarmSettingState extends State<AlarmSetting> {
               SizedBox(height: 30),
               _buildSaveButton(),
               SizedBox(height: bottomInset),
+              SizedBox(height: 10),
+              _buildDeleteAlarm(),
             ],
           ),
         ),
@@ -45,24 +47,26 @@ class _AlarmSettingState extends State<AlarmSetting> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "알람 시간 설정하기",
+            "미리 알람",
             style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
           ),
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
-            children:
-                minutes
-                    .map((minute) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: _buildMinuteButton(minute),
-                      );
-                    })
-                    .toList()
-                    .expand((widget) => [widget, SizedBox(width: 13)])
-                    .toList()
-                  ..removeLast(),
+            children: [
+              SizedBox(width: 20),
+              ...minutes
+                  .map((minute) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 0),
+                      child: _buildMinuteButton(minute),
+                    );
+                  })
+                  .toList()
+                  .expand((widget) => [widget, SizedBox(width: 10)])
+                  .toList()
+                ..removeLast(),
+            ],
           ),
         ],
       ),
@@ -72,15 +76,14 @@ class _AlarmSettingState extends State<AlarmSetting> {
   Widget _buildMinuteButton(String minute) {
     return GestureDetector(
       onTap: () {
-        if (minute == "직접 입력") {
-          setState(() {
+        setState(() {
+          selectedMinute = minute;
+          if (minute == "직접 입력") {
             isManualInputSelected = true;
-            selectedMinute = minute;
-          });
-        } else {
-          final minutes = int.parse(minute.replaceAll('분 전', ''));
-          Navigator.of(context).pop(minutes);
-        }
+          } else {
+            isManualInputSelected = false;
+          }
+        });
       },
 
       child: Container(
@@ -128,24 +131,28 @@ class _AlarmSettingState extends State<AlarmSetting> {
                 counterText: "",
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 8,
-                  vertical: 8,
+                  vertical: 0,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
                   borderSide: BorderSide.none,
+
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
                   borderSide: BorderSide.none,
+
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
                   borderSide: BorderSide.none,
+
                 ),
               ),
               style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
               maxLength: 2,
               textAlignVertical: TextAlignVertical.center,
+
             ),
           ),
           SizedBox(width: 8),
@@ -155,6 +162,7 @@ class _AlarmSettingState extends State<AlarmSetting> {
               fontSize: 16,
               fontFamily: 'PretendardRegular',
               color: Colors.black,
+
             ),
           ),
         ],
@@ -175,6 +183,21 @@ class _AlarmSettingState extends State<AlarmSetting> {
             ).showSnackBar(const SnackBar(content: Text('숫자만 입력해주세요.')));
           }
         }
+        else if(selectedMinute.isNotEmpty){
+          try{
+            final minutes=int.parse(selectedMinute.replaceAll('분 전', ''));
+            Navigator.of(context).pop(minutes);
+          }catch(e){
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('값을 선택해주세요.')));
+          }
+        }
+        else{
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('알람 시간을 선택해주세요.')));
+        }
       },
       child: Container(
         width: 334,
@@ -190,6 +213,39 @@ class _AlarmSettingState extends State<AlarmSetting> {
               fontSize: 20,
               fontFamily: 'PretendardBold',
               color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAlarm() {
+    return GestureDetector(
+      onTap: () async {
+        Navigator.of(context).pop(0);
+      },
+      child: Container(
+        width: 327,
+        height: 43,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(9),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
+          ],
+        ),
+        child: Align(
+          alignment: Alignment.center,
+          child: Padding(
+            padding: EdgeInsets.only(left: 16),
+            child: Text(
+              '미리 알림 삭제',
+              style: TextStyle(
+                fontSize: 16,
+                fontFamily: 'PretendardBold',
+                color: Color(0xFFC41E1E),
+              ),
             ),
           ),
         ),

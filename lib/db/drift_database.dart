@@ -60,6 +60,26 @@ class LocalDatabase extends _$LocalDatabase {
 
   // ------------------ Category ------------------
 
+  Future<int> deleteCategoryById(int id) {
+    return (delete(categories)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<void> updateChildrenOnCategoryDelete(int categoryId) {
+    return transaction(() async {
+      await (update(routines)..where((tbl) => tbl.categoryId.equals(categoryId)))
+          .write(RoutinesCompanion(
+        colorType: Value(ColorType.uncategorizedBlack.index),
+        categoryId: const Value(null),
+      ));
+
+      await (update(todos)..where((tbl) => tbl.categoryId.equals(categoryId)))
+          .write(TodosCompanion(
+        colorType: Value(ColorType.uncategorizedBlack.index),
+        categoryId: const Value(null),
+      ));
+    });
+  }
+
   Future<List<Category>> getAllCategories(String type) {
     return (select(categories)..where((c) => c.type.equals(type))).get();
   }
@@ -293,8 +313,12 @@ class LocalDatabase extends _$LocalDatabase {
   // ------------------Todo------------------
 
   Future<List<Todo>> getPersonalTodosByDate(DateTime date) {
-    return (select(todos)
-      ..where((tbl) => tbl.date.equals(date) & tbl.groupId.isNull())).get();
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    return (select(todos)..where(
+      (tbl) =>
+          tbl.date.isBetweenValues(startOfDay, endOfDay) & tbl.groupId.isNull(),
+    )).get();
   }
 
   Future<int> insertTodo(TodosCompanion entry) => into(todos).insert(entry);
@@ -380,7 +404,9 @@ class LocalDatabase extends _$LocalDatabase {
     final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
 
     return (select(todos)
-      ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))).get();
+          ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay))
+          ..where((t) => t.groupId.isNull()))
+        .get();
   }
 
   Future<void> updateTodoCompletion(int id, bool isDone) {

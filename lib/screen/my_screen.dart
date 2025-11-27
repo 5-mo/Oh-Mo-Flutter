@@ -14,8 +14,13 @@ import '../db/drift_database.dart' as db;
 class MyScreen extends StatefulWidget {
   final Function(int) onTabChange;
   final ValueNotifier<DateTime> selectedDateNotifier;
+  final VoidCallback? onDataChanged;
 
-  MyScreen({required this.onTabChange, required this.selectedDateNotifier});
+  MyScreen({
+    required this.onTabChange,
+    required this.selectedDateNotifier,
+    this.onDataChanged,
+  });
 
   @override
   _MyScreenState createState() => _MyScreenState();
@@ -232,8 +237,6 @@ class _MyScreenState extends State<MyScreen> {
           SizedBox(width: 40.0),
           Expanded(
             child: TextField(
-              controller: _searchController,
-              autofocus: true,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -367,28 +370,33 @@ class _MyScreenState extends State<MyScreen> {
       ),
 
       child: Center(
-          child: Row(
-            children: [
-              SizedBox(width: 20.0),
-              SvgPicture.asset('android/assets/images/notion.svg'),
-              SizedBox(width: 30.0),
-              Text(
-                'Notion 연결 및 업데이트',
-                style: TextStyle(fontSize: 18, fontFamily: 'PretendardRegular'),
-              ),
-            ],
-          ),
+        child: Row(
+          children: [
+            SizedBox(width: 20.0),
+            SvgPicture.asset('android/assets/images/notion.svg'),
+            SizedBox(width: 30.0),
+            Text(
+              'Notion 연결 및 업데이트',
+              style: TextStyle(fontSize: 18, fontFamily: 'PretendardRegular'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildCategoryManaging(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final bool? result = await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => CategoryScreen()),
         );
+        if (result == true) {
+          if (widget.onDataChanged != null) {
+            widget.onDataChanged!();
+          }
+        }
       },
       child: Text(
         '카테고리 관리',
@@ -402,7 +410,13 @@ class _MyScreenState extends State<MyScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => DiaryCollectionScreen(selectedDateNotifier: widget.selectedDateNotifier, onTabChange: widget.onTabChange)),
+          MaterialPageRoute(
+            builder:
+                (context) => DiaryCollectionScreen(
+                  selectedDateNotifier: widget.selectedDateNotifier,
+                  onTabChange: widget.onTabChange,
+                ),
+          ),
         );
       },
       child: Text(

@@ -9,7 +9,6 @@ import 'color_palette_bottom_sheet.dart';
 
 class RoutineCard extends StatefulWidget {
   final String content;
-  final Function(String) onEdit;
   final bool showCheckbox;
   final Widget Function(BuildContext)? deletePopupBuilder;
   final ColorType colorType;
@@ -17,10 +16,11 @@ class RoutineCard extends StatefulWidget {
   final bool isDone;
   final Future<void> Function()? onStatusChanged;
   final VoidCallback? onDataChanged;
+  final bool isColorPickerEnabled;
+  final VoidCallback? onEditPressed;
 
   const RoutineCard({
     required this.content,
-    required this.onEdit,
     required this.colorType,
     required this.scheduleId,
     this.showCheckbox = true,
@@ -28,6 +28,8 @@ class RoutineCard extends StatefulWidget {
     required this.isDone,
     this.onStatusChanged,
     this.onDataChanged,
+    this.isColorPickerEnabled = true,
+    this.onEditPressed,
     Key? key,
   }) : super(key: key);
 
@@ -37,25 +39,18 @@ class RoutineCard extends StatefulWidget {
 
 class _RoutineCardState extends State<RoutineCard> {
   late bool _isChecked;
-  bool _isEditing = false;
-  late TextEditingController _controller;
   ColorType _selectedColorType = ColorType.pinkLight;
 
   @override
   void initState() {
     super.initState();
     _isChecked = widget.isDone;
-    _controller = TextEditingController(text: widget.content);
     _selectedColorType = widget.colorType;
   }
 
   @override
   void didUpdateWidget(covariant RoutineCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.content != widget.content) {
-      _controller.text = widget.content;
-    }
 
     if (oldWidget.isDone != widget.isDone) {
       _isChecked = widget.isDone;
@@ -68,7 +63,6 @@ class _RoutineCardState extends State<RoutineCard> {
 
   @override
   void dispose() {
-    _controller.dispose();
     super.dispose();
   }
 
@@ -89,7 +83,10 @@ class _RoutineCardState extends State<RoutineCard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             GestureDetector(
-              onTap: () => _openColorPicker(context),
+              onTap:
+                  widget.isColorPickerEnabled
+                      ? () => _openColorPicker(context)
+                      : null,
               child: Container(
                 width: 12,
                 height: 12,
@@ -102,33 +99,10 @@ class _RoutineCardState extends State<RoutineCard> {
             const SizedBox(width: 30.0),
 
             Expanded(
-              child:
-                  _isEditing
-                      ? TextField(
-                        controller: _controller,
-                        style: textStyle,
-                        autofocus: true,
-                        onSubmitted: (value) async {
-                          setState(() => _isEditing = false);
-                          widget.onEdit(value);
-
-                          final db = LocalDatabase();
-                          await db.updateRoutine(
-                            RoutinesCompanion(
-                              id: Value(widget.scheduleId),
-                              content: Value(value),
-                            ),
-                          );
-                        },
-                        onTapOutside: (_) {
-                          setState(() => _isEditing = false);
-                          widget.onEdit(_controller.text);
-                        },
-                      )
-                      : GestureDetector(
-                        onTap: () => setState(() => _isEditing = true),
-                        child: Text(_controller.text, style: textStyle),
-                      ),
+              child: GestureDetector(
+                onTap: widget.onEditPressed,
+                child: Text(widget.content, style: textStyle),
+              ),
             ),
 
             GestureDetector(
@@ -144,7 +118,11 @@ class _RoutineCardState extends State<RoutineCard> {
                       topLeft: Radius.circular(59),
                     ),
                   ),
-                  builder: (context) => RoutineAlarm(),
+                  builder:
+                      (context) => RoutineAlarm(
+                        routineId: widget.scheduleId,
+                        onDataChanged: widget.onDataChanged,
+                      ),
                 );
 
                 if (minutes != null) {

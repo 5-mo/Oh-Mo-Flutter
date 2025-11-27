@@ -84,6 +84,7 @@ flutter:
     - android/assets/images/notification_group.png
     - android/assets/images/notification_calender.png
     - android/assets/images/notification_invitation.png
+    - android/assets/images/dashed_circle.svg
 
   uses-material-design: true
   fonts:
