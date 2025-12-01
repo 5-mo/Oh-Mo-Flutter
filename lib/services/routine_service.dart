@@ -2,19 +2,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/todo.dart';
+import '../models/routine.dart';
 
-class TodoService {
+class RoutineService {
   final String baseUrl = 'http://54.116.11.20:8080';
 
-  Future<List<Todo>> getTodos(DateTime date, String token) async {
+  Future<List<Routine>> getRoutines(DateTime date, String token) async {
     final formattedDate = date.toIso8601String().split('T').first;
 
     final url = Uri.parse(
-      '$baseUrl/api/schedule/by-date?date=$formattedDate&type=TO_DO',
+      '$baseUrl/api/schedule/by-date?date=$formattedDate&type=ROUTINE',
     );
 
-    print('투두 요청: $url');
+    print('루틴 요청: $url');
 
     final response = await http.get(
       url,
@@ -27,18 +27,18 @@ class TodoService {
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
       if (jsonData['isSuccess'] == true) {
-        final List<Todo> todos = [];
+        final List<Routine> routines = [];
         final results = jsonData['result'];
         if (results is List) {
           for (var item in results) {
             try {
-              todos.add(Todo.fromJson(item));
+              routines.add(Routine.fromJson(item));
             } catch (e) {
-              print('투두 파싱 실패: $e');
+              print('루틴 파싱 실패: $e');
             }
           }
         }
-        return todos;
+        return routines;
       } else {
         throw Exception('API 실패: ${jsonData['message']}');
       }
@@ -47,23 +47,24 @@ class TodoService {
     }
   }
 
-  Future<bool> registerTodo({
+  Future<bool> registerRoutine({
     required int categoryId,
     required String time,
-    required bool alarm,
+    required String? alarmTime,
     required String content,
     required String date,
+    required List<String> routineWeek,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
 
       if (token == null) {
-        print('[TodoService] 토큰이 없습니다.');
+        print('[RoutineService] 토큰이 없습니다.');
         return false;
       }
 
-      final url = Uri.parse('$baseUrl/api/schedule/todo');
+      final url = Uri.parse('$baseUrl/api/schedule/routine');
 
       String safeTime = time;
       if (time.length > 5) {
@@ -73,9 +74,10 @@ class TodoService {
       final Map<String, dynamic> bodyMap = {
         "categoryId": categoryId,
         "time": safeTime,
-        "alarm": alarm,
+        "alarmTime": alarmTime,
         "content": content,
         "date": date,
+        "routineWeek": routineWeek,
       };
 
       final response = await http.post(
@@ -94,12 +96,12 @@ class TodoService {
         return false;
       }
     } catch (e) {
-      print('[TodoService] 에러 발생: $e');
+      print('[RoutineService] 에러 발생: $e');
       return false;
     }
   }
 
-  Future<void> toggleTodoStatus(int scheduleId) async {
+  Future<void> toggleRoutineStatus(int scheduleId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken') ?? '';
 
@@ -118,7 +120,10 @@ class TodoService {
     }
   }
 
-  Future<List<dynamic>> getTodosByMonth(String yearMonth, String token) async {
+  Future<List<dynamic>> getRoutinesByMonth(
+    String yearMonth,
+    String token,
+  ) async {
     final url = Uri.parse(
       '$baseUrl/api/schedule/by-month?year-month=$yearMonth',
     );

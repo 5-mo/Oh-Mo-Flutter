@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/screen/login/login_screen.dart';
 import 'package:ohmo/screen/initial_screen_decider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ohmo/services/auth_service.dart';
 
 class Splash extends StatefulWidget {
   const Splash({super.key});
@@ -18,14 +18,18 @@ class _SplashState extends State<Splash> {
   }
 
   Future<void> _checkToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
+    final token = await AuthService.refreshToken();
+
+    if (!mounted) return;
 
     if (token != null) {
+      print("자동 로그인 성공");
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const InitialScreenDecider()),
       );
+    } else {
+      print("자동 로그인 실패: 수동 로그인 필요");
     }
   }
 

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' as drift;
 import 'package:ohmo/models/category_item.dart';
 import 'package:ohmo/db/drift_database.dart' as db;
 
@@ -51,6 +52,11 @@ class LocalCategoryRepository {
 
   Future<void> softDeleteCategory(int id) async {
     await _db.softDeleteCategory(id);
+  }
+
+  Future<void> updateCategoryColor(int id, String newColor) async {
+    await (_db.update(_db.categories)..where((t) => t.id.equals(id)))
+        .write(db.CategoriesCompanion(color: drift.Value(newColor)));
   }
 
   // ------------------ DayLog ------------------

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:ohmo/screen/home_screen.dart';
+import 'package:ohmo/screen/splash_screen.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
@@ -49,7 +50,7 @@ void main() async {
       providers: [ChangeNotifierProvider(create: (_) => ProfileData())],
       child: MaterialApp(
         theme: ThemeData(scaffoldBackgroundColor: Colors.white),
-        home: HomeScreen(),
+        home: Splash(),
         debugShowCheckedModeBanner: false,
       ),
     ),

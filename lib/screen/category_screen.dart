@@ -17,7 +17,7 @@ import 'package:uuid/uuid.dart';
 import 'package:ohmo/db/drift_database.dart'
     show LocalDatabase, LocalDatabaseSingleton, Group;
 import 'package:ohmo/models/category_item.dart';
-
+import 'package:ohmo/services/category_service.dart';
 import 'group/group_sign_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -61,6 +61,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   List<Group> _groups = [];
 
   final uuid = Uuid();
+  final CategoryService _categoryService = CategoryService();
 
   @override
   void initState() {
@@ -374,6 +375,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newRoutineController.text.trim();
                                     if (newText.isEmpty) return;
 
+                                    final int? serverId = await _categoryService
+                                        .createCategory(
+                                          categoryName: newText,
+                                          color:
+                                              _selectedColorType.name
+                                                  .toUpperCase(),
+                                          scheduleType: 'ROUTINE',
+                                        );
+
+                                    if (serverId == null) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(content: Text("서버 저장 실패")),
+                                      );
+                                      return;
+                                    }
+
                                     final newItem = await _repository
                                         .insertCategory(
                                           name: newText,
@@ -606,6 +625,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     final newText =
                                         _newTodoController.text.trim();
                                     if (newText.isEmpty) return;
+
+                                    final int? serverId = await _categoryService
+                                        .createCategory(
+                                          categoryName: newText,
+                                          color:
+                                              _selectedColorType.name
+                                                  .toUpperCase(),
+                                          scheduleType: "TO_DO",
+                                        );
+
+                                    if (serverId == null) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(content: Text("서버 저장 실패")),
+                                      );
+                                      return;
+                                    }
 
                                     final newItem = await _repository
                                         .insertCategory(

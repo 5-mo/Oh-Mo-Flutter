@@ -3,13 +3,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
+  static const String baseUrl = 'http://54.116.11.20:8080';
+
   // 회원가입
-  static Future<String?> signup(
-      String email,
+  static Future<String?> signup(String email,
       String password,
-      String nickname,
-      ) async {
-    final url = Uri.parse('http://43.201.188.84:8080/api/member/signup');
+      String nickname,) async {
+    final url = Uri.parse('$baseUrl/api/member/signup');
 
     try {
       final response = await http.post(
@@ -40,11 +40,9 @@ class AuthService {
   }
 
   // 로그인
-  static Future<Map<String, dynamic>?> login(
-      String email,
-      String password,
-      ) async {
-    final url = Uri.parse('http://43.201.188.84:8080/api/member/login');
+  static Future<Map<String, dynamic>?> login(String email,
+      String password,) async {
+    final url = Uri.parse('$baseUrl/api/member/login');
 
     try {
       final response = await http.post(
@@ -66,7 +64,6 @@ class AuthService {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('accessToken', accessToken);
           await prefs.setString('refreshToken', refreshToken);
-          print('로그인 성공 : $accessToken');
           return result;
         } else {
           print('로그인 실패 : accessToken이 없습니다');
@@ -92,31 +89,51 @@ class AuthService {
       return null;
     }
 
-    final url = Uri.parse('http://43.201.188.84:8080/api/member/refresh'); // ✅ 실제 엔드포인트 확인
+    final url = Uri.parse('$baseUrl/api/member/refresh');
 
     try {
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $refreshToken',
         },
+        body: jsonEncode({
+          'refreshToken': refreshToken,
+        }),
       );
+
+      print('토큰 갱신 상태코드: ${response.statusCode}');
+
+      if (response.statusCode != 200) {
+        print('토큰 갱신 실패 (Status: ${response.statusCode})');
+        return null;
+      }
+
+      if (response.body.isEmpty) {
+        print('토큰 갱신 실패: 응답 본문이 비어있습니다.');
+        return null;
+      }
 
       final decodeBody = utf8.decode(response.bodyBytes);
       final data = jsonDecode(decodeBody);
 
-      if (response.statusCode == 200 && data['isSuccess'] == true) {
+      if (data['isSuccess'] == true) {
         final newAccessToken = data['result']['accessToken'];
+
         await prefs.setString('accessToken', newAccessToken);
-        print('액세스 토큰 재발급 성공: $newAccessToken');
+
+        if (data['result']['refreshToken'] != null) {
+          await prefs.setString('refreshToken', data['result']['refreshToken']);
+        }
+
+        print('토큰 갱신 성공!');
         return newAccessToken;
       } else {
-        print('재발급 실패: ${data['message']}');
+        print('재발급 로직 실패: ${data['message']}');
         return null;
       }
     } catch (e) {
-      print('재발급 중 오류: $e');
+      print('재발급 중 오류 발생: $e');
       return null;
     }
   }

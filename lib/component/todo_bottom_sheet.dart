@@ -6,9 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
+import 'package:ohmo/services/category_service.dart';
 import '../models/category_item.dart';
 import '../screen/category_screen.dart';
 import 'package:ohmo/services/notification_service.dart';
+import 'package:ohmo/services/todo_service.dart';
 
 class TodoBottomSheet extends StatefulWidget {
   final DateTime selectedDate;
@@ -452,16 +454,73 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
         }
 
         try {
-          final db = LocalDatabaseSingleton.instance;
-          final int? alarmMinutesValue;
-          if (isChecked) {
-            alarmMinutesValue = 0;
-          } else {
-            alarmMinutesValue = null;
-          }
-          int colorIndex = 0;
+          setState(() => _isLoading = true);
 
-          int? categoryId = selectedCategoryId;
+          final String dateStr = DateFormat('yyyy-MM-dd').format(_currentDate);
+          String timeStr = "00:00:00";
+          if (selectedTime != null) {
+            final now = DateTime.now();
+            final dt = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              selectedTime!.hour,
+              selectedTime!.minute,
+            );
+            timeStr = DateFormat('HH:mm').format(dt);
+          }
+          int realServerId = 0;
+
+          if (selectedCategoryId != null) {
+            final localCategory = todos.firstWhere(
+              (c) => c.id == selectedCategoryId,
+            );
+            final categoryService = CategoryService();
+            final serverCategories = await categoryService.getCategories(
+              'TO_DO',
+            );
+
+            final match = serverCategories.firstWhere(
+              (serverItem) =>
+                  serverItem['categoryName'].toString().trim() ==
+                  localCategory.categoryName.trim(),
+              orElse: () => null,
+            );
+
+            if (match != null) {
+              realServerId = match['id'];
+              print(
+                '[매칭 성공] 로컬ID(${localCategory.id}) -> 서버ID($realServerId) 교체 완료',
+              );
+            } else {
+              print(
+                '[매칭 실패] 서버 명단에 "${localCategory.categoryName}"와 똑같은 이름이 없습니다.',
+              );
+              realServerId = selectedCategoryId!;
+            }
+          } else {
+            print('카테고리가 선택되지 않았습니다.');
+          }
+
+          final todoService = TodoService();
+          if (widget.todoIdToEdit != null) {
+          } else {
+            final bool isApiSuccess = await todoService.registerTodo(
+              categoryId: realServerId,
+              time: timeStr,
+              alarm: isChecked,
+              content: contentController.text,
+              date: dateStr,
+            );
+
+            if (!isApiSuccess) {
+              throw Exception("서버 저장에 실패했습니다. (응답 false)");
+            }
+          }
+
+          final db = LocalDatabaseSingleton.instance;
+          final int? alarmMinutesValue = isChecked ? 0 : null;
+          int colorIndex = 0;
 
           if (selectedCategoryId != null) {
             final selectedCategory = todos.firstWhere(
@@ -479,18 +538,16 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             colorIndex = ColorType.uncategorizedBlack.index;
           }
 
-          final DateTime fullTodoDate;
-          if (selectedTime != null) {
-            fullTodoDate = DateTime(
-              _currentDate.year,
-              _currentDate.month,
-              _currentDate.day,
-              selectedTime!.hour,
-              selectedTime!.minute,
-            );
-          } else {
-            fullTodoDate = _currentDate;
-          }
+          final DateTime fullTodoDate =
+              selectedTime != null
+                  ? DateTime(
+                    _currentDate.year,
+                    _currentDate.month,
+                    _currentDate.day,
+                    selectedTime!.hour,
+                    selectedTime!.minute,
+                  )
+                  : _currentDate;
 
           int todoId;
 
@@ -500,7 +557,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 id: drift.Value(widget.todoIdToEdit!),
                 content: drift.Value(contentController.text),
                 colorType: drift.Value(colorIndex),
-                categoryId: drift.Value(categoryId),
+                categoryId: drift.Value(selectedCategoryId),
                 timeMinutes: drift.Value(alarmMinutesValue),
                 date: drift.Value(fullTodoDate),
               ),
@@ -511,7 +568,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               TodosCompanion.insert(
                 content: contentController.text,
                 colorType: drift.Value(colorIndex),
-                categoryId: drift.Value(categoryId),
+                categoryId: drift.Value(selectedCategoryId),
                 scheduleType: drift.Value('TO_DO'),
                 timeMinutes: drift.Value(alarmMinutesValue),
                 isDone: drift.Value(false),
@@ -524,7 +581,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
 
           if (isChecked && selectedTime != null) {
             final notificationTime = fullTodoDate;
-
             if (notificationTime.isAfter(DateTime.now())) {
               await NotificationService().scheduleNotification(
                 id: todoId,
@@ -544,7 +600,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                         isRead: const drift.Value(false),
                       ),
                     );
-                print("DB 알림 테이블 저장 완료");
               } catch (e) {
                 print("DB 알림 테이블 저장 실패: $e");
               }
@@ -554,15 +609,18 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           if (widget.onTodoAdded != null) await widget.onTodoAdded!();
           if (widget.onDataChanged != null) await widget.onDataChanged!();
 
-          Navigator.pop(context);
+          if (mounted) Navigator.pop(context);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text("투두 등록 완료!")));
         } catch (e) {
-          print('투두 저장 실패: $e');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("투두 저장 실패")));
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("저장 실패: $e")));
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
         }
       },
       child: Container(
@@ -573,30 +631,92 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           borderRadius: BorderRadius.circular(9),
         ),
         child: Center(
-          child: Text(
-            '저장하기',
-            style: TextStyle(
-              fontSize: 20,
-              fontFamily: 'PretendardBold',
-              color: Colors.white,
-            ),
-          ),
+          child:
+              _isLoading
+                  ? CupertinoActivityIndicator(color: Colors.white)
+                  : Text(
+                    '저장하기',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'PretendardBold',
+                      color: Colors.white,
+                    ),
+                  ),
         ),
       ),
     );
   }
 
   Future<void> _loadCategories() async {
-    try {
-      final localDb = LocalDatabaseSingleton.instance;
-      final categoryRepo = LocalCategoryRepository(localDb);
+    final localDb = LocalDatabaseSingleton.instance;
+    final categoryRepo = LocalCategoryRepository(localDb);
+    final categoryService = CategoryService();
 
+    try {
+      final serverCategories = await categoryService.getCategories('TO_DO');
+
+      final currentLocalCategories = await categoryRepo.fetchCategories(
+        scheduleType: 'TO_DO',
+      );
+
+      final serverCategoryNames =
+          serverCategories.map((e) => e['categoryName']).toSet();
+      final localCategoryNames =
+          currentLocalCategories.map((e) => e.categoryName).toSet();
+
+      if (serverCategories.isNotEmpty) {
+        for (var item in serverCategories) {
+          final String name = item['categoryName'];
+          final String rawColor = item['color'] ?? 'pinkLight';
+          final String localColor = _mapServerColorToLocal(rawColor);
+
+          if (!localCategoryNames.contains(name)) {
+            await categoryRepo.insertCategory(
+              name: name,
+              type: 'TO_DO',
+              color: localColor,
+            );
+          } else {
+            final existingItem = currentLocalCategories.firstWhere(
+              (e) => e.categoryName == name,
+            );
+            if (existingItem.colorType != localColor) {
+              await categoryRepo.updateCategoryColor(
+                existingItem.id,
+                localColor,
+              );
+            }
+          }
+        }
+
+        for (var localItem in currentLocalCategories) {
+          if (!serverCategoryNames.contains(localItem.categoryName)) {
+            await categoryRepo.deleteCategory(localItem.id);
+          }
+        }
+      }
+    } catch (e) {
+      print('카테고리 동기화 실패 (인터넷 문제 등): $e');
+    } finally {
       final loadedTodos = await categoryRepo.fetchCategories(
         scheduleType: 'TO_DO',
       );
-      todos = loadedTodos;
-    } catch (e) {
-      print('카테고리 로드 실패: $e');
+      if (mounted) {
+        setState(() {
+          todos = loadedTodos;
+        });
+      }
     }
+  }
+
+  String _mapServerColorToLocal(String serverColor) {
+    try {
+      for (var type in ColorType.values) {
+        if (type.name.toUpperCase() == serverColor.toUpperCase()) {
+          return type.name;
+        }
+      }
+    } catch (e) {}
+    return 'pinkLight';
   }
 }
