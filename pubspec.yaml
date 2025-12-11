@@ -36,6 +36,7 @@ dependencies:
   extended_text_field: ^16.0.2
   share_plus: ^12.0.1
   flutter_timezone: ^5.0.1
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

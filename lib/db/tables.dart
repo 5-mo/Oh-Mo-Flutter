@@ -49,6 +49,7 @@ class DayLogQuestions extends Table {
 
 class Routines extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get routineId=>integer().withDefault(const Constant(0))();
   IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();
@@ -60,6 +61,7 @@ class Routines extends Table {
   TextColumn get scheduleType => text().withDefault(const Constant('ROUTINE'))();
   IntColumn get categoryId => integer().nullable()();
   IntColumn get alarmMinutes => integer().nullable()();
+  BoolColumn get isSynced=>boolean().withDefault(const Constant(true))();
 }
 
 class Todos extends Table {

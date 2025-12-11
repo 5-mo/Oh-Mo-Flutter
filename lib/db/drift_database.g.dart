@@ -1026,6 +1026,18 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const VerificationMeta _routineIdMeta = const VerificationMeta(
+    'routineId',
+  );
+  @override
+  late final GeneratedColumn<int> routineId = GeneratedColumn<int>(
+    'routine_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _groupIdMeta = const VerificationMeta(
     'groupId',
   );
@@ -1154,9 +1166,25 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    routineId,
     groupId,
     content,
     colorType,
@@ -1168,6 +1196,7 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     scheduleType,
     categoryId,
     alarmMinutes,
+    isSynced,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1183,6 +1212,12 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('routine_id')) {
+      context.handle(
+        _routineIdMeta,
+        routineId.isAcceptableOrUnknown(data['routine_id']!, _routineIdMeta),
+      );
     }
     if (data.containsKey('group_id')) {
       context.handle(
@@ -1261,6 +1296,12 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
         ),
       );
     }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
     return context;
   }
 
@@ -1274,6 +1315,11 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
           attachedDatabase.typeMapping.read(
             DriftSqlType.int,
             data['${effectivePrefix}id'],
+          )!,
+      routineId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}routine_id'],
           )!,
       groupId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1323,6 +1369,11 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
         DriftSqlType.int,
         data['${effectivePrefix}alarm_minutes'],
       ),
+      isSynced:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_synced'],
+          )!,
     );
   }
 
@@ -1334,6 +1385,7 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
 
 class Routine extends DataClass implements Insertable<Routine> {
   final int id;
+  final int routineId;
   final int? groupId;
   final String content;
   final int colorType;
@@ -1345,8 +1397,10 @@ class Routine extends DataClass implements Insertable<Routine> {
   final String scheduleType;
   final int? categoryId;
   final int? alarmMinutes;
+  final bool isSynced;
   const Routine({
     required this.id,
+    required this.routineId,
     this.groupId,
     required this.content,
     required this.colorType,
@@ -1358,11 +1412,13 @@ class Routine extends DataClass implements Insertable<Routine> {
     required this.scheduleType,
     this.categoryId,
     this.alarmMinutes,
+    required this.isSynced,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['routine_id'] = Variable<int>(routineId);
     if (!nullToAbsent || groupId != null) {
       map['group_id'] = Variable<int>(groupId);
     }
@@ -1388,12 +1444,14 @@ class Routine extends DataClass implements Insertable<Routine> {
     if (!nullToAbsent || alarmMinutes != null) {
       map['alarm_minutes'] = Variable<int>(alarmMinutes);
     }
+    map['is_synced'] = Variable<bool>(isSynced);
     return map;
   }
 
   RoutinesCompanion toCompanion(bool nullToAbsent) {
     return RoutinesCompanion(
       id: Value(id),
+      routineId: Value(routineId),
       groupId:
           groupId == null && nullToAbsent
               ? const Value.absent()
@@ -1426,6 +1484,7 @@ class Routine extends DataClass implements Insertable<Routine> {
           alarmMinutes == null && nullToAbsent
               ? const Value.absent()
               : Value(alarmMinutes),
+      isSynced: Value(isSynced),
     );
   }
 
@@ -1436,6 +1495,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Routine(
       id: serializer.fromJson<int>(json['id']),
+      routineId: serializer.fromJson<int>(json['routineId']),
       groupId: serializer.fromJson<int?>(json['groupId']),
       content: serializer.fromJson<String>(json['content']),
       colorType: serializer.fromJson<int>(json['colorType']),
@@ -1447,6 +1507,7 @@ class Routine extends DataClass implements Insertable<Routine> {
       scheduleType: serializer.fromJson<String>(json['scheduleType']),
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       alarmMinutes: serializer.fromJson<int?>(json['alarmMinutes']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
   }
   @override
@@ -1454,6 +1515,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'routineId': serializer.toJson<int>(routineId),
       'groupId': serializer.toJson<int?>(groupId),
       'content': serializer.toJson<String>(content),
       'colorType': serializer.toJson<int>(colorType),
@@ -1465,11 +1527,13 @@ class Routine extends DataClass implements Insertable<Routine> {
       'scheduleType': serializer.toJson<String>(scheduleType),
       'categoryId': serializer.toJson<int?>(categoryId),
       'alarmMinutes': serializer.toJson<int?>(alarmMinutes),
+      'isSynced': serializer.toJson<bool>(isSynced),
     };
   }
 
   Routine copyWith({
     int? id,
+    int? routineId,
     Value<int?> groupId = const Value.absent(),
     String? content,
     int? colorType,
@@ -1481,8 +1545,10 @@ class Routine extends DataClass implements Insertable<Routine> {
     String? scheduleType,
     Value<int?> categoryId = const Value.absent(),
     Value<int?> alarmMinutes = const Value.absent(),
+    bool? isSynced,
   }) => Routine(
     id: id ?? this.id,
+    routineId: routineId ?? this.routineId,
     groupId: groupId.present ? groupId.value : this.groupId,
     content: content ?? this.content,
     colorType: colorType ?? this.colorType,
@@ -1494,10 +1560,12 @@ class Routine extends DataClass implements Insertable<Routine> {
     scheduleType: scheduleType ?? this.scheduleType,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     alarmMinutes: alarmMinutes.present ? alarmMinutes.value : this.alarmMinutes,
+    isSynced: isSynced ?? this.isSynced,
   );
   Routine copyWithCompanion(RoutinesCompanion data) {
     return Routine(
       id: data.id.present ? data.id.value : this.id,
+      routineId: data.routineId.present ? data.routineId.value : this.routineId,
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       content: data.content.present ? data.content.value : this.content,
       colorType: data.colorType.present ? data.colorType.value : this.colorType,
@@ -1517,6 +1585,7 @@ class Routine extends DataClass implements Insertable<Routine> {
           data.alarmMinutes.present
               ? data.alarmMinutes.value
               : this.alarmMinutes,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
   }
 
@@ -1524,6 +1593,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   String toString() {
     return (StringBuffer('Routine(')
           ..write('id: $id, ')
+          ..write('routineId: $routineId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -1534,7 +1604,8 @@ class Routine extends DataClass implements Insertable<Routine> {
           ..write('weekDays: $weekDays, ')
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
-          ..write('alarmMinutes: $alarmMinutes')
+          ..write('alarmMinutes: $alarmMinutes, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
@@ -1542,6 +1613,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   @override
   int get hashCode => Object.hash(
     id,
+    routineId,
     groupId,
     content,
     colorType,
@@ -1553,12 +1625,14 @@ class Routine extends DataClass implements Insertable<Routine> {
     scheduleType,
     categoryId,
     alarmMinutes,
+    isSynced,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Routine &&
           other.id == this.id &&
+          other.routineId == this.routineId &&
           other.groupId == this.groupId &&
           other.content == this.content &&
           other.colorType == this.colorType &&
@@ -1569,11 +1643,13 @@ class Routine extends DataClass implements Insertable<Routine> {
           other.weekDays == this.weekDays &&
           other.scheduleType == this.scheduleType &&
           other.categoryId == this.categoryId &&
-          other.alarmMinutes == this.alarmMinutes);
+          other.alarmMinutes == this.alarmMinutes &&
+          other.isSynced == this.isSynced);
 }
 
 class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<int> id;
+  final Value<int> routineId;
   final Value<int?> groupId;
   final Value<String> content;
   final Value<int> colorType;
@@ -1585,8 +1661,10 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<String> scheduleType;
   final Value<int?> categoryId;
   final Value<int?> alarmMinutes;
+  final Value<bool> isSynced;
   const RoutinesCompanion({
     this.id = const Value.absent(),
+    this.routineId = const Value.absent(),
     this.groupId = const Value.absent(),
     this.content = const Value.absent(),
     this.colorType = const Value.absent(),
@@ -1598,9 +1676,11 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     this.scheduleType = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.alarmMinutes = const Value.absent(),
+    this.isSynced = const Value.absent(),
   });
   RoutinesCompanion.insert({
     this.id = const Value.absent(),
+    this.routineId = const Value.absent(),
     this.groupId = const Value.absent(),
     required String content,
     this.colorType = const Value.absent(),
@@ -1612,9 +1692,11 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     this.scheduleType = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.alarmMinutes = const Value.absent(),
+    this.isSynced = const Value.absent(),
   }) : content = Value(content);
   static Insertable<Routine> custom({
     Expression<int>? id,
+    Expression<int>? routineId,
     Expression<int>? groupId,
     Expression<String>? content,
     Expression<int>? colorType,
@@ -1626,9 +1708,11 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     Expression<String>? scheduleType,
     Expression<int>? categoryId,
     Expression<int>? alarmMinutes,
+    Expression<bool>? isSynced,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (routineId != null) 'routine_id': routineId,
       if (groupId != null) 'group_id': groupId,
       if (content != null) 'content': content,
       if (colorType != null) 'color_type': colorType,
@@ -1640,11 +1724,13 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       if (scheduleType != null) 'schedule_type': scheduleType,
       if (categoryId != null) 'category_id': categoryId,
       if (alarmMinutes != null) 'alarm_minutes': alarmMinutes,
+      if (isSynced != null) 'is_synced': isSynced,
     });
   }
 
   RoutinesCompanion copyWith({
     Value<int>? id,
+    Value<int>? routineId,
     Value<int?>? groupId,
     Value<String>? content,
     Value<int>? colorType,
@@ -1656,9 +1742,11 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     Value<String>? scheduleType,
     Value<int?>? categoryId,
     Value<int?>? alarmMinutes,
+    Value<bool>? isSynced,
   }) {
     return RoutinesCompanion(
       id: id ?? this.id,
+      routineId: routineId ?? this.routineId,
       groupId: groupId ?? this.groupId,
       content: content ?? this.content,
       colorType: colorType ?? this.colorType,
@@ -1670,6 +1758,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       scheduleType: scheduleType ?? this.scheduleType,
       categoryId: categoryId ?? this.categoryId,
       alarmMinutes: alarmMinutes ?? this.alarmMinutes,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
@@ -1678,6 +1767,9 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (routineId.present) {
+      map['routine_id'] = Variable<int>(routineId.value);
     }
     if (groupId.present) {
       map['group_id'] = Variable<int>(groupId.value);
@@ -1712,6 +1804,9 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     if (alarmMinutes.present) {
       map['alarm_minutes'] = Variable<int>(alarmMinutes.value);
     }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
     return map;
   }
 
@@ -1719,6 +1814,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   String toString() {
     return (StringBuffer('RoutinesCompanion(')
           ..write('id: $id, ')
+          ..write('routineId: $routineId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -1729,7 +1825,8 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
           ..write('weekDays: $weekDays, ')
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
-          ..write('alarmMinutes: $alarmMinutes')
+          ..write('alarmMinutes: $alarmMinutes, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
@@ -5530,6 +5627,7 @@ typedef $$GroupsTableProcessedTableManager =
 typedef $$RoutinesTableCreateCompanionBuilder =
     RoutinesCompanion Function({
       Value<int> id,
+      Value<int> routineId,
       Value<int?> groupId,
       required String content,
       Value<int> colorType,
@@ -5541,10 +5639,12 @@ typedef $$RoutinesTableCreateCompanionBuilder =
       Value<String> scheduleType,
       Value<int?> categoryId,
       Value<int?> alarmMinutes,
+      Value<bool> isSynced,
     });
 typedef $$RoutinesTableUpdateCompanionBuilder =
     RoutinesCompanion Function({
       Value<int> id,
+      Value<int> routineId,
       Value<int?> groupId,
       Value<String> content,
       Value<int> colorType,
@@ -5556,6 +5656,7 @@ typedef $$RoutinesTableUpdateCompanionBuilder =
       Value<String> scheduleType,
       Value<int?> categoryId,
       Value<int?> alarmMinutes,
+      Value<bool> isSynced,
     });
 
 final class $$RoutinesTableReferences
@@ -5591,6 +5692,11 @@ class $$RoutinesTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get routineId => $composableBuilder(
+    column: $table.routineId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5644,6 +5750,11 @@ class $$RoutinesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$GroupsTableFilterComposer get groupId {
     final $$GroupsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -5679,6 +5790,11 @@ class $$RoutinesTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get routineId => $composableBuilder(
+    column: $table.routineId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5732,6 +5848,11 @@ class $$RoutinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$GroupsTableOrderingComposer get groupId {
     final $$GroupsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -5767,6 +5888,9 @@ class $$RoutinesTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get routineId =>
+      $composableBuilder(column: $table.routineId, builder: (column) => column);
 
   GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
@@ -5805,6 +5929,9 @@ class $$RoutinesTableAnnotationComposer
     column: $table.alarmMinutes,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
   $$GroupsTableAnnotationComposer get groupId {
     final $$GroupsTableAnnotationComposer composer = $composerBuilder(
@@ -5859,6 +5986,7 @@ class $$RoutinesTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int> routineId = const Value.absent(),
                 Value<int?> groupId = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<int> colorType = const Value.absent(),
@@ -5870,8 +5998,10 @@ class $$RoutinesTableTableManager
                 Value<String> scheduleType = const Value.absent(),
                 Value<int?> categoryId = const Value.absent(),
                 Value<int?> alarmMinutes = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
               }) => RoutinesCompanion(
                 id: id,
+                routineId: routineId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -5883,10 +6013,12 @@ class $$RoutinesTableTableManager
                 scheduleType: scheduleType,
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
+                isSynced: isSynced,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int> routineId = const Value.absent(),
                 Value<int?> groupId = const Value.absent(),
                 required String content,
                 Value<int> colorType = const Value.absent(),
@@ -5898,8 +6030,10 @@ class $$RoutinesTableTableManager
                 Value<String> scheduleType = const Value.absent(),
                 Value<int?> categoryId = const Value.absent(),
                 Value<int?> alarmMinutes = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
               }) => RoutinesCompanion.insert(
                 id: id,
+                routineId: routineId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -5911,6 +6045,7 @@ class $$RoutinesTableTableManager
                 scheduleType: scheduleType,
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
+                isSynced: isSynced,
               ),
           withReferenceMapper:
               (p0) =>

@@ -47,7 +47,7 @@ class RoutineService {
     }
   }
 
-  Future<bool> registerRoutine({
+  Future<int?> registerRoutine({
     required int categoryId,
     required String time,
     required String? alarmTime,
@@ -61,7 +61,7 @@ class RoutineService {
 
       if (token == null) {
         print('[RoutineService] 토큰이 없습니다.');
-        return false;
+        return null;
       }
 
       final url = Uri.parse('$baseUrl/api/schedule/routine');
@@ -80,6 +80,9 @@ class RoutineService {
         "routineWeek": routineWeek,
       };
 
+      print("URL: $url");
+      print("Body: $bodyMap");
+
       final response = await http.post(
         url,
         headers: {
@@ -89,34 +92,86 @@ class RoutineService {
         body: jsonEncode(bodyMap),
       );
 
+
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonResponse['isSuccess'] ?? false;
-      } else {
-        return false;
+        print("Response Body: $jsonResponse");
+
+        if (jsonResponse['isSuccess'] == true) {
+          final result = jsonResponse['result'];
+
+          if (result is int) {
+            return result;
+          }
+          else if (result is List && result.isNotEmpty) {
+            final firstItem = result[0];
+            if (firstItem is Map) {
+              return firstItem['routineId'] ?? firstItem['id'];
+            }
+          }
+          else if (result is Map) {
+            return result['routineId'] ?? result['id'];
+          }
+
+          print("서버 응답에서 ID를 찾을 수 없음: $result");
+          return null;
+        }
+        return null;
+      }  else {
+        print("서버 에러 발생: ${utf8.decode(response.bodyBytes)}");
+        return null;
       }
     } catch (e) {
-      print('[RoutineService] 에러 발생: $e');
-      return false;
+      print('[RoutineService] 통신 에러 발생: $e');
+      return null;
     }
   }
 
-  Future<void> toggleRoutineStatus(int scheduleId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
+  // [수정 포인트 1] 반환 타입을 Future<bool> -> Future<bool?> 로 변경
+  // true: 완료됨, false: 미완료됨, null: 에러
+  Future<bool?> toggleRoutineStatus(int routineId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
 
-    final url = Uri.parse('$baseUrl/api/schedule/$scheduleId');
+      if (token == null) {
+        print('[RoutineService] ❌ 토큰이 없습니다.');
+        return null; // 실패 시 null 반환
+      }
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+      final url = Uri.parse('$baseUrl/api/routine/$routineId');
 
-    if (response.statusCode != 200) {
-      throw Exception('상태 변경 실패: ${response.statusCode}');
+      print('🚀 [API 요청] 루틴 상태 변경 시도');
+      print('   - Target URL: $url');
+      print('   - Routine ID: $routineId');
+
+      final response = await http.patch(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('📥 [API 응답] Status: ${response.statusCode}');
+      print('   - Body: ${utf8.decode(response.bodyBytes)}');
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+
+        // [수정 포인트 2] 성공 여부가 아니라, 결과값(result) 안의 'status'를 반환
+        if (jsonResponse['isSuccess'] == true && jsonResponse['result'] != null) {
+          // 서버가 알려준 진짜 상태 (true or false)를 리턴
+          return jsonResponse['result']['status'];
+        }
+        return null; // 성공 플래그가 false면 null 반환
+      } else {
+        print('❌ [API 실패] 상태코드: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ [API 에러] 통신 오류: $e');
+      return null;
     }
   }
 

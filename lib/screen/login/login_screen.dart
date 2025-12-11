@@ -215,6 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if(response!=null){
           print('로그인 성공');
+          print('Access Token: ${response['token']['accessToken']}');
 
           final profile=Provider.of<ProfileData>(context,listen:false);
           profile.updateProfile(

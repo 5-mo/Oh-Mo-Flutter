@@ -457,7 +457,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           setState(() => _isLoading = true);
 
           final String dateStr = DateFormat('yyyy-MM-dd').format(_currentDate);
-          String timeStr = "00:00:00";
+          String? timeStr;
           if (selectedTime != null) {
             final now = DateTime.now();
             final dt = DateTime(
@@ -470,6 +470,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             timeStr = DateFormat('HH:mm').format(dt);
           }
           int realServerId = 0;
+          int colorIndex = 0;
 
           if (selectedCategoryId != null) {
             final localCategory = todos.firstWhere(
@@ -489,17 +490,31 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
 
             if (match != null) {
               realServerId = match['id'];
-              print(
-                '[매칭 성공] 로컬ID(${localCategory.id}) -> 서버ID($realServerId) 교체 완료',
-              );
             } else {
-              print(
-                '[매칭 실패] 서버 명단에 "${localCategory.categoryName}"와 똑같은 이름이 없습니다.',
-              );
               realServerId = selectedCategoryId!;
             }
+            try {
+              colorIndex =
+                  ColorTypeExtension.fromString(
+                    localCategory.colorType ?? 'pinkLight',
+                  ).index;
+            } catch (_) {
+              colorIndex = 0;
+            }
           } else {
-            print('카테고리가 선택되지 않았습니다.');
+            realServerId = 1;
+
+            try {
+              colorIndex =
+                  ColorType.values
+                      .firstWhere(
+                        (e) =>
+                            e.name == 'black' || e.name == 'uncategorizedBlack',
+                      )
+                      .index;
+            } catch (e) {
+              colorIndex = 0;
+            }
           }
 
           final todoService = TodoService();
@@ -520,23 +535,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
 
           final db = LocalDatabaseSingleton.instance;
           final int? alarmMinutesValue = isChecked ? 0 : null;
-          int colorIndex = 0;
-
-          if (selectedCategoryId != null) {
-            final selectedCategory = todos.firstWhere(
-              (c) => c.id == selectedCategoryId,
-            );
-            try {
-              colorIndex =
-                  ColorTypeExtension.fromString(
-                    selectedCategory.colorType!,
-                  ).index;
-            } catch (_) {
-              colorIndex = 0;
-            }
-          } else {
-            colorIndex = ColorType.uncategorizedBlack.index;
-          }
 
           final DateTime fullTodoDate =
               selectedTime != null

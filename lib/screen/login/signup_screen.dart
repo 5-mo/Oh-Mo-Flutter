@@ -4,6 +4,8 @@ import 'package:ohmo/services/auth_service.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
 
+import 'login_screen.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
 
@@ -163,7 +165,7 @@ class _SignupScreenState extends State<SignupScreen> {
           profile.updateProfile(updateNickname: nickname, updateEmail: email);
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => HomeScreen()),
+            MaterialPageRoute(builder: (context) => LoginScreen()),
           );
         } else {
           ScaffoldMessenger.of(

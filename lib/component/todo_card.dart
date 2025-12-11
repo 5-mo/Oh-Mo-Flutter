@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:flutter_svg/svg.dart';
@@ -17,7 +17,7 @@ class TodoCard extends StatefulWidget {
   final VoidCallback? onDataChanged;
   final bool isColorPickerEnabled;
   final VoidCallback? onEditPressed;
-  final VoidCallback? onAlarmPressed; // 이 콜백이 필수입니다.
+  final VoidCallback? onAlarmPressed;
 
   const TodoCard({
     required this.content,
@@ -41,11 +41,13 @@ class TodoCard extends StatefulWidget {
 
 class _TodoCardState extends State<TodoCard> {
   ColorType _selectedColorType = ColorType.pinkLight;
+  late bool _isChecked;
 
   @override
   void initState() {
     super.initState();
     _selectedColorType = widget.colorType;
+    _isChecked = widget.isDone;
   }
 
   @override
@@ -53,6 +55,9 @@ class _TodoCardState extends State<TodoCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.colorType != widget.colorType) {
       _selectedColorType = widget.colorType;
+    }
+    if (oldWidget.isDone != widget.isDone) {
+      _isChecked = widget.isDone;
     }
   }
 
@@ -66,8 +71,7 @@ class _TodoCardState extends State<TodoCard> {
     final textStyle = TextStyle(
       fontSize: 16.0,
       fontFamily: 'PretendardRegular',
-      decoration:
-          widget.isDone ? TextDecoration.lineThrough : TextDecoration.none,
+      decoration: _isChecked ? TextDecoration.lineThrough : TextDecoration.none,
       color: widget.isDone ? Middle_GREY_COLOR : Colors.black,
       decorationColor: widget.isDone ? Middle_GREY_COLOR : Colors.black,
     );
@@ -116,10 +120,27 @@ class _TodoCardState extends State<TodoCard> {
                     horizontal: VisualDensity.minimumDensity,
                     vertical: VisualDensity.minimumDensity,
                   ),
-                  value: widget.isDone,
+                  value: _isChecked,
                   onChanged: (bool? value) async {
-                    if (widget.onStatusChanged != null) {
-                      await widget.onStatusChanged!();
+                    print('--- [DEBUG] 1. TodoCard 체크박스 클릭됨 ---');
+                    if (value == null) return;
+                    setState(() {
+                      _isChecked = value;
+                    });
+                    try {
+                      if (widget.onStatusChanged != null) {
+                        print('--- [DEBUG] 2. 부모 위젯(onStatusChanged) 호출 시도 ---');
+                        await widget.onStatusChanged!();
+                        final db = LocalDatabaseSingleton.instance;
+                        await db.toggleTodoStatus(widget.scheduleId);
+                      }
+                    } catch (e) {
+                      print("상태 변경 실패: $e");
+                      if (mounted) {
+                        setState(() {
+                          _isChecked = !value;
+                        });
+                      }
                     }
                   },
                   activeColor: Colors.black,

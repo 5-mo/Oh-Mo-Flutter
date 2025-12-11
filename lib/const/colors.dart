@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 const LIGHT_GREY_COLOR = Color(0xFFCDCDCD);
 const Middle_GREY_COLOR = Color(0xFFA5A5A5);
 const DARK_GREY_COLOR = Color(0xFF656464);
-const ICON_GREY_COLOR=Color(0xffB9B9B9);
+const ICON_GREY_COLOR = Color(0xffB9B9B9);
 
 enum ColorType {
   pinkLight,
@@ -41,19 +41,38 @@ enum ColorType {
 
 extension ColorTypeExtension on ColorType {
   static ColorType fromString(String colorString) {
+    if (colorString.isEmpty) return ColorType.pinkLight;
+
     final intValue = int.tryParse(colorString);
     if (intValue != null) {
       if (intValue >= 0 && intValue < ColorType.values.length) {
         return ColorType.values[intValue];
-      } else {
-        return ColorType.pinkLight;
       }
+      return ColorType.pinkLight;
     }
 
-    return ColorType.values.firstWhere(
-          (e) => e.name == colorString,
-      orElse: () => ColorType.pinkLight,
-    );
+    final normalizedInput = colorString.toLowerCase().replaceAll(' ', '');
+
+    try {
+      return ColorType.values.firstWhere(
+        (e) => e.name.toLowerCase() == normalizedInput,
+      );
+    } catch (e) {
+      if (normalizedInput == 'red') return ColorType.realRed;
+      if (normalizedInput == 'blue') return ColorType.darkBlue;
+      if (normalizedInput == 'green') return ColorType.forestGreen;
+      if (normalizedInput == 'yellow') return ColorType.yellowLight;
+      if (normalizedInput == 'orange') return ColorType.peachLight;
+      if (normalizedInput == 'purple') return ColorType.magentaPurple;
+      if (normalizedInput.contains('gray') ||
+          normalizedInput.contains('grey')) {
+        return ColorType.uncategorizedBlack;
+      }
+      if (normalizedInput.contains('black'))
+        return ColorType.uncategorizedBlack;
+
+      return ColorType.pinkLight;
+    }
   }
 }
 
