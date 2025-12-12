@@ -621,6 +621,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     );
   }
 
+
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
@@ -675,7 +676,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
             alarmMinutesValue = 0;
           }
           int realServerCategoryId = selectedCategoryId ?? 0;
-          int colorIndex = 0;
+          int colorIndex = 0; // 이전에 색상 인덱스를 가져오는 로직이 생략되었을 수 있음. (DB 저장용)
 
           if (widget.routineIdToEdit != null) {
             if (_originalWeekDaysString != weekString) {
@@ -707,6 +708,9 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
             );
             await _updateNotifications(widget.routineIdToEdit!);
           } else {
+            // --------------------------------------------------------
+            // [새 루틴 등록 로직: ID SWAP 포함]
+            // --------------------------------------------------------
             final tempLocalId = await db.insertRoutine(
               RoutinesCompanion.insert(
                 groupId: drift.Value(widget.groupId),
@@ -724,6 +728,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
               ),
             );
 
+            print('👻 [DEBUG] 로컬 임시 루틴 삽입 완료 (임시 ID: $tempLocalId)');
             await _updateNotifications(tempLocalId);
 
             print(
@@ -743,34 +748,16 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
               );
 
               if (realServerId != null) {
-                print("✅ [서버 업로드 성공] 서버ID 발급됨: $realServerId");
-
-                print("🔄 [ID SWAP] 로컬($tempLocalId) -> 서버($realServerId)");
-
-                final localData = await db.getRoutineById(tempLocalId);
-
-                if (localData != null) {
-                  await db.deleteRoutine(tempLocalId);
-
-                  await _cancelAllScheduledNotifications(tempLocalId);
-
-                  await db
-                      .into(db.routines)
-                      .insert(
-                        localData
-                            .toCompanion(true)
-                            .copyWith(
-                              id: drift.Value(realServerId),
-                              routineId: drift.Value(realServerId),
-                            ),
-                      );
-
-                  await _cancelAllScheduledNotifications(tempLocalId);
-                  await _updateNotifications(realServerId);
-                }
+                await db.updateRoutine(
+                  RoutinesCompanion(
+                    id: drift.Value(tempLocalId),
+                    routineId: drift.Value(realServerId),
+                    isSynced: drift.Value(true),
+                  ),
+                );
               }
             } catch (serverError) {
-              print("❌ 서버 전송 실패: $serverError (로컬 데이터는 유지됨)");
+              print("서버 전송 실패: $serverError (로컬 데이터는 유지됨)");
             }
           }
 
@@ -1068,7 +1055,13 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       DateTime currentDay = startDate.add(Duration(days: i));
 
       int uniqueNotificationId =
-      Object.hash(routineId, currentDay.year, currentDay.month, currentDay.day) & 0x7FFFFFFF;
+          Object.hash(
+            routineId,
+            currentDay.year,
+            currentDay.month,
+            currentDay.day,
+          ) &
+          0x7FFFFFFF;
 
       await NotificationService().cancelNotification(uniqueNotificationId);
     }

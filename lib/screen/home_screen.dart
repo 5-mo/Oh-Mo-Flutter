@@ -290,8 +290,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  // HomeScreen.dart 내부
-
   Future<void> _syncApiDataToLocalDb(List<DailyScheduleResult> apiData) async {
     final database = db.LocalDatabaseSingleton.instance;
     final selectedDate = _selectedDateNotifier.value;
@@ -416,119 +414,183 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _syncDailyApiDataToLocalDb(
-    DailyScheduleData data,
-    DateTime date,
-  ) async {
+      DailyScheduleData data,
+      DateTime date,
+      ) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final dateString = DateFormat('yyyy-MM-dd').format(date); // 비교용 날짜 문자열
+    final dateString = DateFormat('yyyy-MM-dd').format(date);
 
-    // 1. 투두 정리 (기존 유지)
-    await (database.delete(database.todos)..where(
-      (t) =>
-          t.date.year.equals(date.year) &
-          t.date.month.equals(date.month) &
-          t.date.day.equals(date.day),
-    )).go();
+    // ============================================================
+    // 1) 서버 데이터 분석 (오늘 날짜 기준)
+    // ============================================================
 
-    // 2. 투두 리스트 처리 (기존 유지)
-    for (var item in data.todoList) {
-      if (item.scheduleType.toUpperCase() == 'TO_DO') {
-        try {
-          await database
-              .into(database.todos)
-              .insertOnConflictUpdate(
-                db.TodosCompanion.insert(
-                  id: Value(item.scheduleId),
-                  content: item.content,
-                  groupId: const Value(null),
-                  date: date,
-                  colorType: Value(_parseColorType(item.category.color).index),
-                  isDone: Value(item.todo?.status ?? false),
-                ),
-              );
-          await (database.delete(database.routines)
-            ..where((r) => r.routineId.equals(item.scheduleId))).go();
-        } catch (e) {
-          print("Todo 에러: $e");
+    // 오늘의 서버 Todo ID 목록
+    final serverTodoIds = data.todoList
+        .where((t) => t.scheduleType.toUpperCase() == 'TO_DO')
+        .map((t) => t.scheduleId)
+        .toSet();
+
+    // 오늘의 서버 Routine UI ID 목록 (scheduleId)
+    final serverRoutineUiIds = data.routineList
+        .map((r) => r.scheduleId)
+        .toSet();
+
+    // 서버 루틴의 routineByDateList에서 오늘 날짜에 해당하는 routineId(apiInstanceId)
+    final serverRoutineInstanceIds = <int>{};
+
+    for (var item in data.routineList) {
+      if (item.routineByDateList.isNotEmpty) {
+        final match = item.routineByDateList.where((x) => x.date == dateString);
+        if (match.isNotEmpty) {
+          serverRoutineInstanceIds.add(match.first.routineId);
+        } else {
+          // 오늘 날짜 항목이 없으면 첫 번째 항목을 fallback으로 사용
+          serverRoutineInstanceIds.add(item.routineByDateList.first.routineId);
         }
       }
     }
 
-    // 3. 루틴 리스트 처리 (★ 여기가 해결책입니다 ★)
+    // ============================================================
+    // 2) 로컬 데이터 조회 (오늘 날짜 기준)
+    // ============================================================
+
+    // 오늘의 로컬 Todo
+    final localTodos = await (database.select(database.todos)..where(
+          (t) =>
+      t.date.year.equals(date.year) &
+      t.date.month.equals(date.month) &
+      t.date.day.equals(date.day),
+    )).get();
+
+    // 오늘의 로컬 Routine
+    final localRoutines = await (database.select(database.routines)..where(
+          (r) =>
+      r.startDate.isSmallerOrEqualValue(date) &
+      r.endDate.isBiggerOrEqualValue(date),
+    )).get();
+
+    // ============================================================
+    // 3) 로컬에서 “서버에 없는 Todo / 루틴” 삭제 (유령 데이터 제거)
+    // ============================================================
+
+    // --- Todo 유령삭제 ---
+    for (final local in localTodos) {
+      if (!serverTodoIds.contains(local.id)) {
+        await (database.delete(database.todos)
+          ..where((t) => t.id.equals(local.id))).go();
+      }
+    }
+
+    // --- Routine 유령삭제 ---
+    // 로컬에서는 UI ID(id) 또는 실제 RoutineId(routineId) 중 어느 것이든
+    // 서버 오늘 목록과 매칭되지 않으면 삭제
+    for (final local in localRoutines) {
+      final isMatchedByUiId = serverRoutineUiIds.contains(local.id);
+      final isMatchedByInstanceId = serverRoutineInstanceIds.contains(local.routineId);
+
+      if (!isMatchedByUiId && !isMatchedByInstanceId) {
+        await (database.delete(database.routines)
+          ..where((r) => r.id.equals(local.id))).go();
+      }
+    }
+
+    // ============================================================
+    // 4) 서버 Todo 저장 (insert/update)
+    // ============================================================
+
+    for (var item in data.todoList) {
+      if (item.scheduleType.toUpperCase() != 'TO_DO') continue;
+
+      try {
+        await database.into(database.todos).insertOnConflictUpdate(
+          db.TodosCompanion.insert(
+            id: Value(item.scheduleId),
+            content: item.content,
+            groupId: const Value(null),
+            date: date,
+            colorType:
+            Value(_parseColorType(item.category.color).index),
+            isDone: Value(item.todo?.status ?? false),
+          ),
+        );
+      } catch (e) {
+        print("Todo 저장 오류: $e");
+      }
+    }
+
+    // ============================================================
+    // 5) 서버 Routine 저장 (insert/update)
+    // ============================================================
+
     for (var item in data.routineList) {
       try {
-        // [1] ID 정의
-        int uiScheduleId = item.scheduleId; // 로컬용 ID (37번) - 중복 방지용
-        int apiInstanceId = item.scheduleId; // 기본값 (없으면 이거라도 씀)
+        int uiScheduleId = item.scheduleId; // 고정 UI ID
+        int apiInstanceId = uiScheduleId;  // 기본값
+
         bool isServerDone = false;
 
-        // [2] 오늘 날짜에 맞는 '진짜 ID(53번)' 찾기 (중요!)
-        // routineList 안에는 미래의 데이터(53, 55, 57...)가 다 들어있으므로
-        // 반드시 '오늘 날짜'와 맞는 녀석을 골라내야 합니다.
-        if (item.routineList.isNotEmpty) {
-          try {
-            // 날짜가 일치하는 녀석 찾기
-            final target = item.routineList.firstWhere(
-              (element) => element.date == dateString,
-            );
-            apiInstanceId = target.routineId; // 찾았다! 53번!
-            isServerDone = target.status;
-          } catch (e) {
-            // 오늘 날짜 데이터가 없으면? -> 그냥 첫번째꺼 쓰거나 스킵
-            apiInstanceId = item.routineList.first.routineId;
-            isServerDone = item.routineList.first.status;
+        // 오늘에 해당하는 routineByDate 찾기
+        if (item.routineByDateList.isNotEmpty) {
+          final matched = item.routineByDateList.where((e) => e.date == dateString);
+          if (matched.isNotEmpty) {
+            apiInstanceId = matched.first.routineId;
+            isServerDone = matched.first.status;
+          } else {
+            apiInstanceId = item.routineByDateList.first.routineId;
+            isServerDone = item.routineByDateList.first.status;
           }
         }
 
-        // ... (요일, 카테고리, 시간 파싱 로직은 기존 코드 그대로 유지) ...
-        String newWeekDays = "";
-        List<int> weekInts = [];
-        if (item.repeatWeek.isNotEmpty) {
-          weekInts =
-              item.repeatWeek
-                  .map((day) {
-                    switch (day.toUpperCase().trim()) {
-                      case 'MONDAY':
-                        return 1;
-                      case 'TUESDAY':
-                        return 2;
-                      case 'WEDNESDAY':
-                        return 3;
-                      case 'THURSDAY':
-                        return 4;
-                      case 'FRIDAY':
-                        return 5;
-                      case 'SATURDAY':
-                        return 6;
-                      case 'SUNDAY':
-                        return 7;
-                      default:
-                        return 0;
-                    }
-                  })
-                  .where((d) => d != 0)
-                  .toList();
-        }
-        if (!weekInts.contains(date.weekday)) weekInts.add(date.weekday);
-        weekInts.sort();
-        newWeekDays = weekInts.toSet().join(',');
+        // weekDays 계산
+        final weekInts = <int>{};
 
+        for (var d in item.repeatWeek) {
+          switch (d.toUpperCase().trim()) {
+            case 'MONDAY':
+              weekInts.add(1);
+              break;
+            case 'TUESDAY':
+              weekInts.add(2);
+              break;
+            case 'WEDNESDAY':
+              weekInts.add(3);
+              break;
+            case 'THURSDAY':
+              weekInts.add(4);
+              break;
+            case 'FRIDAY':
+              weekInts.add(5);
+              break;
+            case 'SATURDAY':
+              weekInts.add(6);
+              break;
+            case 'SUNDAY':
+              weekInts.add(7);
+              break;
+          }
+        }
+
+        // 오늘 요일도 포함
+        weekInts.add(date.weekday);
+        final newWeekDays = weekInts.toList()..sort();
+        final weekStr = newWeekDays.join(',');
+
+        // 카테고리 ID 매핑
         int? resolvedCategoryId;
         final categoryList = await database.categories.select().get();
         final match =
-            categoryList
-                .where((c) => c.name == item.category.categoryName)
-                .firstOrNull;
+            categoryList.where((c) => c.name == item.category.categoryName).firstOrNull;
         if (match != null) resolvedCategoryId = match.id;
-        final colorIndex = _parseColorType(item.category.color).index;
 
+        // timeMinutes 파싱
         int? parsedTimeMinutes;
         if (item.time != null && item.time!.contains(':')) {
-          try {
-            final parts = item.time!.split(':');
-            parsedTimeMinutes = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-          } catch (e) {}
+          final parts = item.time!.split(':');
+          parsedTimeMinutes =
+              int.parse(parts[0]) * 60 + int.parse(parts[1]);
         }
+
+        // endDate
         DateTime? parsedEndDate;
         try {
           parsedEndDate = DateTime.parse(item.date);
@@ -536,51 +598,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           parsedEndDate = DateTime(3000, 12, 31);
         }
 
-        // [3] DB 저장 (강제 교체 전략)
-        // 기존에 37번 ID로 저장된 녀석이 있으면 과감히 삭제합니다.
-        // 왜냐? "UNIQUE constraint failed" 에러를 피하고,
-        // 53번 ID 정보를 확실하게 심기 위해서입니다.
-        await (database.delete(database.routines)
-          ..where((r) => r.id.equals(uiScheduleId))).go();
+        // insert/update
+        await database.into(database.routines).insertOnConflictUpdate(
+          db.RoutinesCompanion(
+            id: Value(uiScheduleId),
+            routineId: Value(apiInstanceId),
+            content: Value(item.content),
+            colorType: Value(_parseColorType(item.category.color).index),
+            weekDays: Value(weekStr),
+            categoryId: Value(resolvedCategoryId),
+            startDate: Value(date),
+            endDate: Value(parsedEndDate),
+            timeMinutes: Value(parsedTimeMinutes),
+            alarmMinutes:
+            Value(item.alarmTime != null ? 0 : null),
+            isSynced: Value(true),
+          ),
+        );
 
-        // 그리고 깨끗하게 새로 넣습니다.
-        await database
-            .into(database.routines)
-            .insert(
-              db.RoutinesCompanion.insert(
-                id: Value(uiScheduleId),
-                // 로컬 PK: 37 (화면 표시용)
-                routineId: Value(apiInstanceId),
-                // 서버 ID: 53 (통신용)
-                content: item.content,
-                colorType: Value(colorIndex),
-                weekDays: Value(newWeekDays),
-                categoryId: Value(resolvedCategoryId),
-                startDate: Value(date),
-                endDate: Value(parsedEndDate),
-                timeMinutes: Value(parsedTimeMinutes),
-                alarmMinutes: Value(item.alarmTime != null ? 0 : null),
-                isSynced: Value(true),
-              ),
-            );
+        // 완료 여부 동기화
+        final completedIds = await database.getCompletedRoutineIds(date);
+        final isLocalDone = completedIds.contains(uiScheduleId);
 
-        // [4] 완료 상태 체크
-        final completedRoutineIds = await database.getCompletedRoutineIds(date);
-        final isLocalDone = completedRoutineIds.contains(uiScheduleId);
-
-        // 로컬 상태와 서버 상태를 맞춥니다.
-        if (isServerDone && !isLocalDone) {
-          await database.toggleRoutineCompletion(uiScheduleId, date);
-        } else if (!isServerDone && isLocalDone) {
+        if (isServerDone != isLocalDone) {
           await database.toggleRoutineCompletion(uiScheduleId, date);
         }
+
       } catch (e) {
-        // 중복 삭제 후 삽입이라 에러가 거의 안 나겠지만, 혹시 나면 로그 확인
-        print("루틴 저장 중 에러 ($item): $e");
+        print("Routine 저장 오류 (${item.scheduleId}): $e");
       }
     }
-    print("🏁 [DEBUG END] 동기화 완료: 37번(UI) 안에 53번(API) 심기 성공 \n");
+
+    print("🎉 [SYNC] 동기화 완료 – 유령데이터 없이 정상 동기화됨!");
   }
+
 
   Future<void> _fetchMonthlyDataAndRefresh(DateTime date) async {
     try {

@@ -1036,6 +1036,7 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
     defaultValue: const Constant(0),
   );
   static const VerificationMeta _groupIdMeta = const VerificationMeta(

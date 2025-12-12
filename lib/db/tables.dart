@@ -49,7 +49,7 @@ class DayLogQuestions extends Table {
 
 class Routines extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get routineId=>integer().withDefault(const Constant(0))();
+  IntColumn get routineId=>integer().withDefault(const Constant(0)).unique()();
   IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();

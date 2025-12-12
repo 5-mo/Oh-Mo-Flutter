@@ -21,6 +21,8 @@ class CalendarService {
           'Accept': 'application/json',
         },
       );
+
+
       if (response.statusCode == 200) {
         final decoded = jsonDecode(utf8.decode(response.bodyBytes));
         return DailyScheduleResponse.fromJson(decoded);

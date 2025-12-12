@@ -15,13 +15,14 @@ class DailyScheduleResponse {
   });
 
   factory DailyScheduleResponse.fromJson(Map<String, dynamic> json) {
+    final resultJson = json['result'];
     return DailyScheduleResponse(
       isSuccess: json['isSuccess'] ?? false,
       code: json['code'],
       message: json['message'],
       result:
-          json['result'] != null
-              ? DailyScheduleData.fromJson(json['result'])
+          (resultJson != null && resultJson is Map<String, dynamic>)
+              ? DailyScheduleData.fromJson(resultJson)
               : null,
     );
   }
@@ -58,6 +59,8 @@ class DailyTodoItem {
   final String scheduleType;
   final ScheduleCategory category;
   final TodoDetail? todo;
+  final String? time;
+  final String? alarmTime;
 
   DailyTodoItem({
     required this.scheduleId,
@@ -66,6 +69,8 @@ class DailyTodoItem {
     required this.scheduleType,
     required this.category,
     this.todo,
+    this.time,
+    this.alarmTime,
   });
 
   factory DailyTodoItem.fromJson(Map<String, dynamic> json) {
@@ -76,6 +81,8 @@ class DailyTodoItem {
       scheduleType: json['scheduleType'] ?? '',
       category: ScheduleCategory.fromJson(json['category'] ?? {}),
       todo: json['todo'] != null ? TodoDetail.fromJson(json['todo']) : null,
+      time: json['time'],
+      alarmTime: json['alarmTime'],
     );
   }
 }
@@ -86,7 +93,7 @@ class DailyRoutineItem {
   final String content;
   final String scheduleType;
   final ScheduleCategory category;
-  final List<RoutineDetail> routineList;
+  final List<RoutineDetail> routineByDateList;
   final List<String> repeatWeek;
   final String? time;
   final String? alarmTime;
@@ -97,20 +104,24 @@ class DailyRoutineItem {
     required this.content,
     required this.scheduleType,
     required this.category,
-    required this.routineList,
+    required this.routineByDateList,
     required this.repeatWeek,
     this.time,
     this.alarmTime,
   });
 
   factory DailyRoutineItem.fromJson(Map<String, dynamic> json) {
+    final categoryJson = json['category'];
     return DailyRoutineItem(
       scheduleId: json['scheduleId'] ?? 0,
       date: json['date'] ?? '',
       content: json['content'] ?? '',
       scheduleType: json['scheduleType'] ?? '',
-      category: ScheduleCategory.fromJson(json['category'] ?? {}),
-      routineList:
+      category:
+          (categoryJson != null && categoryJson is Map<String, dynamic>)
+              ? ScheduleCategory.fromJson(categoryJson)
+              : ScheduleCategory.fromJson({}),
+      routineByDateList:
           json['routineByDateList'] != null
               ? (json['routineByDateList'] as List)
                   .map((i) => RoutineDetail.fromJson(i))
@@ -152,13 +163,15 @@ class ScheduleCategory {
 class TodoDetail {
   final int todoId;
   final bool status;
+  final String date;
 
-  TodoDetail({required this.todoId, required this.status});
+  TodoDetail({required this.todoId, required this.status, required this.date});
 
   factory TodoDetail.fromJson(Map<String, dynamic> json) {
     return TodoDetail(
       todoId: json['todoId'] ?? 0,
       status: json['status'] ?? false,
+      date: json['date'] ?? '',
     );
   }
 }

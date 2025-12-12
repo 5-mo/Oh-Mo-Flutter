@@ -60,6 +60,10 @@ class LocalDatabase extends _$LocalDatabase {
 
   // ------------------ Category ------------------
 
+  Future<Category?> getCategoryById(int id) {
+    return (select(categories)..where((c) => c.id.equals(id))).getSingleOrNull();
+  }
+
   Future<int> deleteCategoryById(int id) {
     return (delete(categories)..where((t) => t.id.equals(id))).go();
   }
