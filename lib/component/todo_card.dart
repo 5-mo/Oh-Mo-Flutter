@@ -122,17 +122,13 @@ class _TodoCardState extends State<TodoCard> {
                   ),
                   value: _isChecked,
                   onChanged: (bool? value) async {
-                    print('--- [DEBUG] 1. TodoCard 체크박스 클릭됨 ---');
                     if (value == null) return;
                     setState(() {
                       _isChecked = value;
                     });
                     try {
                       if (widget.onStatusChanged != null) {
-                        print('--- [DEBUG] 2. 부모 위젯(onStatusChanged) 호출 시도 ---');
                         await widget.onStatusChanged!();
-                        final db = LocalDatabaseSingleton.instance;
-                        await db.toggleTodoStatus(widget.scheduleId);
                       }
                     } catch (e) {
                       print("상태 변경 실패: $e");

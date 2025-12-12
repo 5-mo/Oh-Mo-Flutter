@@ -99,37 +99,35 @@ class TodoService {
     }
   }
 
-  Future<void> toggleTodoStatus(int scheduleId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
-
-    final url = Uri.parse('$baseUrl/api/todo/$scheduleId');
-    print('--- [TodoService] 투두 상태 변경 요청 시작 ---');
-    print('1. 요청 URL: $url');
-    print('2. 토큰 존재 여부: ${token.isNotEmpty}');
-
+  Future<bool?> toggleTodoStatus(int todoId) async {
     try {
-      print('3. HTTP Method: PATCH 전송 시도');
-    final response = await http.patch(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-      print('4. Response Status Code: ${response.statusCode}');
-      print('5. Response Body: ${utf8.decode(response.bodyBytes)}');
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) return null;
+
+      final url = Uri.parse('$baseUrl/api/todo/$todoId');
+
+      final response = await http.patch(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
       if (response.statusCode == 200) {
-        print('--- [TodoService] 상태 변경 성공! ---');
-      } else {
-        print('--- [TodoService] 상태 변경 실패 ㅠㅠ ---');
-        // 실패 시 에러를 던져서 UI가 롤백되도록 함
-        throw Exception('상태 변경 실패: ${response.statusCode}');
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        if (jsonResponse['isSuccess'] == true &&
+            jsonResponse['result'] != null) {
+          return jsonResponse['result']['status'];
+        }
       }
+      print('서버 상태 변경 실패: ${response.body}');
+      return null;
     } catch (e) {
-      print('--- [TodoService] 에러 발생: $e ---');
-      rethrow; // UI 쪽 catch 블록으로 에러 전달
+      print('통신 에러: $e');
+      return null;
     }
   }
 

@@ -26,6 +26,7 @@ import '../services/category_service.dart';
 import '../services/notification_service.dart';
 import '../services/routine_service.dart';
 import '../services/sync_service.dart';
+import '../services/todo_service.dart';
 import 'notification_screen.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:intl/intl.dart';
@@ -401,6 +402,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       print("카테고리 정리 중 에러 발생: $e");
     }
   }
+// HomeScreen.dart
 
   Future<void> _syncDailyApiDataToLocalDb(
       DailyScheduleData data,
@@ -409,16 +411,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final database = db.LocalDatabaseSingleton.instance;
     final dateString = DateFormat('yyyy-MM-dd').format(date);
 
-
+    // ----------------------------------------------------------------------
+    // [1] 서버에 있는 Todo ID 목록 추출 (scheduleId가 아니라 todoId를 사용!)
+    // ----------------------------------------------------------------------
     final serverTodoIds = data.todoList
-        .where((t) => t.scheduleType.toUpperCase() == 'TO_DO')
-        .map((t) => t.scheduleId)
+        .where((t) => t.scheduleType.toUpperCase() == 'TO_DO' && t.todo != null)
+        .map((t) => t.todo!.todoId) // 🚨 핵심 수정: scheduleId(67) -> todoId(19)
         .toSet();
 
-    final serverRoutineUiIds = data.routineList
-        .map((r) => r.scheduleId)
-        .toSet();
-
+    final serverRoutineUiIds = data.routineList.map((r) => r.scheduleId).toSet();
     final serverRoutineInstanceIds = <int>{};
 
     for (var item in data.routineList) {
@@ -432,13 +433,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
+    // ----------------------------------------------------------------------
+    // [2] 삭제 로직: 서버에 없는 로컬 데이터 삭제
+    // ----------------------------------------------------------------------
     final localTodos = await (database.select(database.todos)..where(
           (t) =>
       t.date.year.equals(date.year) &
       t.date.month.equals(date.month) &
       t.date.day.equals(date.day),
     )).get();
-
 
     final localRoutines = await (database.select(database.routines)..where(
           (r) =>
@@ -447,6 +450,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     )).get();
 
     for (final local in localTodos) {
+      // 이제 local.id는 todoId(19)와 비교되므로 정확하게 동기화됩니다.
       if (!serverTodoIds.contains(local.id)) {
         await (database.delete(database.todos)
           ..where((t) => t.id.equals(local.id))).go();
@@ -455,7 +459,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     for (final local in localRoutines) {
       final isMatchedByUiId = serverRoutineUiIds.contains(local.id);
-      final isMatchedByInstanceId = serverRoutineInstanceIds.contains(local.routineId);
+      final isMatchedByInstanceId =
+      serverRoutineInstanceIds.contains(local.routineId);
 
       if (!isMatchedByUiId && !isMatchedByInstanceId) {
         await (database.delete(database.routines)
@@ -463,19 +468,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
+    // ----------------------------------------------------------------------
+    // [3] 투두 리스트 저장/업데이트
+    // ----------------------------------------------------------------------
     for (var item in data.todoList) {
       if (item.scheduleType.toUpperCase() != 'TO_DO') continue;
+      // todo 객체가 없으면 스킵 (혹시 모를 에러 방지)
+      if (item.todo == null) continue;
 
       try {
+        int? timeMinutesValue;
+        int? alarmMinutesValue;
+
+        if (item.time != null && item.time!.contains(':')) {
+          final parts = item.time!.split(':');
+          timeMinutesValue = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+        }
+        if (item.alarmTime != null && item.alarmTime!.contains(':')) {
+          final parts = item.alarmTime!.split(':');
+          alarmMinutesValue = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+        }
+
+        DateTime fullDate = date;
+        if (timeMinutesValue != null) {
+          fullDate = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            timeMinutesValue ~/ 60,
+            timeMinutesValue % 60,
+          );
+        }
+
         await database.into(database.todos).insertOnConflictUpdate(
           db.TodosCompanion.insert(
-            id: Value(item.scheduleId),
+            // 🚨 핵심 수정: 로컬 DB ID에 'todoId(19)'를 저장합니다.
+            // 이렇게 해야 TodoCard가 19번을 들고 있고, 서버에 19번으로 요청을 보냅니다.
+            id: Value(item.todo!.todoId),
+
             content: item.content,
             groupId: const Value(null),
-            date: date,
-            colorType:
-            Value(_parseColorType(item.category.color).index),
-            isDone: Value(item.todo?.status ?? false),
+            date: fullDate, // 시간 포함된 날짜 사용
+            colorType: Value(_parseColorType(item.category.color).index),
+            isDone: Value(item.todo!.status), // status도 todo 객체 안에 있음
+            timeMinutes: Value(timeMinutesValue),
+            alarmMinutes: Value(alarmMinutesValue),
           ),
         );
       } catch (e) {
@@ -483,12 +520,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
-
+    // ----------------------------------------------------------------------
+    // [4] 루틴 리스트 저장 (기존 로직 유지 - 잘 동작하는 코드)
+    // ----------------------------------------------------------------------
     for (var item in data.routineList) {
       try {
         int uiScheduleId = item.scheduleId;
         int apiInstanceId = uiScheduleId;
-
         bool isServerDone = false;
 
         if (item.routineByDateList.isNotEmpty) {
@@ -502,52 +540,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
 
+        // ... (요일 계산 로직 등 기존과 동일) ...
         final weekInts = <int>{};
-
         for (var d in item.repeatWeek) {
           switch (d.toUpperCase().trim()) {
-            case 'MONDAY':
-              weekInts.add(1);
-              break;
-            case 'TUESDAY':
-              weekInts.add(2);
-              break;
-            case 'WEDNESDAY':
-              weekInts.add(3);
-              break;
-            case 'THURSDAY':
-              weekInts.add(4);
-              break;
-            case 'FRIDAY':
-              weekInts.add(5);
-              break;
-            case 'SATURDAY':
-              weekInts.add(6);
-              break;
-            case 'SUNDAY':
-              weekInts.add(7);
-              break;
+            case 'MONDAY': weekInts.add(1); break;
+            case 'TUESDAY': weekInts.add(2); break;
+            case 'WEDNESDAY': weekInts.add(3); break;
+            case 'THURSDAY': weekInts.add(4); break;
+            case 'FRIDAY': weekInts.add(5); break;
+            case 'SATURDAY': weekInts.add(6); break;
+            case 'SUNDAY': weekInts.add(7); break;
           }
         }
-
-        weekInts.add(date.weekday);
+        if (!weekInts.contains(date.weekday)) weekInts.add(date.weekday);
         final newWeekDays = weekInts.toList()..sort();
         final weekStr = newWeekDays.join(',');
 
         int? resolvedCategoryId;
         final categoryList = await database.categories.select().get();
-        final match =
-            categoryList.where((c) => c.name == item.category.categoryName).firstOrNull;
+        final match = categoryList.where((c) => c.name == item.category.categoryName).firstOrNull;
         if (match != null) resolvedCategoryId = match.id;
 
         int? parsedTimeMinutes;
         if (item.time != null && item.time!.contains(':')) {
           final parts = item.time!.split(':');
-          parsedTimeMinutes =
-              int.parse(parts[0]) * 60 + int.parse(parts[1]);
+          parsedTimeMinutes = int.parse(parts[0]) * 60 + int.parse(parts[1]);
         }
 
-        // endDate
         DateTime? parsedEndDate;
         try {
           parsedEndDate = DateTime.parse(item.date);
@@ -555,7 +575,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           parsedEndDate = DateTime(3000, 12, 31);
         }
 
-        // insert/update
         await database.into(database.routines).insertOnConflictUpdate(
           db.RoutinesCompanion(
             id: Value(uiScheduleId),
@@ -567,8 +586,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             startDate: Value(date),
             endDate: Value(parsedEndDate),
             timeMinutes: Value(parsedTimeMinutes),
-            alarmMinutes:
-            Value(item.alarmTime != null ? 0 : null),
+            alarmMinutes: Value(item.alarmTime != null ? 0 : null),
             isSynced: Value(true),
           ),
         );
@@ -585,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
-    print("🎉 [SYNC] 동기화 완료 – 유령데이터 없이 정상 동기화됨!");
+    print("🎉 [SYNC] 동기화 완료!");
   }
 
 
@@ -949,14 +967,12 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                           isDone: routine.isDone,
                                           onDataChanged: widget.onDataChanged,
 
-                                          // ▼▼▼ [수정된 부분] ▼▼▼
-                                          // RoutineCard 내부에서 이미 API 통신과 DB 저장을 완료했습니다.
-                                          // 여기서는 데이터가 변경되었으니 "화면을 다시 그려라"는 명령만 하면 됩니다.
+
                                           onStatusChanged: () async {
                                             widget.onDataChanged?.call();
                                           },
 
-                                          // ▲▲▲ [수정 끝] ▲▲▲
+
                                           isColorPickerEnabled: false,
                                           onEditPressed: () {
                                             showModalBottomSheet(
@@ -1037,25 +1053,51 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                           isDone: todo.isDone,
                                           onDataChanged: widget.onDataChanged,
                                           onStatusChanged: () async {
+                                            // 🚨 수정: 변수 이름을 'db'에서 'localDb'로 변경하여 충돌 방지
+                                            final localDb = db.LocalDatabaseSingleton.instance;
+                                            final todoService = TodoService();
+
+                                            // 1. [낙관적 업데이트] 로컬 DB와 UI를 먼저 변경 (토글)
                                             final newIsDone = !todo.isDone;
 
+                                            // 로컬 DB 업데이트
+                                            await localDb.updateTodoCompletion(todo.id, newIsDone);
+
+                                            // 완료 목록 테이블 동기화
+                                            await localDb.toggleTodoCompletion(todo.id, widget.selectedDateNotifier.value);
+
+                                            // 데이터 변경 알림
+                                            widget.onDataChanged?.call();
+
                                             try {
-                                              await db
-                                                  .LocalDatabaseSingleton
-                                                  .instance
-                                                  .updateTodo(
-                                                    db.TodosCompanion(
-                                                      id: Value(todo.id),
-                                                      isDone: Value(newIsDone),
-                                                    ),
-                                                  );
-                                              setState(() {
-                                                todo.isDone = newIsDone;
-                                              });
+                                              // 2. [서버 동기화]
+                                              final serverResult = await todoService.toggleTodoStatus(todo.id);
+
+                                              if (serverResult == null) {
+                                                throw Exception('서버 동기화 실패');
+                                              }
+
+                                              // (선택사항) 서버 상태가 로컬과 다르면 서버 상태로 강제 맞춤
+                                              if (serverResult != newIsDone) {
+                                                await localDb.updateTodoCompletion(todo.id, serverResult);
+                                                widget.onDataChanged?.call();
+                                              }
+
+                                            } catch (e) {
+                                              // 3. [롤백]
+                                              print("투두 상태 변경 실패 (롤백): $e");
+
+                                              // 원래 상태로 되돌림
+                                              await localDb.updateTodoCompletion(todo.id, !newIsDone);
+                                              await localDb.toggleTodoCompletion(todo.id, widget.selectedDateNotifier.value);
 
                                               widget.onDataChanged?.call();
-                                            } catch (e) {
-                                              print("Todo 업데이트 실패: $e");
+
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text("상태 변경에 실패했습니다. 잠시 후 다시 시도해주세요.")),
+                                                );
+                                              }
                                             }
                                           },
                                           onDateChanged: (id, newDate) async {
