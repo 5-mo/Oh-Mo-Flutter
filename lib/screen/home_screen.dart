@@ -284,6 +284,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await _syncDailyApiDataToLocalDb(response.result!, date);
 
         await _loadDataForDate(date);
+        await _loadDataForMonth(date);
       }
     } catch (e) {
       print("일별 데이터 동기화 에러 : $e");
@@ -343,7 +344,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final categoryService = CategoryService();
 
     try {
-      print("🧹 [카테고리 정리] 서버 데이터 가져오는 중...");
 
       final routineCats = await categoryService.getCategories('ROUTINE');
       final todoCats = await categoryService.getCategories('TO_DO');
@@ -351,30 +351,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       if (serverCategories.isEmpty) return;
 
-      print("📥 서버 카테고리 로드 완료 (${serverCategories.length}개). 정리 시작!");
 
       for (var sCat in serverCategories) {
         final serverId = sCat['categoryId'] ?? sCat['id'];
         final name = sCat['name'] ?? sCat['categoryName'];
         final color = sCat['color'];
-        // [중요] 서버에서 온 타입이 없으면 기본값 ROUTINE
         final type = sCat['scheduleType'] ?? 'ROUTINE';
 
         if (serverId == null || name == null) continue;
 
-        // [수정] 이름(name) 뿐만 아니라 타입(type)까지 같은 녀석을 찾습니다.
         final localCats =
             await (database.select(database.categories)
               ..where((c) => c.name.equals(name) & c.type.equals(type))).get();
 
         for (var lCat in localCats) {
-          // 이름과 타입이 다 같은데 ID만 다르다면 -> 병합 대상
           if (lCat.id != serverId) {
-            print(
-              "🔄 [병합] '${lCat.name}($type)': 로컬ID(${lCat.id}) -> 서버ID($serverId)",
-            );
 
-            // 해당 타입에 맞는 테이블만 업데이트 (안전장치)
             if (type == 'ROUTINE') {
               await database.customStatement(
                 'UPDATE routines SET category_id = ? WHERE category_id = ?',
@@ -387,29 +379,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               );
             }
 
-            // 구 버전 카테고리 삭제
             await (database.delete(database.categories)
               ..where((c) => c.id.equals(lCat.id))).go();
           }
         }
 
-        // 서버 정보로 로컬 DB 갱신 (Insert or Update)
         await database
             .into(database.categories)
             .insertOnConflictUpdate(
               db.CategoriesCompanion.insert(
                 id: Value(serverId),
                 name: name,
-                type: type, // 타입 정보 저장 필수
+                type: type,
                 color: color ?? '#000000',
               ),
             );
       }
 
-      print("✨ [카테고리 정리] 완료! (ID 9번/10번 분리됨)");
       setState(() {});
     } catch (e) {
-      print("❌ 카테고리 정리 중 에러 발생: $e");
+      print("카테고리 정리 중 에러 발생: $e");
     }
   }
 
@@ -420,22 +409,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final database = db.LocalDatabaseSingleton.instance;
     final dateString = DateFormat('yyyy-MM-dd').format(date);
 
-    // ============================================================
-    // 1) 서버 데이터 분석 (오늘 날짜 기준)
-    // ============================================================
 
-    // 오늘의 서버 Todo ID 목록
     final serverTodoIds = data.todoList
         .where((t) => t.scheduleType.toUpperCase() == 'TO_DO')
         .map((t) => t.scheduleId)
         .toSet();
 
-    // 오늘의 서버 Routine UI ID 목록 (scheduleId)
     final serverRoutineUiIds = data.routineList
         .map((r) => r.scheduleId)
         .toSet();
 
-    // 서버 루틴의 routineByDateList에서 오늘 날짜에 해당하는 routineId(apiInstanceId)
     final serverRoutineInstanceIds = <int>{};
 
     for (var item in data.routineList) {
@@ -444,17 +427,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (match.isNotEmpty) {
           serverRoutineInstanceIds.add(match.first.routineId);
         } else {
-          // 오늘 날짜 항목이 없으면 첫 번째 항목을 fallback으로 사용
           serverRoutineInstanceIds.add(item.routineByDateList.first.routineId);
         }
       }
     }
 
-    // ============================================================
-    // 2) 로컬 데이터 조회 (오늘 날짜 기준)
-    // ============================================================
-
-    // 오늘의 로컬 Todo
     final localTodos = await (database.select(database.todos)..where(
           (t) =>
       t.date.year.equals(date.year) &
@@ -462,18 +439,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       t.date.day.equals(date.day),
     )).get();
 
-    // 오늘의 로컬 Routine
+
     final localRoutines = await (database.select(database.routines)..where(
           (r) =>
       r.startDate.isSmallerOrEqualValue(date) &
       r.endDate.isBiggerOrEqualValue(date),
     )).get();
 
-    // ============================================================
-    // 3) 로컬에서 “서버에 없는 Todo / 루틴” 삭제 (유령 데이터 제거)
-    // ============================================================
-
-    // --- Todo 유령삭제 ---
     for (final local in localTodos) {
       if (!serverTodoIds.contains(local.id)) {
         await (database.delete(database.todos)
@@ -481,9 +453,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
-    // --- Routine 유령삭제 ---
-    // 로컬에서는 UI ID(id) 또는 실제 RoutineId(routineId) 중 어느 것이든
-    // 서버 오늘 목록과 매칭되지 않으면 삭제
     for (final local in localRoutines) {
       final isMatchedByUiId = serverRoutineUiIds.contains(local.id);
       final isMatchedByInstanceId = serverRoutineInstanceIds.contains(local.routineId);
@@ -493,10 +462,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ..where((r) => r.id.equals(local.id))).go();
       }
     }
-
-    // ============================================================
-    // 4) 서버 Todo 저장 (insert/update)
-    // ============================================================
 
     for (var item in data.todoList) {
       if (item.scheduleType.toUpperCase() != 'TO_DO') continue;
@@ -518,18 +483,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
-    // ============================================================
-    // 5) 서버 Routine 저장 (insert/update)
-    // ============================================================
 
     for (var item in data.routineList) {
       try {
-        int uiScheduleId = item.scheduleId; // 고정 UI ID
-        int apiInstanceId = uiScheduleId;  // 기본값
+        int uiScheduleId = item.scheduleId;
+        int apiInstanceId = uiScheduleId;
 
         bool isServerDone = false;
 
-        // 오늘에 해당하는 routineByDate 찾기
         if (item.routineByDateList.isNotEmpty) {
           final matched = item.routineByDateList.where((e) => e.date == dateString);
           if (matched.isNotEmpty) {
@@ -541,7 +502,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
 
-        // weekDays 계산
         final weekInts = <int>{};
 
         for (var d in item.repeatWeek) {
@@ -570,19 +530,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
 
-        // 오늘 요일도 포함
         weekInts.add(date.weekday);
         final newWeekDays = weekInts.toList()..sort();
         final weekStr = newWeekDays.join(',');
 
-        // 카테고리 ID 매핑
         int? resolvedCategoryId;
         final categoryList = await database.categories.select().get();
         final match =
             categoryList.where((c) => c.name == item.category.categoryName).firstOrNull;
         if (match != null) resolvedCategoryId = match.id;
 
-        // timeMinutes 파싱
         int? parsedTimeMinutes;
         if (item.time != null && item.time!.contains(':')) {
           final parts = item.time!.split(':');
@@ -616,7 +573,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         );
 
-        // 완료 여부 동기화
         final completedIds = await database.getCompletedRoutineIds(date);
         final isLocalDone = completedIds.contains(uiScheduleId);
 
