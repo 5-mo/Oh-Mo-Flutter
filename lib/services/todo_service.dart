@@ -155,4 +155,78 @@ class TodoService {
       throw Exception('HTTP 에러: ${response.statusCode}');
     }
   }
+
+  Future<bool> updateTodoDate(int scheduleId, String newDate) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) return false;
+
+      final url = Uri.parse('$baseUrl/api/schedule/update-date');
+
+      final Map<String, dynamic> body = {
+        "scheduleId": scheduleId,
+        "date": newDate,
+      };
+
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] ?? false;
+      } else {
+        print("날짜 변경 실패 : ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("통신 에러 : $e");
+      return false;
+    }
+  }
+
+  Future<bool> updateAlarmTime(int scheduleId, String? alarmTimeStr) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) return false;
+
+      final url = Uri.parse('$baseUrl/api/schedule/alarm');
+
+      final Map<String, dynamic> body = {
+        "scheduleId": scheduleId,
+        "alarmTime": alarmTimeStr,
+      };
+
+      print('알람 변경 요청 : $body');
+
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] ?? false;
+      } else {
+        print("알람 변경 실패 : ${utf8.decode(response.bodyBytes)}");
+        return false;
+      }
+    } catch (e) {
+      print("통신 에러 : $e");
+      return false;
+    }
+  }
 }

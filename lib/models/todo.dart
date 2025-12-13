@@ -2,6 +2,7 @@ import 'package:ohmo/const/colors.dart';
 
 class Todo {
   final int id;
+  final int? todoServerId;
   String content;
   final ColorType colorType;
   final DateTime Date;
@@ -11,6 +12,7 @@ class Todo {
 
   Todo({
     required this.id,
+    this.todoServerId,
     required this.content,
     required this.colorType,
     required this.Date,
@@ -47,4 +49,3 @@ class Todo {
     };
   }
 }
-

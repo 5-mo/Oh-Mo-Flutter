@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/alarm_setting.dart';
+import 'package:ohmo/services/todo_service.dart';
 import '../db/drift_database.dart' as db;
+import 'package:intl/intl.dart';
+import 'package:drift/drift.dart' as drift;
 
 class RoutineAlarm extends StatefulWidget {
   final int routineId;
@@ -194,9 +197,7 @@ class _TodoAlarmState extends State<TodoAlarm> {
               SizedBox(height: 20),
               _buildSettingNextDay(widget.currentDate),
               SizedBox(height: 7),
-              if (_isAlarmEnabled) ...[
-                _buildSettingRoutineAlarm(),
-              ],
+              if (_isAlarmEnabled) ...[_buildSettingTodoAlarm()],
               SizedBox(height: 20),
               _buildDeleteButton(),
             ],
@@ -260,9 +261,38 @@ class _TodoAlarmState extends State<TodoAlarm> {
 
   Widget _buildSettingNextDay(DateTime currentTodoDate) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         final nextDay = currentTodoDate.add(const Duration(days: 1));
-        Navigator.of(context).pop(nextDay);
+        final nextDayString = DateFormat('yyyy-MM-dd').format(nextDay);
+        try {
+          final todoService = TodoService();
+          final isSuccess = await todoService.updateTodoDate(
+            widget.todoId,
+            nextDayString,
+          );
+
+          if (isSuccess) {
+            final database = db.LocalDatabaseSingleton.instance;
+            await database.updateTodoDate(widget.todoId, nextDay);
+
+            widget.onDataChanged?.call();
+
+            if (mounted) {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text("날짜가 변경되었습니다.")));
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text("날짜 변경에 실패했습니다.")));
+            }
+          }
+        } catch (e) {
+          print("에러 발생:$e");
+        }
       },
       child: Container(
         width: 318,
@@ -292,26 +322,94 @@ class _TodoAlarmState extends State<TodoAlarm> {
     );
   }
 
-  Widget _buildSettingRoutineAlarm() {
+  Widget _buildSettingTodoAlarm() {
     return GestureDetector(
       onTap: () async {
-        final result = await showModalBottomSheet<int>(
+        final dbInstance = db.LocalDatabaseSingleton.instance;
+        final todo = await dbInstance.getTodoById(widget.todoId);
+
+        if (todo == null || todo.timeMinutes == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('시간이 설정된 투두만 알람을 켤 수 있습니다.')),
+            );
+          }
+          return;
+        }
+
+        final resultMinutes = await showModalBottomSheet<int>(
           context: context,
           isScrollControlled: true,
           isDismissible: true,
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.only(
               topRight: Radius.circular(59),
               topLeft: Radius.circular(59),
             ),
           ),
           builder: (BuildContext context) {
-            return AlarmSetting();
+            return const AlarmSetting();
           },
         );
-        if (result != null) {
-          Navigator.of(context).pop(result);
+
+        if (resultMinutes != null) {
+          String? alarmTimeStr;
+
+          if (resultMinutes > 0) {
+            final todoTime = DateTime(
+              2024,
+              1,
+              1,
+              todo.timeMinutes! ~/ 60,
+              todo.timeMinutes! % 60,
+            );
+            final alarmTime = todoTime.subtract(
+              Duration(minutes: resultMinutes),
+            );
+
+            alarmTimeStr = DateFormat('HH:mm:ss').format(alarmTime);
+          } else {
+            alarmTimeStr = null;
+          }
+
+          try {
+            final todoService = TodoService();
+            final isSuccess = await todoService.updateAlarmTime(
+              widget.todoId,
+              alarmTimeStr,
+            );
+
+            if (isSuccess) {
+              await dbInstance.updateTodo(
+                db.TodosCompanion(
+                  id: drift.Value(widget.todoId),
+                  alarmMinutes: drift.Value(
+                    resultMinutes > 0 ? resultMinutes : null,
+                  ),
+                ),
+              );
+
+              widget.onDataChanged?.call();
+
+              if (mounted) {
+                String msg =
+                    resultMinutes > 0 ? "알람이 설정되었습니다." : "알람이 해제되었습니다.";
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(msg)));
+                Navigator.pop(context);
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("알람 설정에 실패했습니다.")));
+              }
+            }
+          } catch (e) {
+            print("에러: $e");
+          }
         }
       },
       child: Container(

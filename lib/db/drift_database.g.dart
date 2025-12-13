@@ -1955,6 +1955,17 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _todoServerIdMeta = const VerificationMeta(
+    'todoServerId',
+  );
+  @override
+  late final GeneratedColumn<int> todoServerId = GeneratedColumn<int>(
+    'todo_server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1967,6 +1978,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     categoryId,
     alarmMinutes,
     date,
+    todoServerId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2050,6 +2062,15 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
+    if (data.containsKey('todo_server_id')) {
+      context.handle(
+        _todoServerIdMeta,
+        todoServerId.isAcceptableOrUnknown(
+          data['todo_server_id']!,
+          _todoServerIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2105,6 +2126,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
             DriftSqlType.dateTime,
             data['${effectivePrefix}date'],
           )!,
+      todoServerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}todo_server_id'],
+      ),
     );
   }
 
@@ -2125,6 +2150,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   final int? categoryId;
   final int? alarmMinutes;
   final DateTime date;
+  final int? todoServerId;
   const Todo({
     required this.id,
     this.groupId,
@@ -2136,6 +2162,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     this.categoryId,
     this.alarmMinutes,
     required this.date,
+    this.todoServerId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2158,6 +2185,9 @@ class Todo extends DataClass implements Insertable<Todo> {
       map['alarm_minutes'] = Variable<int>(alarmMinutes);
     }
     map['date'] = Variable<DateTime>(date);
+    if (!nullToAbsent || todoServerId != null) {
+      map['todo_server_id'] = Variable<int>(todoServerId);
+    }
     return map;
   }
 
@@ -2185,6 +2215,10 @@ class Todo extends DataClass implements Insertable<Todo> {
               ? const Value.absent()
               : Value(alarmMinutes),
       date: Value(date),
+      todoServerId:
+          todoServerId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(todoServerId),
     );
   }
 
@@ -2204,6 +2238,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       alarmMinutes: serializer.fromJson<int?>(json['alarmMinutes']),
       date: serializer.fromJson<DateTime>(json['date']),
+      todoServerId: serializer.fromJson<int?>(json['todoServerId']),
     );
   }
   @override
@@ -2220,6 +2255,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       'categoryId': serializer.toJson<int?>(categoryId),
       'alarmMinutes': serializer.toJson<int?>(alarmMinutes),
       'date': serializer.toJson<DateTime>(date),
+      'todoServerId': serializer.toJson<int?>(todoServerId),
     };
   }
 
@@ -2234,6 +2270,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     Value<int?> categoryId = const Value.absent(),
     Value<int?> alarmMinutes = const Value.absent(),
     DateTime? date,
+    Value<int?> todoServerId = const Value.absent(),
   }) => Todo(
     id: id ?? this.id,
     groupId: groupId.present ? groupId.value : this.groupId,
@@ -2245,6 +2282,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     alarmMinutes: alarmMinutes.present ? alarmMinutes.value : this.alarmMinutes,
     date: date ?? this.date,
+    todoServerId: todoServerId.present ? todoServerId.value : this.todoServerId,
   );
   Todo copyWithCompanion(TodosCompanion data) {
     return Todo(
@@ -2266,6 +2304,10 @@ class Todo extends DataClass implements Insertable<Todo> {
               ? data.alarmMinutes.value
               : this.alarmMinutes,
       date: data.date.present ? data.date.value : this.date,
+      todoServerId:
+          data.todoServerId.present
+              ? data.todoServerId.value
+              : this.todoServerId,
     );
   }
 
@@ -2281,7 +2323,8 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
           ..write('alarmMinutes: $alarmMinutes, ')
-          ..write('date: $date')
+          ..write('date: $date, ')
+          ..write('todoServerId: $todoServerId')
           ..write(')'))
         .toString();
   }
@@ -2298,6 +2341,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     categoryId,
     alarmMinutes,
     date,
+    todoServerId,
   );
   @override
   bool operator ==(Object other) =>
@@ -2312,7 +2356,8 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.scheduleType == this.scheduleType &&
           other.categoryId == this.categoryId &&
           other.alarmMinutes == this.alarmMinutes &&
-          other.date == this.date);
+          other.date == this.date &&
+          other.todoServerId == this.todoServerId);
 }
 
 class TodosCompanion extends UpdateCompanion<Todo> {
@@ -2326,6 +2371,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<int?> categoryId;
   final Value<int?> alarmMinutes;
   final Value<DateTime> date;
+  final Value<int?> todoServerId;
   const TodosCompanion({
     this.id = const Value.absent(),
     this.groupId = const Value.absent(),
@@ -2337,6 +2383,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.categoryId = const Value.absent(),
     this.alarmMinutes = const Value.absent(),
     this.date = const Value.absent(),
+    this.todoServerId = const Value.absent(),
   });
   TodosCompanion.insert({
     this.id = const Value.absent(),
@@ -2349,6 +2396,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.categoryId = const Value.absent(),
     this.alarmMinutes = const Value.absent(),
     required DateTime date,
+    this.todoServerId = const Value.absent(),
   }) : content = Value(content),
        date = Value(date);
   static Insertable<Todo> custom({
@@ -2362,6 +2410,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<int>? categoryId,
     Expression<int>? alarmMinutes,
     Expression<DateTime>? date,
+    Expression<int>? todoServerId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2374,6 +2423,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (categoryId != null) 'category_id': categoryId,
       if (alarmMinutes != null) 'alarm_minutes': alarmMinutes,
       if (date != null) 'date': date,
+      if (todoServerId != null) 'todo_server_id': todoServerId,
     });
   }
 
@@ -2388,6 +2438,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<int?>? categoryId,
     Value<int?>? alarmMinutes,
     Value<DateTime>? date,
+    Value<int?>? todoServerId,
   }) {
     return TodosCompanion(
       id: id ?? this.id,
@@ -2400,6 +2451,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       categoryId: categoryId ?? this.categoryId,
       alarmMinutes: alarmMinutes ?? this.alarmMinutes,
       date: date ?? this.date,
+      todoServerId: todoServerId ?? this.todoServerId,
     );
   }
 
@@ -2436,6 +2488,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
     }
+    if (todoServerId.present) {
+      map['todo_server_id'] = Variable<int>(todoServerId.value);
+    }
     return map;
   }
 
@@ -2451,7 +2506,8 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
           ..write('alarmMinutes: $alarmMinutes, ')
-          ..write('date: $date')
+          ..write('date: $date, ')
+          ..write('todoServerId: $todoServerId')
           ..write(')'))
         .toString();
   }
@@ -6127,6 +6183,7 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<int?> categoryId,
       Value<int?> alarmMinutes,
       required DateTime date,
+      Value<int?> todoServerId,
     });
 typedef $$TodosTableUpdateCompanionBuilder =
     TodosCompanion Function({
@@ -6140,6 +6197,7 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<int?> categoryId,
       Value<int?> alarmMinutes,
       Value<DateTime> date,
+      Value<int?> todoServerId,
     });
 
 final class $$TodosTableReferences
@@ -6215,6 +6273,11 @@ class $$TodosTableFilterComposer
 
   ColumnFilters<DateTime> get date => $composableBuilder(
     column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get todoServerId => $composableBuilder(
+    column: $table.todoServerId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6296,6 +6359,11 @@ class $$TodosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get todoServerId => $composableBuilder(
+    column: $table.todoServerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$GroupsTableOrderingComposer get groupId {
     final $$GroupsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6364,6 +6432,11 @@ class $$TodosTableAnnotationComposer
   GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
+  GeneratedColumn<int> get todoServerId => $composableBuilder(
+    column: $table.todoServerId,
+    builder: (column) => column,
+  );
+
   $$GroupsTableAnnotationComposer get groupId {
     final $$GroupsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -6426,6 +6499,7 @@ class $$TodosTableTableManager
                 Value<int?> categoryId = const Value.absent(),
                 Value<int?> alarmMinutes = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
+                Value<int?> todoServerId = const Value.absent(),
               }) => TodosCompanion(
                 id: id,
                 groupId: groupId,
@@ -6437,6 +6511,7 @@ class $$TodosTableTableManager
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
                 date: date,
+                todoServerId: todoServerId,
               ),
           createCompanionCallback:
               ({
@@ -6450,6 +6525,7 @@ class $$TodosTableTableManager
                 Value<int?> categoryId = const Value.absent(),
                 Value<int?> alarmMinutes = const Value.absent(),
                 required DateTime date,
+                Value<int?> todoServerId = const Value.absent(),
               }) => TodosCompanion.insert(
                 id: id,
                 groupId: groupId,
@@ -6461,6 +6537,7 @@ class $$TodosTableTableManager
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
                 date: date,
+                todoServerId: todoServerId,
               ),
           withReferenceMapper:
               (p0) =>

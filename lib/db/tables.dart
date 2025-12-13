@@ -75,6 +75,7 @@ class Todos extends Table {
   IntColumn get categoryId => integer().nullable()();
   IntColumn get alarmMinutes => integer().nullable()();
   DateTimeColumn get date => dateTime()();
+  IntColumn get todoServerId=>integer().nullable()();
 }
 
 class CompletedRoutines extends Table {
