@@ -19,6 +19,8 @@ import 'package:ohmo/db/drift_database.dart'
 import 'package:ohmo/models/category_item.dart';
 import 'package:ohmo/services/category_service.dart';
 import 'group/group_sign_screen.dart';
+import 'package:intl/intl.dart';
+import '../services/day_log_service.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -959,17 +961,35 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newQuestionController.text.trim();
                                     if (newText.isEmpty) return;
 
+                                    final dayLogService = DayLogService();
+
+                                    final String dateStr = DateFormat(
+                                      'yyyy-MM-dd',
+                                    ).format(DateTime.now());
+
+                                    final bool isApiSuccess =
+                                        await dayLogService.registerEmoji(
+                                          date: dateStr,
+                                          emoji: _newEmoji,
+                                        );
+
+                                    if (!isApiSuccess) {
+                                      print("API 전송 실패");
+                                    }
+
                                     final newItem = await _repository
                                         .insertDayLogQuestion(
                                           newText,
                                           _newEmoji,
                                         );
-                                    setState(() {
-                                      daylogQuestions.add(newItem);
-                                      _isAddingNewQuestion = false;
-                                      _newQuestionController.clear();
-                                      _needsRefresh = true;
-                                    });
+                                    if (mounted) {
+                                      setState(() {
+                                        daylogQuestions.add(newItem);
+                                        _isAddingNewQuestion = false;
+                                        _newQuestionController.clear();
+                                        _needsRefresh = true;
+                                      });
+                                    }
                                   },
                                 ),
                               ],
