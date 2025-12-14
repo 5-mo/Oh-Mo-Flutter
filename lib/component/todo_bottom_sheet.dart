@@ -49,12 +49,19 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   }
 
   Future<void> _loadInitialData() async {
+    print('🚀 [TodoSheet] 초기 데이터 로드 시작');
     setState(() => _isLoading = true);
+
     await _loadCategories();
+    print('📦 [TodoSheet] 카테고리 로드 완료. 개수: ${todos.length}');
 
     if (widget.todoIdToEdit != null) {
+      print('✏️ [TodoSheet] 수정 모드 진입. ID: ${widget.todoIdToEdit}');
       await _loadDataForEdit(widget.todoIdToEdit!);
+    } else {
+      print('✨ [TodoSheet] 신규 등록 모드');
     }
+
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -65,33 +72,60 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     final todo = await db.getTodoById(todoId);
     if (todo == null) return;
 
+    print("------------------------------------------------");
+    print("📂 [TodoSheet] DB 데이터 조회 결과");
+    print("   - Content: ${todo.content}");
+    print("   - Date(Full): ${todo.date}"); // 여기에 시간이 포함되어 있는지 확인해야 함
+    print("   - TimeMinutes(AlarmFlag): ${todo.timeMinutes}");
+    print("   - CategoryId: ${todo.categoryId}");
+    print("------------------------------------------------");
+
     setState(() {
       contentController.text = todo.content;
       _currentDate = todo.date;
 
-      if (todo.timeMinutes != null) {
-        if (todo.timeMinutes == 0 &&
-            (todo.date.hour != 0 || todo.date.minute != 0)) {
-          selectedTime = TimeOfDay.fromDateTime(todo.date);
-        } else if (todo.timeMinutes! > 0) {
-          selectedTime = null;
-        }
-        isChecked = true;
-        if (todo.date.hour != 0 || todo.date.minute != 0) {
-          selectedTime = TimeOfDay.fromDateTime(todo.date);
+      final hasTimeInDate = todo.date.hour != 0 || todo.date.minute != 0;
+
+      final hasAlarmFlag = todo.timeMinutes != null;
+
+      if (hasTimeInDate) {
+        selectedTime = TimeOfDay(
+          hour: todo.date.hour,
+          minute: todo.date.minute,
+        );
+        print(
+          "⏰ [TodoSheet] 시간 복원됨 (Date 기준): ${selectedTime!.format(context)}",
+        );
+      } else if (hasAlarmFlag) {
+        // 시간은 00:00이지만 알람 플래그가 있다면 00:00으로 설정
+        selectedTime = TimeOfDay(hour: 0, minute: 0);
+        print("⏰ [TodoSheet] 시간 복원됨 (00:00 / 알람 플래그 기준)");
+      } else {
+        selectedTime = null;
+        print("zzz [TodoSheet] 시간 없음 (null 설정)");
+      }
+
+      isChecked = hasAlarmFlag;
+      print("🔔 [TodoSheet] 알람 스위치: $isChecked");
+
+      if (todo.categoryId != null) {
+        // 현재 로드된 카테고리 리스트(todos)에 해당 ID가 있는지 검사
+        final matchIndex = todos.indexWhere((cat) => cat.id == todo.categoryId);
+
+        if (matchIndex != -1) {
+          selectedCategoryId = todo.categoryId;
+          print(
+            "🏷️ [TodoSheet] 카테고리 매칭 성공: ${todos[matchIndex].categoryName} (ID: ${todo.categoryId})",
+          );
         } else {
-          selectedTime = null;
+          // 리스트엔 없지만 DB엔 ID가 있는 경우 (강제 할당)
+          selectedCategoryId = todo.categoryId;
+          print(
+            "⚠️ [TodoSheet] 카테고리 매칭 경고: 리스트에 ID ${todo.categoryId}가 없으나 값은 설정함.",
+          );
         }
       } else {
-        isChecked = false;
-        if (todo.date.hour != 0 || todo.date.minute != 0) {
-          selectedTime = TimeOfDay.fromDateTime(todo.date);
-        } else {
-          selectedTime = null;
-        }
-      }
-      if (todos.any((cat) => cat.id == todo.categoryId)) {
-        selectedCategoryId = todo.categoryId;
+        print("⚪ [TodoSheet] 이 투두는 카테고리가 없음 (NULL)");
       }
     });
   }
@@ -440,114 +474,105 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
+        // [확인용 로그] 이 로그가 콘솔에 떠야 수정이 잘 된 것입니다!
+        print("💾 [Save] 저장 버튼 클릭됨 (수정된 코드 실행중)");
+        print("   👉 현재 UI에 설정된 시간: ${selectedTime?.hour ?? '없음'}시 ${selectedTime?.minute ?? '없음'}분");
+        print("   👉 현재 UI에 선택된 카테고리ID: $selectedCategoryId");
+
+        // 1. 유효성 검사
         if (contentController.text.isEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("내용을 입력해주세요")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("내용을 입력해주세요")));
           return;
         }
         if (isChecked && selectedTime == null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("알람을 켜려면 '시간 선택'은 필수입니다.")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("알람을 켜려면 '시간 선택'은 필수입니다.")));
           return;
         }
 
         try {
           setState(() => _isLoading = true);
 
-          final String dateStr = DateFormat('yyyy-MM-dd').format(_currentDate);
-          String? timeStr;
-          if (selectedTime != null) {
-            final now = DateTime.now();
-            final dt = DateTime(
-              now.year,
-              now.month,
-              now.day,
-              selectedTime!.hour,
-              selectedTime!.minute,
-            );
-            timeStr = DateFormat('HH:mm').format(dt);
-          }
-          int realServerId = 0;
+          // ---------------------------------------------------------
+          // [STEP 1] 카테고리 ID 강제 확정 (NULL 방지 로직)
+          // ---------------------------------------------------------
+          int finalLocalCategoryId; // 로컬 DB 저장용 ID
+          int realServerId;         // 서버 전송용 ID
           int colorIndex = 0;
 
           if (selectedCategoryId != null) {
-            final localCategory = todos.firstWhere(
-              (c) => c.id == selectedCategoryId,
-            );
-            final categoryService = CategoryService();
-            final serverCategories = await categoryService.getCategories(
-              'TO_DO',
-            );
-
-            final match = serverCategories.firstWhere(
-              (serverItem) =>
-                  serverItem['categoryName'].toString().trim() ==
-                  localCategory.categoryName.trim(),
-              orElse: () => null,
-            );
-
-            if (match != null) {
-              realServerId = match['id'];
-            } else {
-              realServerId = selectedCategoryId!;
-            }
+            // 사용자가 선택한 경우
+            finalLocalCategoryId = selectedCategoryId!;
             try {
-              colorIndex =
-                  ColorTypeExtension.fromString(
-                    localCategory.colorType ?? 'pinkLight',
-                  ).index;
-            } catch (_) {
-              colorIndex = 0;
+              final localCategory = todos.firstWhere((c) => c.id == selectedCategoryId);
+              colorIndex = ColorTypeExtension.fromString(localCategory.colorType ?? 'pinkLight').index;
+              realServerId = finalLocalCategoryId;
+            } catch (e) {
+              realServerId = finalLocalCategoryId;
             }
           } else {
-            realServerId = 1;
-
+            // 사용자가 선택 안 한 경우 -> '기본값' 자동 할당
+            print("⚠️ 카테고리 미선택 -> 기본값 자동 할당 시도");
+            CategoryItem? defaultCat;
             try {
-              colorIndex =
-                  ColorType.values
-                      .firstWhere(
-                        (e) =>
-                            e.name == 'black' || e.name == 'uncategorizedBlack',
-                      )
-                      .index;
-            } catch (e) {
-              colorIndex = 0;
+              // 1순위: black 색상 / 2순위: 첫번째 카테고리
+              defaultCat = todos.firstWhere((c) => c.colorType == 'black' || c.colorType == 'uncategorizedBlack',
+                  orElse: () => todos.isNotEmpty ? todos.first : throw Exception('카테고리 없음'));
+            } catch (_) {}
+
+            if (defaultCat != null) {
+              finalLocalCategoryId = defaultCat.id;
+              print("   👉 기본 카테고리 ID 할당: $finalLocalCategoryId");
+              try {
+                colorIndex = ColorTypeExtension.fromString(defaultCat.colorType ?? 'black').index;
+              } catch (_) {}
+              realServerId = 1;
+            } else {
+              // 최후의 수단
+              finalLocalCategoryId = 0;
+              realServerId = 1;
             }
           }
 
-          final todoService = TodoService();
-          if (widget.todoIdToEdit != null) {
+          // ---------------------------------------------------------
+          // [STEP 2] 시간 및 날짜 확정 (분 단위 유지)
+          // ---------------------------------------------------------
+          final String dateStr = DateFormat('yyyy-MM-dd').format(_currentDate);
+          String? timeStr;
+
+          DateTime fullTodoDate;
+          if (selectedTime != null) {
+            fullTodoDate = DateTime(_currentDate.year, _currentDate.month, _currentDate.day, selectedTime!.hour, selectedTime!.minute);
+            timeStr = DateFormat('HH:mm').format(fullTodoDate);
           } else {
-            final bool isApiSuccess = await todoService.registerTodo(
+            fullTodoDate = DateTime(_currentDate.year, _currentDate.month, _currentDate.day);
+          }
+
+          // DB에 저장할 분(Minute) 값 계산
+          // 알람이 켜져있으면 (시*60 + 분) 저장, 꺼져있으면 NULL
+          int? dbTimeMinutes;
+          if (isChecked && selectedTime != null) {
+            dbTimeMinutes = selectedTime!.hour * 60 + selectedTime!.minute;
+          } else {
+            dbTimeMinutes = null;
+          }
+
+          print("📝 [DB Insert 정보] ID: $finalLocalCategoryId, Time: $fullTodoDate ($dbTimeMinutes)");
+
+          // ---------------------------------------------------------
+          // [STEP 3] 서버 및 로컬 저장 실행
+          // ---------------------------------------------------------
+          final todoService = TodoService();
+          if (widget.todoIdToEdit == null) {
+            await todoService.registerTodo(
               categoryId: realServerId,
               time: timeStr,
               alarm: isChecked,
               content: contentController.text,
               date: dateStr,
             );
-
-            if (!isApiSuccess) {
-              throw Exception("서버 저장에 실패했습니다. (응답 false)");
-            }
           }
 
           final db = LocalDatabaseSingleton.instance;
-          final int? alarmMinutesValue = isChecked ? 0 : null;
-
-          final DateTime fullTodoDate =
-              selectedTime != null
-                  ? DateTime(
-                    _currentDate.year,
-                    _currentDate.month,
-                    _currentDate.day,
-                    selectedTime!.hour,
-                    selectedTime!.minute,
-                  )
-                  : _currentDate;
-
-          int todoId;
 
           if (widget.todoIdToEdit != null) {
             await db.updateTodo(
@@ -555,68 +580,41 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 id: drift.Value(widget.todoIdToEdit!),
                 content: drift.Value(contentController.text),
                 colorType: drift.Value(colorIndex),
-                categoryId: drift.Value(selectedCategoryId),
-                timeMinutes: drift.Value(alarmMinutesValue),
+                categoryId: drift.Value(finalLocalCategoryId), // 👈 수정된 ID 사용
+                timeMinutes: drift.Value(dbTimeMinutes),       // 👈 수정된 시간 사용
                 date: drift.Value(fullTodoDate),
               ),
             );
-            todoId = widget.todoIdToEdit!;
           } else {
-            todoId = await db.insertTodo(
+            final newId = await db.insertTodo(
               TodosCompanion.insert(
                 content: contentController.text,
                 colorType: drift.Value(colorIndex),
-                categoryId: drift.Value(selectedCategoryId),
+                categoryId: drift.Value(finalLocalCategoryId), // 👈 수정된 ID 사용
                 scheduleType: drift.Value('TO_DO'),
-                timeMinutes: drift.Value(alarmMinutesValue),
+                timeMinutes: drift.Value(dbTimeMinutes),       // 👈 수정된 시간 사용
                 isDone: drift.Value(false),
                 date: fullTodoDate,
               ),
             );
+            if (isChecked) await _registerNotification(newId, fullTodoDate);
           }
 
-          await NotificationService().cancelNotification(todoId);
-
-          if (isChecked && selectedTime != null) {
-            final notificationTime = fullTodoDate;
-            if (notificationTime.isAfter(DateTime.now())) {
-              await NotificationService().scheduleNotification(
-                id: todoId,
-                title: '오늘의 할 일!',
-                body: contentController.text,
-                scheduledTime: notificationTime,
-                payload: 'todo_$todoId',
-              );
-              try {
-                await db
-                    .into(db.notifications)
-                    .insert(
-                      NotificationsCompanion.insert(
-                        type: 'calender',
-                        content: '[To-do] ${contentController.text}',
-                        timestamp: notificationTime,
-                        isRead: const drift.Value(false),
-                      ),
-                    );
-              } catch (e) {
-                print("DB 알림 테이블 저장 실패: $e");
-              }
-            }
+          // 수정 시 알림 갱신
+          if (widget.todoIdToEdit != null) {
+            await NotificationService().cancelNotification(widget.todoIdToEdit!);
+            if (isChecked) await _registerNotification(widget.todoIdToEdit!, fullTodoDate);
           }
 
           if (widget.onTodoAdded != null) await widget.onTodoAdded!();
           if (widget.onDataChanged != null) await widget.onDataChanged!();
 
           if (mounted) Navigator.pop(context);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("투두 등록 완료!")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("저장 완료!")));
+
         } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text("저장 실패: $e")));
-          }
+          print("❌ 저장 에러: $e");
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("저장 실패: $e")));
         } finally {
           if (mounted) setState(() => _isLoading = false);
         }
@@ -629,20 +627,25 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           borderRadius: BorderRadius.circular(9),
         ),
         child: Center(
-          child:
-              _isLoading
-                  ? CupertinoActivityIndicator(color: Colors.white)
-                  : Text(
-                    '저장하기',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontFamily: 'PretendardBold',
-                      color: Colors.white,
-                    ),
-                  ),
+          child: _isLoading
+              ? CupertinoActivityIndicator(color: Colors.white)
+              : Text('저장하기', style: TextStyle(fontSize: 20, fontFamily: 'PretendardBold', color: Colors.white)),
         ),
       ),
     );
+  }
+
+  // (참고) 알림 등록 함수
+  Future<void> _registerNotification(int id, DateTime time) async {
+    if (time.isAfter(DateTime.now())) {
+      await NotificationService().scheduleNotification(
+        id: id,
+        title: '오늘의 할 일!',
+        body: contentController.text,
+        scheduledTime: time,
+        payload: 'todo_$id',
+      );
+    }
   }
 
   Future<void> _loadCategories() async {

@@ -212,12 +212,14 @@ class _DaylogScreenState extends State<DaylogScreen> {
   void didUpdateWidget(DaylogScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.routines != oldWidget.routines ||
-        widget.todos != oldWidget.todos) {
+        widget.todos != oldWidget.todos ||
+        widget.selectedDate != oldWidget.selectedDate) {
       setState(() {
         routines = widget.routines;
         todos = widget.todos;
         _filterTodosForSelectedDate();
       });
+      logWeeklyData(_focusedDay);
     }
   }
 
@@ -283,19 +285,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Future<void> logWeeklyData(DateTime date) async {
-    final year = date.year;
-    final month = date.month;
-    final daysInMonth = DateTime(year, month + 1, 0).day;
-    final weekday = date.weekday;
-    final weekStartDay = max(date.day - (weekday - 1), 1);
-    final weekEndDay = min(weekStartDay + 6, daysInMonth);
+    final localDate = date.toLocal();
+    final weekday = localDate.weekday;
+
+    final mondayOfThisWeek = localDate.subtract(Duration(days: weekday - 1));
 
     List<Routine> fetchedWeeklyRoutines = [];
 
-    for (int day = weekStartDay; day <= weekEndDay; day++) {
-      final currentDate = DateTime(year, month, day);
+    for (int i = 0; i < 7; i++) {
+      final currentDate = mondayOfThisWeek.add(Duration(days: i));
 
       final dailyRoutines = await fetchRoutines(currentDate);
+
       final visibleRoutines =
           dailyRoutines
               .where((r) => isRoutineVisibleOnDate(r, currentDate))
@@ -320,24 +321,33 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
-    final dateOnly = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-    );
+    final localDate = selectedDate.toLocal();
+
+    final dateOnly = DateTime(localDate.year, localDate.month, localDate.day);
+
+    final routineStartLocal = routine.startDate!.toLocal();
     final start = DateTime(
-      routine.startDate!.year,
-      routine.startDate!.month,
-      routine.startDate!.day,
+      routineStartLocal.year,
+      routineStartLocal.month,
+      routineStartLocal.day,
     );
+
+    final routineEndLocal = routine.endDate.toLocal();
     final end = DateTime(
-      routine.endDate.year,
-      routine.endDate.month,
-      routine.endDate.day,
+      routineEndLocal.year,
+      routineEndLocal.month,
+      routineEndLocal.day,
     );
-    return !dateOnly.isBefore(start) &&
+
+    final isVisible =
+        !dateOnly.isBefore(start) &&
         !dateOnly.isAfter(end) &&
         routine.daysOfWeek.contains(dateOnly.weekday);
+
+    if (routine.isDone) {
+      return true;
+    }
+    return isVisible;
   }
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {

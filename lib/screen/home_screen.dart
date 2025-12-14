@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Date: t.date,
         colorType: ColorType.values[t.colorType],
         isDone: t.isDone,
-        alarm: t.alarmMinutes!=null,
+        alarm: t.alarmMinutes != null,
       );
     }).toList();
   }
@@ -491,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             timeMinutesValue % 60,
           );
         }
-
+        int? serverCategoryId = item.category.id;
         await database
             .into(database.todos)
             .insertOnConflictUpdate(
@@ -505,6 +505,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 isDone: Value(item.todo!.status),
                 timeMinutes: Value(timeMinutesValue),
                 alarmMinutes: Value(alarmMinutesValue),
+                categoryId: Value(serverCategoryId),
               ),
             );
       } catch (e) {
@@ -1062,8 +1063,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                     .instance;
                                             final todoService = TodoService();
 
-                                            // 1. [낙관적 업데이트] 로컬 DB 먼저 변경
-                                            // 로컬 DB는 'id'(=scheduleId)를 사용하므로 그대로 둡니다.
                                             final newIsDone = !todo.isDone;
 
                                             await localDb.updateTodoCompletion(
@@ -1079,33 +1078,29 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                             widget.onDataChanged?.call();
 
                                             try {
-                                              // 2. [서버 동기화]
-                                              // 🚨 핵심 수정: 서버 API는 'todoId'를 원하므로 'todoServerId'를 사용합니다.
                                               final serverId =
                                                   todo.todoServerId;
 
                                               if (serverId == null) {
-                                                // 만약 예전 데이터라 서버 ID가 없다면 에러 처리 (혹은 id 사용 시도)
                                                 throw Exception(
                                                   "Todo Server ID(todoId)가 없습니다.",
                                                 );
                                               }
 
-                                              final serverResult = await todoService
-                                                  .toggleTodoStatus(
-                                                    serverId, // todo.id -> serverId 로 변경
-                                                  );
+                                              final serverResult =
+                                                  await todoService
+                                                      .toggleTodoStatus(
+                                                        serverId,
+                                                      );
 
                                               if (serverResult == null) {
                                                 throw Exception('서버 동기화 실패');
                                               }
 
-                                              // 서버 결과와 로컬 상태가 다르면 서버 기준으로 맞춤
                                               if (serverResult != newIsDone) {
                                                 await localDb
                                                     .updateTodoCompletion(
                                                       todo.id,
-                                                      // 로컬 업데이트는 여전히 todo.id 사용
                                                       serverResult,
                                                     );
                                                 widget.onDataChanged?.call();
@@ -1113,7 +1108,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                             } catch (e) {
                                               print("투두 상태 변경 실패 (롤백): $e");
 
-                                              // 3. [롤백] 실패 시 로컬 상태 복구 (로컬 ID 사용)
                                               await localDb
                                                   .updateTodoCompletion(
                                                     todo.id,
