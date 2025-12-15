@@ -963,18 +963,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
                                     final dayLogService = DayLogService();
 
-                                    final String dateStr = DateFormat(
-                                      'yyyy-MM-dd',
-                                    ).format(DateTime.now());
-
                                     final bool isApiSuccess =
-                                        await dayLogService.registerEmoji(
-                                          date: dateStr,
+                                        await dayLogService.registerQuestion(
+                                          questionContent: newText,
                                           emoji: _newEmoji,
                                         );
 
                                     if (!isApiSuccess) {
-                                      print("API 전송 실패");
+                                      print("질문 서버 등록 실패");
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text("서버 저장에 실패했습니다."),
+                                        ),
+                                      );
+                                      return;
                                     }
 
                                     final newItem = await _repository

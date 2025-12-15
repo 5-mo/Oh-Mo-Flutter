@@ -42,4 +42,45 @@ class DayLogService {
       return false;
     }
   }
+
+  Future<bool> registerQuestion({
+    required String questionContent,
+    required String emoji,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) {
+        print('[DayLogService] 토큰이 없습니다.');
+        return false;
+      }
+      final url = Uri.parse('$baseUrl/api/question');
+
+      final Map<String, dynamic> bodyMap = {
+        "questionContent": questionContent,
+        "emoji": emoji,
+      };
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(bodyMap),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] == true;
+      } else {
+        print('[DayLogService] 서버 에러 : ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('[DayLogService] 통신 오류 : $e');
+      return false;
+    }
+  }
 }
