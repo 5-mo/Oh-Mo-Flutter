@@ -74,13 +74,60 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   void _loadAllData() async {
+    final currentLocalQuestions = await _repository.fetchDayLogQuestions();
+    final Set<String> existingContents =
+        currentLocalQuestions.map((q) => q.question.trim()).toSet();
+
+
+    final List<Map<String, String>> defaultQuestions = [
+      {'emoji': '💰', 'text': '오늘의 소비는?'},
+      {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
+    ];
+
+    for (var defaultQ in defaultQuestions) {
+      final String content = defaultQ['text']!.trim();
+      final String emoji = defaultQ['emoji']!;
+
+      if (!existingContents.contains(content)) {
+        await _repository.insertDayLogQuestion(content, emoji);
+        existingContents.add(content);
+      }
+    }
+
+    final dayLogService = DayLogService();
+    final serverQuestions = await dayLogService.getQuestions();
+
+    if (serverQuestions != null && serverQuestions.isNotEmpty) {
+      for (var serverQ in serverQuestions) {
+        final String content = serverQ['questionContent'] ?? '';
+        final String emoji = serverQ['emoji'] ?? '';
+
+        if (!existingContents.contains(content)) {
+          await _repository.insertDayLogQuestion(content, emoji);
+
+          existingContents.add(content);
+        }
+      }
+    }
+
     final fetchedRoutines = await _repository.fetchCategories(
       scheduleType: 'ROUTINE',
     );
     final fetchedTodos = await _repository.fetchCategories(
       scheduleType: 'TO_DO',
     );
-    final fetchedDaylogs = await _repository.fetchDayLogQuestions();
+    List<DayLogQuestionItem> allFetchedDaylogs= await _repository.fetchDayLogQuestions();
+
+    final Set<String> seenQuestions={};
+    final List<DayLogQuestionItem> uniqueDaylogs=[];
+
+    for(var question in allFetchedDaylogs){
+      final trimmedText=question.question.trim();
+      if(!seenQuestions.contains(trimmedText)){
+        seenQuestions.add(trimmedText);
+        uniqueDaylogs.add(question);
+      }
+    }
 
     final fetchedGroups = await _db.getGroupsForUser(currentUserId);
 
@@ -94,7 +141,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       setState(() {
         routines = fetchedRoutines;
         todos = fetchedTodos;
-        daylogQuestions = fetchedDaylogs;
+        daylogQuestions = uniqueDaylogs;
         _groups = fetchedGroups;
         if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
 

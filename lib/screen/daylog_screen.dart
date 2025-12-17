@@ -8,6 +8,7 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
+import 'package:ohmo/services/day_log_service.dart';
 import '../customize_category.dart';
 import '../models/todo.dart';
 import '../db/drift_database.dart' as db;
@@ -146,16 +147,57 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Future<void> _loadAndInitializeQuestions() async {
-    List<DayLogQuestionItem> fetchedQuestions =
+    List<DayLogQuestionItem> currentLocalQuestions =
         await _repository.fetchDayLogQuestions();
-    if (fetchedQuestions.isEmpty) {
-      await _insertDefaultQuestions();
-      fetchedQuestions = await _repository.fetchDayLogQuestions();
+
+    final Set<String> existingContents =
+        currentLocalQuestions.map((q) => q.question.trim()).toSet();
+
+    final List<Map<String, String>> defaultQuestions = [
+      {'emoji': '💰', 'text': '오늘의 소비는?'},
+      {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
+    ];
+
+    for (var defaultQ in defaultQuestions) {
+      final String content = defaultQ['text']!.trim();
+      final String emoji = defaultQ['emoji']!;
+
+      if (!existingContents.contains(content)) {
+        await _repository.insertDayLogQuestion(content, emoji);
+        existingContents.add(content);
+      }
+    }
+    final dayLogService = DayLogService();
+    final serverQuestions = await dayLogService.getQuestions();
+
+    if (serverQuestions != null && serverQuestions.isNotEmpty) {
+      for (var serverQ in serverQuestions) {
+        final String content = (serverQ['questionContent'] ?? '').trim();
+        final String emoji = serverQ['emoji'] ?? '';
+        if (content.isNotEmpty && !existingContents.contains(content)) {
+          await _repository.insertDayLogQuestion(content, emoji);
+          existingContents.add(content);
+        }
+      }
+    }
+
+    List<DayLogQuestionItem> allFetchedDaylogs =
+        await _repository.fetchDayLogQuestions();
+
+    final Set<String> seenQuestions = {};
+    final List<DayLogQuestionItem> uniqueDaylogs = [];
+
+    for (var question in allFetchedDaylogs) {
+      final trimmedText = question.question.trim();
+      if (!seenQuestions.contains(trimmedText)) {
+        seenQuestions.add(trimmedText);
+        uniqueDaylogs.add(question);
+      }
     }
 
     if (mounted) {
       setState(() {
-        _dbQuestions = fetchedQuestions;
+        _dbQuestions = uniqueDaylogs;
       });
     }
   }
