@@ -1343,8 +1343,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
       _focusedDay.month,
       _focusedDay.day,
     );
+    final dateString = DateFormat('yyyy-MM-dd').format(_focusedDay);
 
-    if (selectedQuestion != null && _answerFocusNode.hasFocus) {
+    if (selectedQuestion != null) {
       _dailyAnswers[selectedQuestion!] = _answerController.text;
     }
 
@@ -1359,6 +1360,44 @@ class _DaylogScreenState extends State<DaylogScreen> {
     );
 
     await database.upsertDayLog(entry);
+
+    final dayLogService = DayLogService();
+
+    String? emotion = _getSelectedEmotion();
+    if (emotion != null) {
+      await dayLogService.registerEmoji(date: dateString, emoji: emotion);
+
+      if (_dailyAnswers.isNotEmpty) {
+        for (var entry in _dailyAnswers.entries) {
+          final questionText = entry.key;
+          final answerText = entry.value;
+
+          if (answerText.trim().isEmpty) continue;
+
+          try {
+            final questionItem = _dbQuestions.firstWhere(
+              (q) =>
+                  '${q.emoji} ${q.question}'.trim() == questionText.trim() ||
+                  q.question.trim() == questionText.trim(),
+            );
+
+            await dayLogService.registerAnswer(
+              questionId: questionItem.id,
+              answer: answerText,
+              date: dateString,
+            );
+          } catch (e) {
+            print('질문 ID를 찾을 수 없음 : $questionText');
+          }
+        }
+      }
+
+      if (mounted && showSnackbar) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('데이터가 서버와 로컬에 저장되었습니다.')));
+      }
+    }
 
     if (mounted && showSnackbar) {
       ScaffoldMessenger.of(
