@@ -147,11 +147,15 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Future<void> _loadAndInitializeQuestions() async {
-    List<DayLogQuestionItem> currentLocalQuestions =
-        await _repository.fetchDayLogQuestions();
+    final dayLogService = DayLogService();
 
-    final Set<String> existingContents =
-        currentLocalQuestions.map((q) => q.question.trim()).toSet();
+    final serverQuestions = await dayLogService.getQuestions();
+    final Set<String> serverContents = {};
+    if (serverQuestions != null) {
+      for (var q in serverQuestions) {
+        serverContents.add((q['questionContent'] ?? '').trim());
+      }
+    }
 
     final List<Map<String, String>> defaultQuestions = [
       {'emoji': '💰', 'text': '오늘의 소비는?'},
@@ -160,64 +164,39 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     for (var defaultQ in defaultQuestions) {
       final String content = defaultQ['text']!.trim();
-      final String emoji = defaultQ['emoji']!;
-
-      if (!existingContents.contains(content)) {
-        await _repository.insertDayLogQuestion(content, emoji);
-        existingContents.add(content);
-      }
-    }
-    final dayLogService = DayLogService();
-    final serverQuestions = await dayLogService.getQuestions();
-
-    if (serverQuestions != null && serverQuestions.isNotEmpty) {
-      for (var serverQ in serverQuestions) {
-        final String content = (serverQ['questionContent'] ?? '').trim();
-        final String emoji = serverQ['emoji'] ?? '';
-        if (content.isNotEmpty && !existingContents.contains(content)) {
-          await _repository.insertDayLogQuestion(content, emoji);
-          existingContents.add(content);
-        }
+      if (!serverContents.contains(content)) {
+        await dayLogService.registerQuestion(
+          questionContent: content,
+          emoji: defaultQ['emoji']!,
+        );
       }
     }
 
-    List<DayLogQuestionItem> allFetchedDaylogs =
-        await _repository.fetchDayLogQuestions();
+    final finalServerQuestions = await dayLogService.getQuestions();
 
-    final Set<String> seenQuestions = {};
-    final List<DayLogQuestionItem> uniqueDaylogs = [];
+    if (finalServerQuestions != null) {
+      List<DayLogQuestionItem> updatedQuestions = [];
+      for (var serverQ in finalServerQuestions) {
+        updatedQuestions.add(
+          DayLogQuestionItem(
+            id: serverQ['id'],
+            question: (serverQ['questionContent'] ?? '').trim(),
+            emoji: serverQ['emoji'] ?? '',
+          ),
+        );
 
-    for (var question in allFetchedDaylogs) {
-      final trimmedText = question.question.trim();
-      if (!seenQuestions.contains(trimmedText)) {
-        seenQuestions.add(trimmedText);
-        uniqueDaylogs.add(question);
+        await _repository.insertDayLogQuestion(
+          (serverQ['questionContent'] ?? '').trim(),
+          serverQ['emoji'] ?? '',
+        );
       }
-    }
 
-    if (mounted) {
-      setState(() {
-        _dbQuestions = uniqueDaylogs;
-      });
-    }
-  }
-
-  Future<void> _insertDefaultQuestions() async {
-    final defaultQuestions = [
-      {'emoji': '💰', 'text': '오늘의 소비는?'},
-      {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
-    ];
-    final database = db.LocalDatabaseSingleton.instance;
-
-    for (var item in defaultQuestions) {
-      await database
-          .into(database.dayLogQuestions)
-          .insert(
-            db.DayLogQuestionsCompanion(
-              question: Value(item['text']!),
-              emoji: Value(item['emoji']!),
-            ),
-          );
+      if (mounted) {
+        setState(() {
+          _dbQuestions = updatedQuestions;
+        });
+        print("불러온 질문 개수: ${_dbQuestions.length}");
+      }
     }
   }
 
@@ -278,37 +257,49 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Future<void> _loadDayLogData(DateTime date) async {
+    final dateString = DateFormat('yyyy-MM-dd').format(date);
     final database = db.LocalDatabaseSingleton.instance;
     final dateOnly = DateTime(date.year, date.month, date.day);
+    final dayLogService = DayLogService();
+
     final existingLog = await database.getDayLog(dateOnly);
 
-    if (existingLog != null) {
-      _diaryController.text = existingLog.diary ?? '';
-      _setSelectedEmotion(existingLog.emotion);
-
-      if (existingLog.answerMapJson != null) {
-        try {
-          _dailyAnswers = Map<String, String>.from(
-            jsonDecode(existingLog.answerMapJson!),
-          );
-        } catch (e) {
-          _dailyAnswers = {};
+    if (mounted) {
+      setState(() {
+        if (existingLog != null) {
+          _diaryController.text = existingLog.diary ?? '';
+          _setSelectedEmotion(existingLog.emotion);
+          if (existingLog.answerMapJson != null) {
+            _dailyAnswers = Map<String, String>.from(
+              jsonDecode(existingLog.answerMapJson!),
+            );
+          }
         }
-      } else {
-        _dailyAnswers = {};
-      }
-
-      setState(() {
-        selectedQuestion = null;
-        _answerController.clear();
       });
+    }
+
+    final serverData = await dayLogService.getQuestionAnswers(dateString);
+
+    if (serverData == null) {
+      print('[서버] 에러: 서버로부터 응답을 받지 못했거나 에러가 발생했습니다.');
     } else {
-      _diaryController.clear();
-      _dailyAnswers = {};
-      _answerController.clear();
       setState(() {
-        selectedQuestion = null;
-        _resetIconState();
+        for (var item in serverData) {
+          String qContent = (item['questionContent'] ?? '').trim();
+          String emoji = item['emoji'] ?? '';
+          String fullKey = emoji.isNotEmpty ? '$emoji $qContent' : qContent;
+
+          var answerList = item['answerList'] as List;
+
+          if (answerList.isNotEmpty) {
+            String serverAnswer = answerList[0]['answer'] ?? '';
+            _dailyAnswers[fullKey] = serverAnswer;
+          }
+        }
+        if (selectedQuestion != null &&
+            _dailyAnswers.containsKey(selectedQuestion)) {
+          _answerController.text = _dailyAnswers[selectedQuestion!] ?? '';
+        }
       });
     }
   }
@@ -1208,6 +1199,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         });
         if (selectedQuestion != null) {
           _answerController.text = _dailyAnswers[selectedQuestion!] ?? '';
+          print('버튼 클릭됨: $selectedQuestion, 불러온 답변: ${_answerController.text}');
         } else {
           _answerController.clear();
         }
@@ -1350,54 +1342,49 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     final String? answerMapString =
-        _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
-
-    final entry = db.DayLogsCompanion(
-      date: Value(dateOnly),
-      emotion: Value(_getSelectedEmotion()),
-      diary: Value(_diaryController.text),
-      answerMapJson: Value(answerMapString),
+    _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
+    await database.upsertDayLog(
+      db.DayLogsCompanion(
+        date: Value(dateOnly),
+        emotion: Value(_getSelectedEmotion()),
+        diary: Value(_diaryController.text),
+        answerMapJson: Value(answerMapString),
+      ),
     );
-
-    await database.upsertDayLog(entry);
 
     final dayLogService = DayLogService();
 
     String? emotion = _getSelectedEmotion();
     if (emotion != null) {
       await dayLogService.registerEmoji(date: dateString, emoji: emotion);
+    }
 
-      if (_dailyAnswers.isNotEmpty) {
-        for (var entry in _dailyAnswers.entries) {
-          final questionText = entry.key;
-          final answerText = entry.value;
+    if (_dailyAnswers.isNotEmpty) {
+      for (var entry in _dailyAnswers.entries) {
+        final questionKey = entry.key;
+        final answerText = entry.value.trim();
 
-          if (answerText.trim().isEmpty) continue;
+        if (answerText.isEmpty) continue;
 
-          try {
-            final questionItem = _dbQuestions.firstWhere(
-              (q) =>
-                  '${q.emoji} ${q.question}'.trim() == questionText.trim() ||
-                  q.question.trim() == questionText.trim(),
-            );
+        try {
+          final targetQuestion = _dbQuestions.firstWhere(
+                (q) {
+              final fullKey = q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
+              return fullKey == questionKey;
+            },
+          );
 
-            await dayLogService.registerAnswer(
-              questionId: questionItem.id,
-              answer: answerText,
-              date: dateString,
-            );
-          } catch (e) {
-            print('질문 ID를 찾을 수 없음 : $questionText');
-          }
+          await dayLogService.registerAnswer(
+            questionId: targetQuestion.id,
+            answer: answerText,
+            date: dateString,
+          );
+        } catch (e) {
+          print('[저장 오류] 해당 질문의 ID를 찾을 수 없음: $questionKey');
         }
       }
-
-      if (mounted && showSnackbar) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('데이터가 서버와 로컬에 저장되었습니다.')));
-      }
     }
+    await _loadDayLogData(_focusedDay);
 
     if (mounted && showSnackbar) {
       ScaffoldMessenger.of(

@@ -131,11 +131,9 @@ class DayLogService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
-
       if (token == null) return false;
 
       final url = Uri.parse('$baseUrl/api/answer');
-
       final Map<String, dynamic> bodyMap = {
         "questionId": questionId,
         "answer": answer,
@@ -151,14 +149,47 @@ class DayLogService {
         body: jsonEncode(bodyMap),
       );
 
+      print('[registerAnswer] Status: ${response.statusCode}, Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonResponse['isSuccess'] == true;
       }
       return false;
     } catch (e) {
-      print('[DayLogService] 답변 등록 오류 : $e');
+      print('[registerAnswer] Error: $e');
       return false;
+    }
+  }
+
+  Future<List<dynamic>?> getQuestionAnswers(String date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) return null;
+
+      final url = Uri.parse('$baseUrl/api/question/answer?date=$date');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (jsonResponse['isSuccess'] == true) {
+          return jsonResponse['result'];
+        }
+      }
+      return null;
+    } catch (e) {
+      print('[DayLogService 조회 오류 : $e');
+      return null;
     }
   }
 }
