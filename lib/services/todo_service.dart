@@ -11,7 +11,7 @@ class TodoService {
     final formattedDate = date.toIso8601String().split('T').first;
 
     final url = Uri.parse(
-      '$baseUrl/api/schedule/by-date?date=$formattedDate&type=TO_DO',
+      '$baseUrl/by-date?date=$formattedDate&type=TO_DO',
     );
 
     print('투두 요청: $url');
@@ -47,7 +47,7 @@ class TodoService {
     }
   }
 
-  Future<bool> registerTodo({
+  Future<int?> registerTodo({
     required int categoryId,
     String? time,
     bool alarm = false,
@@ -60,22 +60,18 @@ class TodoService {
 
       if (token == null) {
         print('[TodoService] 토큰이 없습니다.');
-        return false;
+        return null;
       }
 
-      final url = Uri.parse('$baseUrl/api/schedule/todo');
-
-      String? safeTime = time;
-      if (time != null && time.length > 5) {
-        safeTime = time.substring(0, 5);
-      }
+      final url = Uri.parse('$baseUrl/todo');
 
       final Map<String, dynamic> bodyMap = {
         "categoryId": categoryId,
-        "time": safeTime,
+        "time": (time == null || time.isEmpty) ? null : time.substring(0, 5),
         "alarm": alarm,
         "content": content,
         "date": date,
+        "routineWeek": [],
       };
 
       final response = await http.post(
@@ -89,12 +85,86 @@ class TodoService {
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonResponse['isSuccess'] ?? false;
-      } else {
-        return false;
+        if (jsonResponse['isSuccess'] == true) {
+          return jsonResponse['result']['todoId'];
+        }
       }
+      return null;
     } catch (e) {
       print('[TodoService] 에러 발생: $e');
+      return null;
+    }
+  }
+
+  Future<bool> updateTodo({
+    required int scheduleId,
+    required int categoryId,
+    String? time,
+    String? alarmTime,
+    required String content,
+    required String date,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+      if (token == null) return false;
+
+      final url = Uri.parse('$baseUrl/$scheduleId/todo');
+
+      final Map<String, dynamic> bodyMap = {
+        "categoryId": categoryId,
+        "time": time,
+        "alarmTime": alarmTime,
+        "content": content,
+        "date": date,
+        "routineWeek": [],
+      };
+
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(bodyMap),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print('[TodoService] 수정 에러 발생 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteTodo(int todoId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+      if (token == null) return false;
+
+      final url = Uri.parse('$baseUrl/api/todo/$todoId');
+
+      print('[TodoService] 투두 삭제 요청 : $url');
+
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('[TodoService] 삭제 에러 발생 : $e');
       return false;
     }
   }
@@ -133,7 +203,7 @@ class TodoService {
 
   Future<List<dynamic>> getTodosByMonth(String yearMonth, String token) async {
     final url = Uri.parse(
-      '$baseUrl/api/schedule/by-month?year-month=$yearMonth',
+      '$baseUrl/by-month?year-month=$yearMonth',
     );
 
     final response = await http.get(
@@ -163,7 +233,7 @@ class TodoService {
 
       if (token == null) return false;
 
-      final url = Uri.parse('$baseUrl/api/schedule/update-date');
+      final url = Uri.parse('$baseUrl/update-date');
 
       final Map<String, dynamic> body = {
         "scheduleId": scheduleId,
@@ -199,7 +269,7 @@ class TodoService {
 
       if (token == null) return false;
 
-      final url = Uri.parse('$baseUrl/api/schedule/alarm');
+      final url = Uri.parse('$baseUrl/alarm');
 
       final Map<String, dynamic> body = {
         "scheduleId": scheduleId,

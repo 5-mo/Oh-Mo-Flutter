@@ -319,29 +319,36 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Future<void> logWeeklyData(DateTime date) async {
     final localDate = date.toLocal();
+    final pureDate = DateTime(localDate.year, localDate.month, localDate.day);
+
     final weekday = localDate.weekday;
 
-    final mondayOfThisWeek = localDate.subtract(Duration(days: weekday - 1));
+    final mondayOfThisWeek = pureDate.subtract(Duration(days: weekday - 1));
+
+    print('--- [Debug] logWeeklyData 시작 ---');
+    print('선택된 날짜(Local): $pureDate');
+    print('이번 주 월요일: $mondayOfThisWeek');
 
     List<Routine> fetchedWeeklyRoutines = [];
 
     for (int i = 0; i < 7; i++) {
       final currentDate = mondayOfThisWeek.add(Duration(days: i));
-
       final dailyRoutines = await fetchRoutines(currentDate);
 
-      final visibleRoutines =
-          dailyRoutines
-              .where((r) => isRoutineVisibleOnDate(r, currentDate))
-              .toList();
+      final scheduledForThisWeek =
+          dailyRoutines.where((r) {
+            return r.daysOfWeek.contains(currentDate.weekday);
+          }).toList();
 
-      fetchedWeeklyRoutines.addAll(visibleRoutines);
+      fetchedWeeklyRoutines.addAll(scheduledForThisWeek);
     }
 
     if (mounted) {
       setState(() {
         weeklyRoutines = fetchedWeeklyRoutines;
       });
+      print('이번 주 전체 데이터 개수: ${weeklyRoutines.length}');
+      print('--- [Debug] logWeeklyData 끝 ---');
     }
   }
 
@@ -354,39 +361,36 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   bool isRoutineVisibleOnDate(Routine routine, DateTime selectedDate) {
-    final localDate = selectedDate.toLocal();
+    final dateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
 
-    final dateOnly = DateTime(localDate.year, localDate.month, localDate.day);
-
-    final routineStartLocal = routine.startDate!.toLocal();
     final start = DateTime(
-      routineStartLocal.year,
-      routineStartLocal.month,
-      routineStartLocal.day,
+      routine.startDate!.year,
+      routine.startDate!.month,
+      routine.startDate!.day,
     );
-
-    final routineEndLocal = routine.endDate.toLocal();
     final end = DateTime(
-      routineEndLocal.year,
-      routineEndLocal.month,
-      routineEndLocal.day,
+      routine.endDate.year,
+      routine.endDate.month,
+      routine.endDate.day,
     );
 
-    final isVisible =
-        !dateOnly.isBefore(start) &&
-        !dateOnly.isAfter(end) &&
-        routine.daysOfWeek.contains(dateOnly.weekday);
+    final isInRange = !dateOnly.isBefore(start) && !dateOnly.isAfter(end);
 
-    if (routine.isDone) {
-      return true;
-    }
-    return isVisible;
+    final isRightDay = routine.daysOfWeek.contains(dateOnly.weekday);
+
+    return isInRange && isRightDay;
   }
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
     final allRoutines = await database.getAllRoutines();
-    final completedIds = await database.getCompletedRoutineIds(date);
+
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final completedIds = await database.getCompletedRoutineIds(dateOnly);
 
     return allRoutines.map((r) {
       return Routine(
@@ -394,8 +398,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
         content: r.content,
         colorType: ColorType.values[r.colorType],
         isDone: completedIds.contains(r.id),
-        startDate: r.startDate ?? DateTime.now(),
-        endDate: r.endDate ?? DateTime.now(),
+        startDate: r.startDate ?? DateTime(2000, 1, 1),
+        endDate: r.endDate ?? DateTime(2100, 12, 31),
         daysOfWeek: parseWeekDays(r.weekDays),
         time: convertMinutesToTime(r.timeMinutes),
         alarm: false,
@@ -671,7 +675,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildRoutineSection() {
     final Map<String, List<Routine>> groupedRoutines = {};
-
     for (var routine in weeklyRoutines) {
       if (groupedRoutines.containsKey(routine.content)) {
         groupedRoutines[routine.content]!.add(routine);
@@ -679,13 +682,17 @@ class _DaylogScreenState extends State<DaylogScreen> {
         groupedRoutines[routine.content] = [routine];
       }
     }
+
+    final Set<String> todayVisibleNames =
+        weeklyRoutines
+            .where((r) => isRoutineVisibleOnDate(r, _focusedDay))
+            .map((r) => r.content)
+            .toSet();
+
     final todaysRoutineEntries =
-        groupedRoutines.entries.where((entry) {
-          return entry.value.any(
-            (routineInstance) =>
-                isRoutineVisibleOnDate(routineInstance, _focusedDay),
-          );
-        }).toList();
+        groupedRoutines.entries
+            .where((entry) => todayVisibleNames.contains(entry.key))
+            .toList();
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 33.0),
@@ -718,7 +725,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               children:
                   todaysRoutineEntries.map((entry) {
                     final routineContent = entry.key;
-                    final routineInstances = groupedRoutines[routineContent]!;
+                    final routineInstances = entry.value;
 
                     final totalCount = routineInstances.length;
                     final completedCount =
@@ -1263,7 +1270,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
                     child: TextField(
                       controller: _answerController,
                       focusNode: _answerFocusNode,
-                      decoration: InputDecoration(border: InputBorder.none),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.only(bottom: 6.0),
+                      ),
                       onChanged: (value) {
                         setState(() {
                           answer = value;
@@ -1342,7 +1352,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     final String? answerMapString =
-    _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
+        _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
+
     await database.upsertDayLog(
       db.DayLogsCompanion(
         date: Value(dateOnly),
@@ -1359,6 +1370,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
       await dayLogService.registerEmoji(date: dateString, emoji: emotion);
     }
 
+    if (_diaryController.text.isNotEmpty) {
+      await dayLogService.registerDiary(
+        content: _diaryController.text,
+        date: dateString,
+      );
+    }
+
     if (_dailyAnswers.isNotEmpty) {
       for (var entry in _dailyAnswers.entries) {
         final questionKey = entry.key;
@@ -1367,12 +1385,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
         if (answerText.isEmpty) continue;
 
         try {
-          final targetQuestion = _dbQuestions.firstWhere(
-                (q) {
-              final fullKey = q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
-              return fullKey == questionKey;
-            },
-          );
+          final targetQuestion = _dbQuestions.firstWhere((q) {
+            final fullKey =
+                q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
+            return fullKey == questionKey;
+          });
 
           await dayLogService.registerAnswer(
             questionId: targetQuestion.id,

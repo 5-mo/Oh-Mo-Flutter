@@ -22,6 +22,17 @@ class $CategoriesTable extends Categories
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -65,7 +76,14 @@ class $CategoriesTable extends Categories
     defaultValue: const Constant(false),
   );
   @override
-  List<GeneratedColumn> get $columns => [id, name, type, color, isDeleted];
+  List<GeneratedColumn> get $columns => [
+    id,
+    categoryId,
+    name,
+    type,
+    color,
+    isDeleted,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -80,6 +98,12 @@ class $CategoriesTable extends Categories
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -125,6 +149,10 @@ class $CategoriesTable extends Categories
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      ),
       name:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -156,12 +184,14 @@ class $CategoriesTable extends Categories
 
 class Category extends DataClass implements Insertable<Category> {
   final int id;
+  final int? categoryId;
   final String name;
   final String type;
   final String color;
   final bool isDeleted;
   const Category({
     required this.id,
+    this.categoryId,
     required this.name,
     required this.type,
     required this.color,
@@ -171,6 +201,9 @@ class Category extends DataClass implements Insertable<Category> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<int>(categoryId);
+    }
     map['name'] = Variable<String>(name);
     map['type'] = Variable<String>(type);
     map['color'] = Variable<String>(color);
@@ -181,6 +214,10 @@ class Category extends DataClass implements Insertable<Category> {
   CategoriesCompanion toCompanion(bool nullToAbsent) {
     return CategoriesCompanion(
       id: Value(id),
+      categoryId:
+          categoryId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(categoryId),
       name: Value(name),
       type: Value(type),
       color: Value(color),
@@ -195,6 +232,7 @@ class Category extends DataClass implements Insertable<Category> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Category(
       id: serializer.fromJson<int>(json['id']),
+      categoryId: serializer.fromJson<int?>(json['categoryId']),
       name: serializer.fromJson<String>(json['name']),
       type: serializer.fromJson<String>(json['type']),
       color: serializer.fromJson<String>(json['color']),
@@ -206,6 +244,7 @@ class Category extends DataClass implements Insertable<Category> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'categoryId': serializer.toJson<int?>(categoryId),
       'name': serializer.toJson<String>(name),
       'type': serializer.toJson<String>(type),
       'color': serializer.toJson<String>(color),
@@ -215,12 +254,14 @@ class Category extends DataClass implements Insertable<Category> {
 
   Category copyWith({
     int? id,
+    Value<int?> categoryId = const Value.absent(),
     String? name,
     String? type,
     String? color,
     bool? isDeleted,
   }) => Category(
     id: id ?? this.id,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
     name: name ?? this.name,
     type: type ?? this.type,
     color: color ?? this.color,
@@ -229,6 +270,8 @@ class Category extends DataClass implements Insertable<Category> {
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
       id: data.id.present ? data.id.value : this.id,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
       name: data.name.present ? data.name.value : this.name,
       type: data.type.present ? data.type.value : this.type,
       color: data.color.present ? data.color.value : this.color,
@@ -240,6 +283,7 @@ class Category extends DataClass implements Insertable<Category> {
   String toString() {
     return (StringBuffer('Category(')
           ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('color: $color, ')
@@ -249,12 +293,13 @@ class Category extends DataClass implements Insertable<Category> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, type, color, isDeleted);
+  int get hashCode => Object.hash(id, categoryId, name, type, color, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Category &&
           other.id == this.id &&
+          other.categoryId == this.categoryId &&
           other.name == this.name &&
           other.type == this.type &&
           other.color == this.color &&
@@ -263,12 +308,14 @@ class Category extends DataClass implements Insertable<Category> {
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<int> id;
+  final Value<int?> categoryId;
   final Value<String> name;
   final Value<String> type;
   final Value<String> color;
   final Value<bool> isDeleted;
   const CategoriesCompanion({
     this.id = const Value.absent(),
+    this.categoryId = const Value.absent(),
     this.name = const Value.absent(),
     this.type = const Value.absent(),
     this.color = const Value.absent(),
@@ -276,6 +323,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   });
   CategoriesCompanion.insert({
     this.id = const Value.absent(),
+    this.categoryId = const Value.absent(),
     required String name,
     required String type,
     required String color,
@@ -285,6 +333,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
        color = Value(color);
   static Insertable<Category> custom({
     Expression<int>? id,
+    Expression<int>? categoryId,
     Expression<String>? name,
     Expression<String>? type,
     Expression<String>? color,
@@ -292,6 +341,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (categoryId != null) 'category_id': categoryId,
       if (name != null) 'name': name,
       if (type != null) 'type': type,
       if (color != null) 'color': color,
@@ -301,6 +351,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
 
   CategoriesCompanion copyWith({
     Value<int>? id,
+    Value<int?>? categoryId,
     Value<String>? name,
     Value<String>? type,
     Value<String>? color,
@@ -308,6 +359,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   }) {
     return CategoriesCompanion(
       id: id ?? this.id,
+      categoryId: categoryId ?? this.categoryId,
       name: name ?? this.name,
       type: type ?? this.type,
       color: color ?? this.color,
@@ -320,6 +372,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -340,6 +395,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   String toString() {
     return (StringBuffer('CategoriesCompanion(')
           ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('color: $color, ')
@@ -1026,6 +1082,17 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const VerificationMeta _scheduleIdMeta = const VerificationMeta(
+    'scheduleId',
+  );
+  @override
+  late final GeneratedColumn<int> scheduleId = GeneratedColumn<int>(
+    'schedule_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _routineIdMeta = const VerificationMeta(
     'routineId',
   );
@@ -1033,11 +1100,9 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
   late final GeneratedColumn<int> routineId = GeneratedColumn<int>(
     'routine_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
-    defaultValue: const Constant(0),
   );
   static const VerificationMeta _groupIdMeta = const VerificationMeta(
     'groupId',
@@ -1185,6 +1250,7 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    scheduleId,
     routineId,
     groupId,
     content,
@@ -1213,6 +1279,12 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('schedule_id')) {
+      context.handle(
+        _scheduleIdMeta,
+        scheduleId.isAcceptableOrUnknown(data['schedule_id']!, _scheduleIdMeta),
+      );
     }
     if (data.containsKey('routine_id')) {
       context.handle(
@@ -1317,11 +1389,14 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
-      routineId:
-          attachedDatabase.typeMapping.read(
-            DriftSqlType.int,
-            data['${effectivePrefix}routine_id'],
-          )!,
+      scheduleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}schedule_id'],
+      ),
+      routineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}routine_id'],
+      ),
       groupId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}group_id'],
@@ -1386,7 +1461,8 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
 
 class Routine extends DataClass implements Insertable<Routine> {
   final int id;
-  final int routineId;
+  final int? scheduleId;
+  final int? routineId;
   final int? groupId;
   final String content;
   final int colorType;
@@ -1401,7 +1477,8 @@ class Routine extends DataClass implements Insertable<Routine> {
   final bool isSynced;
   const Routine({
     required this.id,
-    required this.routineId,
+    this.scheduleId,
+    this.routineId,
     this.groupId,
     required this.content,
     required this.colorType,
@@ -1419,7 +1496,12 @@ class Routine extends DataClass implements Insertable<Routine> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['routine_id'] = Variable<int>(routineId);
+    if (!nullToAbsent || scheduleId != null) {
+      map['schedule_id'] = Variable<int>(scheduleId);
+    }
+    if (!nullToAbsent || routineId != null) {
+      map['routine_id'] = Variable<int>(routineId);
+    }
     if (!nullToAbsent || groupId != null) {
       map['group_id'] = Variable<int>(groupId);
     }
@@ -1452,7 +1534,14 @@ class Routine extends DataClass implements Insertable<Routine> {
   RoutinesCompanion toCompanion(bool nullToAbsent) {
     return RoutinesCompanion(
       id: Value(id),
-      routineId: Value(routineId),
+      scheduleId:
+          scheduleId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(scheduleId),
+      routineId:
+          routineId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(routineId),
       groupId:
           groupId == null && nullToAbsent
               ? const Value.absent()
@@ -1496,7 +1585,8 @@ class Routine extends DataClass implements Insertable<Routine> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Routine(
       id: serializer.fromJson<int>(json['id']),
-      routineId: serializer.fromJson<int>(json['routineId']),
+      scheduleId: serializer.fromJson<int?>(json['scheduleId']),
+      routineId: serializer.fromJson<int?>(json['routineId']),
       groupId: serializer.fromJson<int?>(json['groupId']),
       content: serializer.fromJson<String>(json['content']),
       colorType: serializer.fromJson<int>(json['colorType']),
@@ -1516,7 +1606,8 @@ class Routine extends DataClass implements Insertable<Routine> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'routineId': serializer.toJson<int>(routineId),
+      'scheduleId': serializer.toJson<int?>(scheduleId),
+      'routineId': serializer.toJson<int?>(routineId),
       'groupId': serializer.toJson<int?>(groupId),
       'content': serializer.toJson<String>(content),
       'colorType': serializer.toJson<int>(colorType),
@@ -1534,7 +1625,8 @@ class Routine extends DataClass implements Insertable<Routine> {
 
   Routine copyWith({
     int? id,
-    int? routineId,
+    Value<int?> scheduleId = const Value.absent(),
+    Value<int?> routineId = const Value.absent(),
     Value<int?> groupId = const Value.absent(),
     String? content,
     int? colorType,
@@ -1549,7 +1641,8 @@ class Routine extends DataClass implements Insertable<Routine> {
     bool? isSynced,
   }) => Routine(
     id: id ?? this.id,
-    routineId: routineId ?? this.routineId,
+    scheduleId: scheduleId.present ? scheduleId.value : this.scheduleId,
+    routineId: routineId.present ? routineId.value : this.routineId,
     groupId: groupId.present ? groupId.value : this.groupId,
     content: content ?? this.content,
     colorType: colorType ?? this.colorType,
@@ -1566,6 +1659,8 @@ class Routine extends DataClass implements Insertable<Routine> {
   Routine copyWithCompanion(RoutinesCompanion data) {
     return Routine(
       id: data.id.present ? data.id.value : this.id,
+      scheduleId:
+          data.scheduleId.present ? data.scheduleId.value : this.scheduleId,
       routineId: data.routineId.present ? data.routineId.value : this.routineId,
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       content: data.content.present ? data.content.value : this.content,
@@ -1594,6 +1689,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   String toString() {
     return (StringBuffer('Routine(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
           ..write('routineId: $routineId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
@@ -1614,6 +1710,7 @@ class Routine extends DataClass implements Insertable<Routine> {
   @override
   int get hashCode => Object.hash(
     id,
+    scheduleId,
     routineId,
     groupId,
     content,
@@ -1633,6 +1730,7 @@ class Routine extends DataClass implements Insertable<Routine> {
       identical(this, other) ||
       (other is Routine &&
           other.id == this.id &&
+          other.scheduleId == this.scheduleId &&
           other.routineId == this.routineId &&
           other.groupId == this.groupId &&
           other.content == this.content &&
@@ -1650,7 +1748,8 @@ class Routine extends DataClass implements Insertable<Routine> {
 
 class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<int> id;
-  final Value<int> routineId;
+  final Value<int?> scheduleId;
+  final Value<int?> routineId;
   final Value<int?> groupId;
   final Value<String> content;
   final Value<int> colorType;
@@ -1665,6 +1764,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<bool> isSynced;
   const RoutinesCompanion({
     this.id = const Value.absent(),
+    this.scheduleId = const Value.absent(),
     this.routineId = const Value.absent(),
     this.groupId = const Value.absent(),
     this.content = const Value.absent(),
@@ -1681,6 +1781,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   });
   RoutinesCompanion.insert({
     this.id = const Value.absent(),
+    this.scheduleId = const Value.absent(),
     this.routineId = const Value.absent(),
     this.groupId = const Value.absent(),
     required String content,
@@ -1697,6 +1798,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   }) : content = Value(content);
   static Insertable<Routine> custom({
     Expression<int>? id,
+    Expression<int>? scheduleId,
     Expression<int>? routineId,
     Expression<int>? groupId,
     Expression<String>? content,
@@ -1713,6 +1815,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (scheduleId != null) 'schedule_id': scheduleId,
       if (routineId != null) 'routine_id': routineId,
       if (groupId != null) 'group_id': groupId,
       if (content != null) 'content': content,
@@ -1731,7 +1834,8 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
 
   RoutinesCompanion copyWith({
     Value<int>? id,
-    Value<int>? routineId,
+    Value<int?>? scheduleId,
+    Value<int?>? routineId,
     Value<int?>? groupId,
     Value<String>? content,
     Value<int>? colorType,
@@ -1747,6 +1851,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   }) {
     return RoutinesCompanion(
       id: id ?? this.id,
+      scheduleId: scheduleId ?? this.scheduleId,
       routineId: routineId ?? this.routineId,
       groupId: groupId ?? this.groupId,
       content: content ?? this.content,
@@ -1768,6 +1873,9 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (scheduleId.present) {
+      map['schedule_id'] = Variable<int>(scheduleId.value);
     }
     if (routineId.present) {
       map['routine_id'] = Variable<int>(routineId.value);
@@ -1815,6 +1923,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   String toString() {
     return (StringBuffer('RoutinesCompanion(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
           ..write('routineId: $routineId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
@@ -1850,6 +1959,17 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+  );
+  static const VerificationMeta _scheduleIdMeta = const VerificationMeta(
+    'scheduleId',
+  );
+  @override
+  late final GeneratedColumn<int> scheduleId = GeneratedColumn<int>(
+    'schedule_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _groupIdMeta = const VerificationMeta(
     'groupId',
@@ -1966,9 +2086,25 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    scheduleId,
     groupId,
     content,
     colorType,
@@ -1979,6 +2115,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     alarmMinutes,
     date,
     todoServerId,
+    isSynced,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1994,6 +2131,12 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('schedule_id')) {
+      context.handle(
+        _scheduleIdMeta,
+        scheduleId.isAcceptableOrUnknown(data['schedule_id']!, _scheduleIdMeta),
+      );
     }
     if (data.containsKey('group_id')) {
       context.handle(
@@ -2071,6 +2214,12 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         ),
       );
     }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
     return context;
   }
 
@@ -2085,6 +2234,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      scheduleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}schedule_id'],
+      ),
       groupId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}group_id'],
@@ -2130,6 +2283,11 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.int,
         data['${effectivePrefix}todo_server_id'],
       ),
+      isSynced:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_synced'],
+          )!,
     );
   }
 
@@ -2141,6 +2299,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
 
 class Todo extends DataClass implements Insertable<Todo> {
   final int id;
+  final int? scheduleId;
   final int? groupId;
   final String content;
   final int colorType;
@@ -2151,8 +2310,10 @@ class Todo extends DataClass implements Insertable<Todo> {
   final int? alarmMinutes;
   final DateTime date;
   final int? todoServerId;
+  final bool isSynced;
   const Todo({
     required this.id,
+    this.scheduleId,
     this.groupId,
     required this.content,
     required this.colorType,
@@ -2163,11 +2324,15 @@ class Todo extends DataClass implements Insertable<Todo> {
     this.alarmMinutes,
     required this.date,
     this.todoServerId,
+    required this.isSynced,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || scheduleId != null) {
+      map['schedule_id'] = Variable<int>(scheduleId);
+    }
     if (!nullToAbsent || groupId != null) {
       map['group_id'] = Variable<int>(groupId);
     }
@@ -2188,12 +2353,17 @@ class Todo extends DataClass implements Insertable<Todo> {
     if (!nullToAbsent || todoServerId != null) {
       map['todo_server_id'] = Variable<int>(todoServerId);
     }
+    map['is_synced'] = Variable<bool>(isSynced);
     return map;
   }
 
   TodosCompanion toCompanion(bool nullToAbsent) {
     return TodosCompanion(
       id: Value(id),
+      scheduleId:
+          scheduleId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(scheduleId),
       groupId:
           groupId == null && nullToAbsent
               ? const Value.absent()
@@ -2219,6 +2389,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           todoServerId == null && nullToAbsent
               ? const Value.absent()
               : Value(todoServerId),
+      isSynced: Value(isSynced),
     );
   }
 
@@ -2229,6 +2400,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Todo(
       id: serializer.fromJson<int>(json['id']),
+      scheduleId: serializer.fromJson<int?>(json['scheduleId']),
       groupId: serializer.fromJson<int?>(json['groupId']),
       content: serializer.fromJson<String>(json['content']),
       colorType: serializer.fromJson<int>(json['colorType']),
@@ -2239,6 +2411,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       alarmMinutes: serializer.fromJson<int?>(json['alarmMinutes']),
       date: serializer.fromJson<DateTime>(json['date']),
       todoServerId: serializer.fromJson<int?>(json['todoServerId']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
   }
   @override
@@ -2246,6 +2419,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'scheduleId': serializer.toJson<int?>(scheduleId),
       'groupId': serializer.toJson<int?>(groupId),
       'content': serializer.toJson<String>(content),
       'colorType': serializer.toJson<int>(colorType),
@@ -2256,11 +2430,13 @@ class Todo extends DataClass implements Insertable<Todo> {
       'alarmMinutes': serializer.toJson<int?>(alarmMinutes),
       'date': serializer.toJson<DateTime>(date),
       'todoServerId': serializer.toJson<int?>(todoServerId),
+      'isSynced': serializer.toJson<bool>(isSynced),
     };
   }
 
   Todo copyWith({
     int? id,
+    Value<int?> scheduleId = const Value.absent(),
     Value<int?> groupId = const Value.absent(),
     String? content,
     int? colorType,
@@ -2271,8 +2447,10 @@ class Todo extends DataClass implements Insertable<Todo> {
     Value<int?> alarmMinutes = const Value.absent(),
     DateTime? date,
     Value<int?> todoServerId = const Value.absent(),
+    bool? isSynced,
   }) => Todo(
     id: id ?? this.id,
+    scheduleId: scheduleId.present ? scheduleId.value : this.scheduleId,
     groupId: groupId.present ? groupId.value : this.groupId,
     content: content ?? this.content,
     colorType: colorType ?? this.colorType,
@@ -2283,10 +2461,13 @@ class Todo extends DataClass implements Insertable<Todo> {
     alarmMinutes: alarmMinutes.present ? alarmMinutes.value : this.alarmMinutes,
     date: date ?? this.date,
     todoServerId: todoServerId.present ? todoServerId.value : this.todoServerId,
+    isSynced: isSynced ?? this.isSynced,
   );
   Todo copyWithCompanion(TodosCompanion data) {
     return Todo(
       id: data.id.present ? data.id.value : this.id,
+      scheduleId:
+          data.scheduleId.present ? data.scheduleId.value : this.scheduleId,
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       content: data.content.present ? data.content.value : this.content,
       colorType: data.colorType.present ? data.colorType.value : this.colorType,
@@ -2308,6 +2489,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           data.todoServerId.present
               ? data.todoServerId.value
               : this.todoServerId,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
   }
 
@@ -2315,6 +2497,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   String toString() {
     return (StringBuffer('Todo(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -2324,7 +2507,8 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('categoryId: $categoryId, ')
           ..write('alarmMinutes: $alarmMinutes, ')
           ..write('date: $date, ')
-          ..write('todoServerId: $todoServerId')
+          ..write('todoServerId: $todoServerId, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
@@ -2332,6 +2516,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   @override
   int get hashCode => Object.hash(
     id,
+    scheduleId,
     groupId,
     content,
     colorType,
@@ -2342,12 +2527,14 @@ class Todo extends DataClass implements Insertable<Todo> {
     alarmMinutes,
     date,
     todoServerId,
+    isSynced,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Todo &&
           other.id == this.id &&
+          other.scheduleId == this.scheduleId &&
           other.groupId == this.groupId &&
           other.content == this.content &&
           other.colorType == this.colorType &&
@@ -2357,11 +2544,13 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.categoryId == this.categoryId &&
           other.alarmMinutes == this.alarmMinutes &&
           other.date == this.date &&
-          other.todoServerId == this.todoServerId);
+          other.todoServerId == this.todoServerId &&
+          other.isSynced == this.isSynced);
 }
 
 class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<int> id;
+  final Value<int?> scheduleId;
   final Value<int?> groupId;
   final Value<String> content;
   final Value<int> colorType;
@@ -2372,8 +2561,10 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<int?> alarmMinutes;
   final Value<DateTime> date;
   final Value<int?> todoServerId;
+  final Value<bool> isSynced;
   const TodosCompanion({
     this.id = const Value.absent(),
+    this.scheduleId = const Value.absent(),
     this.groupId = const Value.absent(),
     this.content = const Value.absent(),
     this.colorType = const Value.absent(),
@@ -2384,9 +2575,11 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.alarmMinutes = const Value.absent(),
     this.date = const Value.absent(),
     this.todoServerId = const Value.absent(),
+    this.isSynced = const Value.absent(),
   });
   TodosCompanion.insert({
     this.id = const Value.absent(),
+    this.scheduleId = const Value.absent(),
     this.groupId = const Value.absent(),
     required String content,
     this.colorType = const Value.absent(),
@@ -2397,10 +2590,12 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.alarmMinutes = const Value.absent(),
     required DateTime date,
     this.todoServerId = const Value.absent(),
+    this.isSynced = const Value.absent(),
   }) : content = Value(content),
        date = Value(date);
   static Insertable<Todo> custom({
     Expression<int>? id,
+    Expression<int>? scheduleId,
     Expression<int>? groupId,
     Expression<String>? content,
     Expression<int>? colorType,
@@ -2411,9 +2606,11 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<int>? alarmMinutes,
     Expression<DateTime>? date,
     Expression<int>? todoServerId,
+    Expression<bool>? isSynced,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (scheduleId != null) 'schedule_id': scheduleId,
       if (groupId != null) 'group_id': groupId,
       if (content != null) 'content': content,
       if (colorType != null) 'color_type': colorType,
@@ -2424,11 +2621,13 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (alarmMinutes != null) 'alarm_minutes': alarmMinutes,
       if (date != null) 'date': date,
       if (todoServerId != null) 'todo_server_id': todoServerId,
+      if (isSynced != null) 'is_synced': isSynced,
     });
   }
 
   TodosCompanion copyWith({
     Value<int>? id,
+    Value<int?>? scheduleId,
     Value<int?>? groupId,
     Value<String>? content,
     Value<int>? colorType,
@@ -2439,9 +2638,11 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<int?>? alarmMinutes,
     Value<DateTime>? date,
     Value<int?>? todoServerId,
+    Value<bool>? isSynced,
   }) {
     return TodosCompanion(
       id: id ?? this.id,
+      scheduleId: scheduleId ?? this.scheduleId,
       groupId: groupId ?? this.groupId,
       content: content ?? this.content,
       colorType: colorType ?? this.colorType,
@@ -2452,6 +2653,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       alarmMinutes: alarmMinutes ?? this.alarmMinutes,
       date: date ?? this.date,
       todoServerId: todoServerId ?? this.todoServerId,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
@@ -2460,6 +2662,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (scheduleId.present) {
+      map['schedule_id'] = Variable<int>(scheduleId.value);
     }
     if (groupId.present) {
       map['group_id'] = Variable<int>(groupId.value);
@@ -2491,6 +2696,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     if (todoServerId.present) {
       map['todo_server_id'] = Variable<int>(todoServerId.value);
     }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
     return map;
   }
 
@@ -2498,6 +2706,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   String toString() {
     return (StringBuffer('TodosCompanion(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -2507,7 +2716,8 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('categoryId: $categoryId, ')
           ..write('alarmMinutes: $alarmMinutes, ')
           ..write('date: $date, ')
-          ..write('todoServerId: $todoServerId')
+          ..write('todoServerId: $todoServerId, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
@@ -4713,6 +4923,7 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
 typedef $$CategoriesTableCreateCompanionBuilder =
     CategoriesCompanion Function({
       Value<int> id,
+      Value<int?> categoryId,
       required String name,
       required String type,
       required String color,
@@ -4721,6 +4932,7 @@ typedef $$CategoriesTableCreateCompanionBuilder =
 typedef $$CategoriesTableUpdateCompanionBuilder =
     CategoriesCompanion Function({
       Value<int> id,
+      Value<int?> categoryId,
       Value<String> name,
       Value<String> type,
       Value<String> color,
@@ -4738,6 +4950,11 @@ class $$CategoriesTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4776,6 +4993,11 @@ class $$CategoriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get name => $composableBuilder(
     column: $table.name,
     builder: (column) => ColumnOrderings(column),
@@ -4808,6 +5030,11 @@ class $$CategoriesTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -4854,12 +5081,14 @@ class $$CategoriesTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> categoryId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String> color = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
+                categoryId: categoryId,
                 name: name,
                 type: type,
                 color: color,
@@ -4868,12 +5097,14 @@ class $$CategoriesTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> categoryId = const Value.absent(),
                 required String name,
                 required String type,
                 required String color,
                 Value<bool> isDeleted = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
+                categoryId: categoryId,
                 name: name,
                 type: type,
                 color: color,
@@ -5684,7 +5915,8 @@ typedef $$GroupsTableProcessedTableManager =
 typedef $$RoutinesTableCreateCompanionBuilder =
     RoutinesCompanion Function({
       Value<int> id,
-      Value<int> routineId,
+      Value<int?> scheduleId,
+      Value<int?> routineId,
       Value<int?> groupId,
       required String content,
       Value<int> colorType,
@@ -5701,7 +5933,8 @@ typedef $$RoutinesTableCreateCompanionBuilder =
 typedef $$RoutinesTableUpdateCompanionBuilder =
     RoutinesCompanion Function({
       Value<int> id,
-      Value<int> routineId,
+      Value<int?> scheduleId,
+      Value<int?> routineId,
       Value<int?> groupId,
       Value<String> content,
       Value<int> colorType,
@@ -5749,6 +5982,11 @@ class $$RoutinesTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5850,6 +6088,11 @@ class $$RoutinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get routineId => $composableBuilder(
     column: $table.routineId,
     builder: (column) => ColumnOrderings(column),
@@ -5945,6 +6188,11 @@ class $$RoutinesTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get routineId =>
       $composableBuilder(column: $table.routineId, builder: (column) => column);
@@ -6043,7 +6291,8 @@ class $$RoutinesTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> routineId = const Value.absent(),
+                Value<int?> scheduleId = const Value.absent(),
+                Value<int?> routineId = const Value.absent(),
                 Value<int?> groupId = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<int> colorType = const Value.absent(),
@@ -6058,6 +6307,7 @@ class $$RoutinesTableTableManager
                 Value<bool> isSynced = const Value.absent(),
               }) => RoutinesCompanion(
                 id: id,
+                scheduleId: scheduleId,
                 routineId: routineId,
                 groupId: groupId,
                 content: content,
@@ -6075,7 +6325,8 @@ class $$RoutinesTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> routineId = const Value.absent(),
+                Value<int?> scheduleId = const Value.absent(),
+                Value<int?> routineId = const Value.absent(),
                 Value<int?> groupId = const Value.absent(),
                 required String content,
                 Value<int> colorType = const Value.absent(),
@@ -6090,6 +6341,7 @@ class $$RoutinesTableTableManager
                 Value<bool> isSynced = const Value.absent(),
               }) => RoutinesCompanion.insert(
                 id: id,
+                scheduleId: scheduleId,
                 routineId: routineId,
                 groupId: groupId,
                 content: content,
@@ -6174,6 +6426,7 @@ typedef $$RoutinesTableProcessedTableManager =
 typedef $$TodosTableCreateCompanionBuilder =
     TodosCompanion Function({
       Value<int> id,
+      Value<int?> scheduleId,
       Value<int?> groupId,
       required String content,
       Value<int> colorType,
@@ -6184,10 +6437,12 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<int?> alarmMinutes,
       required DateTime date,
       Value<int?> todoServerId,
+      Value<bool> isSynced,
     });
 typedef $$TodosTableUpdateCompanionBuilder =
     TodosCompanion Function({
       Value<int> id,
+      Value<int?> scheduleId,
       Value<int?> groupId,
       Value<String> content,
       Value<int> colorType,
@@ -6198,6 +6453,7 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<int?> alarmMinutes,
       Value<DateTime> date,
       Value<int?> todoServerId,
+      Value<bool> isSynced,
     });
 
 final class $$TodosTableReferences
@@ -6233,6 +6489,11 @@ class $$TodosTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6281,6 +6542,11 @@ class $$TodosTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$GroupsTableFilterComposer get groupId {
     final $$GroupsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -6316,6 +6582,11 @@ class $$TodosTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6364,6 +6635,11 @@ class $$TodosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$GroupsTableOrderingComposer get groupId {
     final $$GroupsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6399,6 +6675,11 @@ class $$TodosTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
@@ -6436,6 +6717,9 @@ class $$TodosTableAnnotationComposer
     column: $table.todoServerId,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
   $$GroupsTableAnnotationComposer get groupId {
     final $$GroupsTableAnnotationComposer composer = $composerBuilder(
@@ -6490,6 +6774,7 @@ class $$TodosTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> scheduleId = const Value.absent(),
                 Value<int?> groupId = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<int> colorType = const Value.absent(),
@@ -6500,8 +6785,10 @@ class $$TodosTableTableManager
                 Value<int?> alarmMinutes = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<int?> todoServerId = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
               }) => TodosCompanion(
                 id: id,
+                scheduleId: scheduleId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -6512,10 +6799,12 @@ class $$TodosTableTableManager
                 alarmMinutes: alarmMinutes,
                 date: date,
                 todoServerId: todoServerId,
+                isSynced: isSynced,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> scheduleId = const Value.absent(),
                 Value<int?> groupId = const Value.absent(),
                 required String content,
                 Value<int> colorType = const Value.absent(),
@@ -6526,8 +6815,10 @@ class $$TodosTableTableManager
                 Value<int?> alarmMinutes = const Value.absent(),
                 required DateTime date,
                 Value<int?> todoServerId = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
               }) => TodosCompanion.insert(
                 id: id,
+                scheduleId: scheduleId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -6538,6 +6829,7 @@ class $$TodosTableTableManager
                 alarmMinutes: alarmMinutes,
                 date: date,
                 todoServerId: todoServerId,
+                isSynced: isSynced,
               ),
           withReferenceMapper:
               (p0) =>

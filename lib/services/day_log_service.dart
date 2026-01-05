@@ -149,7 +149,9 @@ class DayLogService {
         body: jsonEncode(bodyMap),
       );
 
-      print('[registerAnswer] Status: ${response.statusCode}, Body: ${response.body}');
+      print(
+        '[registerAnswer] Status: ${response.statusCode}, Body: ${response.body}',
+      );
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
@@ -190,6 +192,46 @@ class DayLogService {
     } catch (e) {
       print('[DayLogService 조회 오류 : $e');
       return null;
+    }
+  }
+
+  Future<bool> registerDiary({
+    required String content,
+    required String date,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) {
+        print('[DayLogService] 토큰이 없습니다.');
+        return false;
+      }
+      final url = Uri.parse('$baseUrl/api/diary');
+      final Map<String, dynamic> bodyMap = {"content": content, "date": date};
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(bodyMap),
+      );
+      print(
+        '[registerDiary] Status: ${response.statusCode},Body:${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        final jsonREsponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonREsponse['isSuccess'] == true;
+      } else {
+        print('[DayLogService] 서버 에러 : ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('[DayLogService] 일기 등록 통신 오류 : $e');
+      return false;
     }
   }
 }

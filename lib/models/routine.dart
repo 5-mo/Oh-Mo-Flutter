@@ -30,7 +30,13 @@ class Routine {
 
   factory Routine.fromJson(Map<String, dynamic> json) {
     final category = json['category'] ?? {};
-    final colorStr = category['color'] ?? 'pinkLight';
+    final categoryName = category['categoryName']?.toString();
+    String colorStr = category['color'] ?? 'uncategorizedBlack';
+
+    if (colorStr == '#000000' || categoryName == 'default') {
+      colorStr = 'uncategorizedBlack';
+    }
+
     final colorType = ColorTypeExtension.fromString(colorStr);
 
     final routineDate = DateTime.parse(json['date']);
@@ -52,13 +58,7 @@ class Routine {
       daysOfWeek: [weekday],
       time: json['time'] ?? '',
       alarm: json['alarm'] ?? false,
+      isDone: json['status'] == 'DONE' || (json['isDone'] ?? false),
     );
   }
-
-
-
-
-
-
-
 }

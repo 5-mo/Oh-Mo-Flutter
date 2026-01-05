@@ -78,7 +78,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
     final Set<String> existingContents =
         currentLocalQuestions.map((q) => q.question.trim()).toSet();
 
-
     final List<Map<String, String>> defaultQuestions = [
       {'emoji': '💰', 'text': '오늘의 소비는?'},
       {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
@@ -113,17 +112,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
     final fetchedRoutines = await _repository.fetchCategories(
       scheduleType: 'ROUTINE',
     );
+    final filteredRoutines =
+        fetchedRoutines.where((c) => c.categoryName != 'default').toList();
     final fetchedTodos = await _repository.fetchCategories(
       scheduleType: 'TO_DO',
     );
-    List<DayLogQuestionItem> allFetchedDaylogs= await _repository.fetchDayLogQuestions();
+    final filteredTodos =
+        fetchedTodos.where((c) => c.categoryName != 'default').toList();
+    List<DayLogQuestionItem> allFetchedDaylogs =
+        await _repository.fetchDayLogQuestions();
 
-    final Set<String> seenQuestions={};
-    final List<DayLogQuestionItem> uniqueDaylogs=[];
+    final Set<String> seenQuestions = {};
+    final List<DayLogQuestionItem> uniqueDaylogs = [];
 
-    for(var question in allFetchedDaylogs){
-      final trimmedText=question.question.trim();
-      if(!seenQuestions.contains(trimmedText)){
+    for (var question in allFetchedDaylogs) {
+      final trimmedText = question.question.trim();
+      if (!seenQuestions.contains(trimmedText)) {
         seenQuestions.add(trimmedText);
         uniqueDaylogs.add(question);
       }
@@ -139,8 +143,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     if (mounted) {
       setState(() {
-        routines = fetchedRoutines;
-        todos = fetchedTodos;
+        routines = filteredRoutines;
+        todos = filteredTodos;
         daylogQuestions = uniqueDaylogs;
         _groups = fetchedGroups;
         if (routines.isNotEmpty) selectedCategoryId = routines.first.id;

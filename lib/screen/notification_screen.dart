@@ -31,11 +31,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     });
   }
 
-@override
-void dispose() {
-  _timer?.cancel();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   void _markAllAsRead() {
     unawaited(_db.markAllNotificationsAsRead());
@@ -64,69 +64,71 @@ void dispose() {
         titleSpacing: 3.0,
         backgroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          _buildNotificationHeader(),
-          SizedBox(height: 10.0),
-          Expanded(
-            child: StreamBuilder<List<db.Notification>>(
-              stream: _notificationStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
+      body: StreamBuilder<List<db.Notification>>(
+        stream: _notificationStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                final allNotifications = snapshot.data ?? [];
-                final now = DateTime.now();
+          final allNotifications = snapshot.data ?? [];
+          final now = DateTime.now();
 
-                if (allNotifications.isNotEmpty) {
-                }
+          final visibleNotifications = allNotifications.where((notification) {
+            return notification.timestamp.isBefore(now) ||
+                notification.timestamp.isAtSameMomentAs(now);
+          }).toList();
 
-                final visibleNotifications = allNotifications.where((notification) {
-                  return notification.timestamp.isBefore(now) ||
-                      notification.timestamp.isAtSameMomentAs(now);
+          visibleNotifications.sort(
+                (a, b) => b.timestamp.compareTo(a.timestamp),
+          );
 
-                }).toList();
+          if (visibleNotifications.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SvgPicture.asset(
+                    'android/assets/images/notification_off.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  const SizedBox(height: 7),
+                  const Text(
+                    "최근 알림이 없습니다.",
+                    style: TextStyle(
+                      fontFamily: 'PretendardRegular',
+                      fontSize: 12.0,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  const Text(
+                    "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+                    style: TextStyle(
+                      fontFamily: 'PretendardRegular',
+                      fontSize: 8.0,
+                      color: Color(0xFF565656),
+                    ),
+                  ),
+                  const SizedBox(height: 200),
+                ],
+              ),
+            );
+          }
 
-                visibleNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-                if (visibleNotifications.isEmpty) {
-                  return Column(
-                    children: [
-                      SizedBox(height: 200),
-                      SvgPicture.asset(
-                        'android/assets/images/notification_off.svg',
-                        width: 24,
-                        height: 24,
-                      ),
-                      SizedBox(height: 7),
-                      Text(
-                        "최근 알림이 없습니다.",
-                        style: TextStyle(
-                          fontFamily: 'PretendardRegular',
-                          fontSize: 12.0,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 7),
-                      Text(
-                        textAlign: TextAlign.right,
-                        "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
-                        style: TextStyle(
-                          fontFamily: 'PretendardRegular',
-                          fontSize: 8.0,
-                          color: Color(0xFF565656),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-
-                return _buildNotificationList(visibleNotifications);
-              },
-            ),
-          ),
-        ],
+          return Column(
+            children: [
+              const SizedBox(height: 10.0),
+              _buildNotificationHeader(),
+              const SizedBox(height: 10.0),
+              Expanded(
+                child: _buildNotificationList(visibleNotifications),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -210,7 +212,8 @@ void dispose() {
     }
 
     if ((type == NotificationType.group || type == NotificationType.calender) &&
-        tagIndex != -1 && tag != null) {
+        tagIndex != -1 &&
+        tag != null) {
       final String part1 = displayContent.substring(0, tagIndex);
       final String part2 = tag;
       final String part3 = displayContent.substring(tagIndex + tag.length);

@@ -139,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return fetched.map((t) {
       return Todo(
         id: t.id,
+        scheduleId: t.scheduleId,
         todoServerId: t.todoServerId,
         content: t.content,
         Date: t.date,
@@ -413,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             .where(
               (t) => t.scheduleType.toUpperCase() == 'TO_DO' && t.todo != null,
             )
-            .map((t) => t.todo!.todoId)
+            .map((t) => t.scheduleId)
             .toSet();
 
     final serverRoutineUiIds =
@@ -464,6 +465,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
+    await (database.delete(database.todos)..where(
+      (t) =>
+          t.date.year.equals(date.year) &
+          t.date.month.equals(date.month) &
+          t.date.day.equals(date.day),
+    )).go();
+
     for (var item in data.todoList) {
       if (item.scheduleType.toUpperCase() != 'TO_DO') continue;
       if (item.todo == null) continue;
@@ -497,6 +505,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             .insertOnConflictUpdate(
               db.TodosCompanion.insert(
                 id: Value(item.scheduleId),
+                scheduleId: Value(item.scheduleId),
                 todoServerId: Value(item.todo?.todoId),
                 content: item.content,
                 groupId: const Value(null),
@@ -588,6 +597,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             .insertOnConflictUpdate(
               db.RoutinesCompanion(
                 id: Value(uiScheduleId),
+                scheduleId: Value(uiScheduleId),
                 routineId: Value(apiInstanceId),
                 content: Value(item.content),
                 colorType: Value(_parseColorType(item.category.color).index),
@@ -769,17 +779,19 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
   }
 
   Future<void> _showTodoAlarmSheet(Todo todo) async {
+    // 1. DB에서 최신 투두 정보 가져오기
     final currentTodo = await db.LocalDatabaseSingleton.instance.getTodoById(
       todo.id,
     );
     if (currentTodo == null || !mounted) return;
 
+    // 2. 알람 설정 바텀시트 띄우기
     final result = await showModalBottomSheet<dynamic>(
       context: context,
       isScrollControlled: true,
       isDismissible: true,
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topRight: Radius.circular(59),
           topLeft: Radius.circular(59),
@@ -793,13 +805,16 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
           ),
     );
 
+    // --- [A] 날짜 변경 처리 ---
     if (result != null && result is DateTime) {
       await db.LocalDatabaseSingleton.instance.updateTodoDate(
         currentTodo.id,
         result,
       );
       widget.onDataChanged?.call();
-    } else if (result != null && result == 0) {
+    }
+    // --- [B] 알람 삭제 처리 ---
+    else if (result != null && result == 0) {
       await db.LocalDatabaseSingleton.instance.updateTodo(
         db.TodosCompanion(id: Value(currentTodo.id), alarmMinutes: Value(null)),
       );
@@ -807,61 +822,112 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('알람이 삭제되었습니다!')));
+        ).showSnackBar(const SnackBar(content: Text('알람이 삭제되었습니다!')));
       }
       widget.onDataChanged?.call();
-    } else if (result != null && result is int && result > 0) {
+    }
+    // --- [C] 미리 알림 설정 처리 (int > 0) ---
+    else if (result != null && result is int && result > 0) {
       final minutes = result;
 
-      await db.LocalDatabaseSingleton.instance.updateTodo(
-        db.TodosCompanion(
-          id: Value(currentTodo.id),
-          alarmMinutes: Value(minutes),
-        ),
-      );
-      final updatedTodo = await db.LocalDatabaseSingleton.instance.getTodoById(
-        currentTodo.id,
-      );
-      if (updatedTodo == null) return;
+      if (currentTodo.timeMinutes == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('시간이 설정된 투두만 미리 알림이 가능합니다.')),
+          );
+        }
+        return;
+      }
 
-      final notificationTime = updatedTodo.date.subtract(
+      // 3. ⭐ 정확한 알람 시각 계산 (날짜 + 시간 - 설정분)
+      final DateTime baseDate = DateTime(
+        currentTodo.date.year,
+        currentTodo.date.month,
+        currentTodo.date.day,
+      );
+      final DateTime actualTodoTime = baseDate.add(
+        Duration(minutes: currentTodo.timeMinutes!),
+      );
+      final DateTime notificationTime = actualTodoTime.subtract(
         Duration(minutes: minutes),
       );
 
-      final originalTimeStr = DateFormat('HH:mm').format(updatedTodo.date);
+      // 서버 전송용 포맷 (HH:mm:ss)
+      final String alarmTimeStr = DateFormat(
+        'HH:mm:ss',
+      ).format(notificationTime);
 
-      await (db.LocalDatabaseSingleton.instance.delete(
-        db.LocalDatabaseSingleton.instance.notifications,
-      )..where((tbl) => tbl.content.like('%${updatedTodo.content}%'))).go();
-
-      if (notificationTime.isAfter(DateTime.now())) {
-        await NotificationService().cancelNotification(updatedTodo.id);
-        await NotificationService().scheduleNotification(
-          id: updatedTodo.id,
-          title: '오늘의 할 일!',
-          body: updatedTodo.content,
-          scheduledTime: notificationTime,
-          payload: 'todo_${updatedTodo.id}',
+      try {
+        final todoService = TodoService();
+        print(
+          '📡 서버에 알람 시각 전송 요청: {scheduleId: ${currentTodo.scheduleId}, alarmTime: $alarmTimeStr}',
         );
-        try {
-          await db.LocalDatabaseSingleton.instance
-              .into(db.LocalDatabaseSingleton.instance.notifications)
-              .insert(
-                db.NotificationsCompanion.insert(
-                  type: 'calender',
-                  content: '[To-do] $originalTimeStr ${updatedTodo.content}',
-                  timestamp: notificationTime,
-                  isRead: const Value(false),
-                ),
-              );
-        } catch (e) {}
-      } else {}
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('${minutes}분 전 알람이 설정되었습니다!')));
+
+        final isServerSuccess = await todoService.updateAlarmTime(
+          currentTodo.scheduleId!,
+          alarmTimeStr,
+        );
+
+        if (isServerSuccess) {
+          // 4. 로컬 DB 업데이트
+          await db.LocalDatabaseSingleton.instance.updateTodo(
+            db.TodosCompanion(
+              id: Value(currentTodo.id),
+              alarmMinutes: Value(minutes),
+            ),
+          );
+
+          // 5. 이전 알림 취소 및 새 알림 예약
+          await NotificationService().cancelNotification(currentTodo.id);
+
+          if (notificationTime.isAfter(DateTime.now())) {
+            final originalTimeStr = DateFormat('HH:mm').format(actualTodoTime);
+
+            await NotificationService().scheduleNotification(
+              id: currentTodo.id,
+              title: '오늘의 할 일!',
+              body: '[To-do] $originalTimeStr ${currentTodo.content}',
+              scheduledTime: notificationTime,
+              payload: 'todo_${currentTodo.id}',
+            );
+            print('🔔 로컬 알람 예약 성공: $notificationTime');
+
+            // 6. 알림함 DB 기록
+            try {
+              await (db.LocalDatabaseSingleton.instance.delete(
+                db.LocalDatabaseSingleton.instance.notifications,
+              )..where(
+                (tbl) => tbl.content.like('%${currentTodo.content}%'),
+              )).go();
+
+              await db.LocalDatabaseSingleton.instance
+                  .into(db.LocalDatabaseSingleton.instance.notifications)
+                  .insert(
+                    db.NotificationsCompanion.insert(
+                      type: 'calender',
+                      content:
+                          '[To-do] $originalTimeStr ${currentTodo.content}',
+                      timestamp: notificationTime,
+                      isRead: const Value(false),
+                    ),
+                  );
+            } catch (e) {}
+          } else {
+            print('⚠️ 알람 시각이 이미 지났습니다. (과거 시점)');
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${minutes}분 전 알람이 설정되었습니다!')),
+            );
+          }
+          widget.onDataChanged?.call();
+        } else {
+          print('❌ 서버 응답 실패');
+        }
+      } catch (e) {
+        print("🚨 오류: $e");
       }
-      widget.onDataChanged?.call();
     }
   }
 
@@ -1082,9 +1148,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                   todo.todoServerId;
 
                                               if (serverId == null) {
-                                                throw Exception(
-                                                  "Todo Server ID(todoId)가 없습니다.",
-                                                );
+                                                throw Exception("서버 ID가 없습니다.");
                                               }
 
                                               final serverResult =

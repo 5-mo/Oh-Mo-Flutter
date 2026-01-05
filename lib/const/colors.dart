@@ -42,6 +42,12 @@ enum ColorType {
 extension ColorTypeExtension on ColorType {
   static ColorType fromString(String colorString) {
     if (colorString.isEmpty) return ColorType.pinkLight;
+    if (colorString.startsWith('#')) {
+      if (colorString.toUpperCase() == '#000000') {
+        return ColorType.uncategorizedBlack;
+      }
+      return ColorType.uncategorizedBlack;
+    }
 
     final intValue = int.tryParse(colorString);
     if (intValue != null) {
@@ -71,7 +77,7 @@ extension ColorTypeExtension on ColorType {
       if (normalizedInput.contains('black'))
         return ColorType.uncategorizedBlack;
 
-      return ColorType.pinkLight;
+      return ColorType.uncategorizedBlack;
     }
   }
 }

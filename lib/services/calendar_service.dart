@@ -11,7 +11,7 @@ class CalendarService {
     String token,
   ) async {
     final uri = Uri.parse(
-      '$baseUrl/api/schedule/by-date',
+      '$baseUrl/by-date',
     ).replace(queryParameters: {'date': date});
     try {
       final response = await http.get(
@@ -42,7 +42,7 @@ class CalendarService {
     String token,
   ) async {
     final uri = Uri.parse(
-      '$baseUrl/api/schedule/by-month',
+      '$baseUrl/by-month',
     ).replace(queryParameters: {'year-month': yearMonth});
 
     try {

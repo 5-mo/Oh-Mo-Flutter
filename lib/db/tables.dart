@@ -35,6 +35,7 @@ class Notices extends Table{
 
 class Categories extends Table{
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get categoryId=>integer().nullable()();
   TextColumn get name => text()();
   TextColumn get type => text()();
   TextColumn get color => text()();
@@ -49,7 +50,8 @@ class DayLogQuestions extends Table {
 
 class Routines extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get routineId=>integer().withDefault(const Constant(0)).unique()();
+  IntColumn get scheduleId=>integer().nullable()();
+  IntColumn get routineId => integer().nullable()();
   IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();
@@ -66,6 +68,7 @@ class Routines extends Table {
 
 class Todos extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get scheduleId=>integer().nullable()();
   IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();
@@ -76,6 +79,7 @@ class Todos extends Table {
   IntColumn get alarmMinutes => integer().nullable()();
   DateTimeColumn get date => dateTime()();
   IntColumn get todoServerId=>integer().nullable()();
+  BoolColumn get isSynced=>boolean().withDefault(const Constant(true))();
 }
 
 class CompletedRoutines extends Table {

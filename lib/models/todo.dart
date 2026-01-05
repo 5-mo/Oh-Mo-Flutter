@@ -2,6 +2,7 @@ import 'package:ohmo/const/colors.dart';
 
 class Todo {
   final int id;
+  final int? scheduleId;
   final int? todoServerId;
   String content;
   final ColorType colorType;
@@ -12,6 +13,7 @@ class Todo {
 
   Todo({
     required this.id,
+    this.scheduleId,
     this.todoServerId,
     required this.content,
     required this.colorType,
@@ -28,6 +30,7 @@ class Todo {
 
     return Todo(
       id: json['scheduleId'] ?? 0,
+      scheduleId: json['todoId'] ?? json['scheduleId'],
       content: json['content'] ?? '',
       colorType: colorType,
       Date: DateTime.parse(json['date']),

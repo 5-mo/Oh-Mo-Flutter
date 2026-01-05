@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/alarm_setting.dart';
+import 'package:ohmo/services/notification_service.dart';
+import 'package:ohmo/services/routine_service.dart';
 import 'package:ohmo/services/todo_service.dart';
 import '../db/drift_database.dart' as db;
 import 'package:intl/intl.dart';
@@ -58,23 +60,46 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
       onTap: () async {
         try {
           final database = db.LocalDatabaseSingleton.instance;
+          final routineService = RoutineService();
 
-          await database.deleteRoutine(widget.routineId);
+          final routine = await database.getRoutineById(widget.routineId);
+          final int? serverRoutineId = routine?.routineId;
 
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("루틴이 삭제되었습니다.")));
+          bool isServerSuccess = true;
 
-          widget.onDataChanged?.call();
+          if (serverRoutineId != null && serverRoutineId != 0) {
+            isServerSuccess = await routineService.deleteRoutine(
+              serverRoutineId,
+            );
+          }
 
-          if (Navigator.canPop(context)) {
-            Navigator.pop(context);
+          if (isServerSuccess) {
+            await database.deleteRoutine(widget.routineId);
+
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text("루틴이 삭제되었습니다.")));
+            }
+            widget.onDataChanged?.call();
+
+            if (mounted && Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("서버 삭제에 실패했습니. 다시 시도해주세요.")),
+              );
+            }
           }
         } catch (e) {
           print('루틴 삭제 실패 : $e');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('루틴 삭제에 실패했습니다.')));
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('루틴 삭제에 실패했습니다.')));
+          }
         }
       },
       child: Container(
@@ -88,7 +113,6 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
           ],
         ),
         child: Align(
-          alignment: Alignment.center,
           child: Padding(
             padding: EdgeInsets.only(left: 16),
             child: Text(
@@ -212,46 +236,58 @@ class _TodoAlarmState extends State<TodoAlarm> {
       onTap: () async {
         try {
           final database = db.LocalDatabaseSingleton.instance;
+          final todoService = TodoService();
 
-          await database.deleteTodo(widget.todoId);
+          final todo = await database.getTodoById(widget.todoId);
+          final int? serverTodoId = todo?.todoServerId;
 
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("투두가 삭제되었습니다.")));
+          if (serverTodoId == null) {
+            await database.deleteTodo(widget.todoId);
+          } else {
+            bool isServerSuccess = true;
+            if (serverTodoId != null && serverTodoId != 0) {
+              isServerSuccess = await todoService.deleteTodo(serverTodoId);
+            }
 
-          widget.onDataChanged?.call();
+            if (isServerSuccess) {
+              await database.deleteTodo(widget.todoId);
+              widget.onDataChanged?.call();
 
-          if (Navigator.canPop(context)) {
-            Navigator.pop(context);
+              if (mounted) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("투두가 삭제되었습니다.")));
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("서버 삭제 실패")));
+              }
+            }
           }
         } catch (e) {
-          print('투두 삭제 실패 : $e');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('투두 삭제에 실패했습니다.')));
+          print('투두 삭제 catch 에러: $e');
         }
       },
       child: Container(
         width: 327,
         height: 56,
         decoration: BoxDecoration(
-          color: Color(0xFFE04747),
+          color: const Color(0xFFE04747),
           borderRadius: BorderRadius.circular(9),
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
           ],
         ),
-        child: Align(
-          alignment: Alignment.center,
-          child: Padding(
-            padding: EdgeInsets.only(left: 16),
-            child: Text(
-              '삭제하기',
-              style: TextStyle(
-                fontSize: 20,
-                fontFamily: 'PretendardBold',
-                color: Colors.white,
-              ),
+        child: const Center(
+          child: Text(
+            '삭제하기',
+            style: TextStyle(
+              fontSize: 20,
+              fontFamily: 'PretendardBold',
+              color: Colors.white,
             ),
           ),
         ),
@@ -355,20 +391,21 @@ class _TodoAlarmState extends State<TodoAlarm> {
 
         if (resultMinutes != null) {
           String? alarmTimeStr;
+          DateTime? notificationTime;
+
+          final DateTime baseTodoDate = DateTime(
+            todo.date.year,
+            todo.date.month,
+            todo.date.day,
+            todo.timeMinutes! ~/ 60,
+            todo.timeMinutes! % 60,
+          );
 
           if (resultMinutes > 0) {
-            final todoTime = DateTime(
-              2024,
-              1,
-              1,
-              todo.timeMinutes! ~/ 60,
-              todo.timeMinutes! % 60,
-            );
-            final alarmTime = todoTime.subtract(
+            notificationTime = baseTodoDate.subtract(
               Duration(minutes: resultMinutes),
             );
-
-            alarmTimeStr = DateFormat('HH:mm:ss').format(alarmTime);
+            alarmTimeStr = DateFormat('HH:mm:ss').format(notificationTime);
           } else {
             alarmTimeStr = null;
           }
@@ -376,7 +413,7 @@ class _TodoAlarmState extends State<TodoAlarm> {
           try {
             final todoService = TodoService();
             final isSuccess = await todoService.updateAlarmTime(
-              widget.todoId,
+              todo.scheduleId!,
               alarmTimeStr,
             );
 
@@ -389,6 +426,21 @@ class _TodoAlarmState extends State<TodoAlarm> {
                   ),
                 ),
               );
+
+              await NotificationService().cancelNotification(todo.id);
+
+              if (resultMinutes > 0 && notificationTime != null) {
+                if (notificationTime.isAfter(DateTime.now())) {
+                  await NotificationService().scheduleNotification(
+                    id: todo.id,
+                    title: '오늘의 할 일!',
+                    body: '[To-do] ${todo.content}',
+                    scheduledTime: notificationTime,
+                    payload: 'todo_${todo.id}',
+                  );
+                  print('시스템 알람 예약 완료 : $notificationTime');
+                }
+              }
 
               widget.onDataChanged?.call();
 

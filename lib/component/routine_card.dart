@@ -212,25 +212,15 @@ class _RoutineCardState extends State<RoutineCard> {
                 try {
                   final db = LocalDatabaseSingleton.instance;
 
-                  // 2. DB에서 진짜 API ID(53번) 찾아오기
                   final currentRoutine = await db.getRoutineById(widget.scheduleId);
                   final int realApiId = currentRoutine?.routineId ?? widget.scheduleId;
 
-                  print("🔍 [요청] UI ID(${widget.scheduleId}) -> API ID($realApiId)");
-
-                  // 3. 서버에 요청하고 '최종 상태' 받아오기 (True/False/Null)
                   final routineService = RoutineService();
-                  // 여기가 바뀝니다: bool -> bool?
                   final bool? serverState = await routineService.toggleRoutineStatus(realApiId);
 
-                  // 4. 결과 처리
                   if (serverState != null) {
-                    // 성공! 서버가 알려준 상태로 UI 고정
                     setState(() => _isChecked = serverState);
 
-                    // 로컬 DB도 서버 상태랑 똑같이 맞춤
-                    // (DB의 현재 상태를 확인해서, 서버랑 다를 때만 토글)
-                    // toggleRoutineStatus는 값을 뒤집는 함수이므로 신중해야 함
                     final isLocalDone = currentRoutine?.isDone ?? !serverState;
 
                     if (isLocalDone != serverState) {
@@ -241,12 +231,10 @@ class _RoutineCardState extends State<RoutineCard> {
                       await widget.onStatusChanged!();
                     }
                   } else {
-                    // serverState가 null이면 실패한 것임 -> UI 원복
                     throw Exception('서버 응답 실패 (null)');
                   }
                 } catch (e) {
                   print('루틴 상태 변경 실패: $e');
-                  // 에러 나면 UI를 원래대로 돌려놓음
                   setState(() => _isChecked = !value);
                 }
               },
@@ -266,7 +254,7 @@ class _RoutineCardState extends State<RoutineCard> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
+      shape: RoundedRectangleBorder( 
         borderRadius: BorderRadius.only(
           topRight: Radius.circular(59),
           topLeft: Radius.circular(59),

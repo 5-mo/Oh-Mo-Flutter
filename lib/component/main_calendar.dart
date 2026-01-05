@@ -267,7 +267,7 @@ class _MainCalendarState extends State<MainCalendar> {
                   ),
                 );
               } else if (event is Todo) {
-                final double bottomPositionNew = isWeekFormat ? 14.0 : -2;
+                final double bottomPositionNew = isWeekFormat ? 14.0 : 0;
                 final todos = events.cast<Todo>();
                 final todosToShow = todos.take(4).toList();
                 return Positioned(

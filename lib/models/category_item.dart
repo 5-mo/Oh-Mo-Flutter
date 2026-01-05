@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 
 class CategoryItem {
   final int id;
+  final int? serverId;
   String categoryName;
   String colorType;
   String scheduleType;
 
   CategoryItem({
     required this.id,
+    this.serverId,
     required this.categoryName,
     required this.colorType,
     required this.scheduleType,

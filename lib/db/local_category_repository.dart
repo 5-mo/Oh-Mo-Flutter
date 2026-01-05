@@ -7,8 +7,6 @@ class LocalCategoryRepository {
 
   LocalCategoryRepository(this._db);
 
-
-
   // ------------------ Category ------------------
   Future<List<CategoryItem>> fetchCategories({
     required String scheduleType,
@@ -18,6 +16,7 @@ class LocalCategoryRepository {
         .map(
           (r) => CategoryItem(
             id: r.id,
+            serverId: r.categoryId,
             categoryName: r.name,
             colorType: r.color,
             scheduleType: r.type,
@@ -26,14 +25,25 @@ class LocalCategoryRepository {
         .toList();
   }
 
+  Future<void> updateCategoryServerId(int localId, int serverId) async {
+    await _db.updateCategoryServerId(localId, serverId);
+  }
+
   Future<CategoryItem> insertCategory({
     required String name,
     required String type,
     required String color,
+    int? serverCategoryId,
   }) async {
-    final id = await _db.insertCategory(name, type, color);
+    final id = await _db.insertCategory(
+      name: name,
+      type: type,
+      color: color,
+      serverCategoryId: serverCategoryId,
+    );
     return CategoryItem(
       id: id,
+      serverId: serverCategoryId,
       categoryName: name,
       colorType: color,
       scheduleType: type,
@@ -55,8 +65,9 @@ class LocalCategoryRepository {
   }
 
   Future<void> updateCategoryColor(int id, String newColor) async {
-    await (_db.update(_db.categories)..where((t) => t.id.equals(id)))
-        .write(db.CategoriesCompanion(color: drift.Value(newColor)));
+    await (_db.update(_db.categories)..where(
+      (t) => t.id.equals(id),
+    )).write(db.CategoriesCompanion(color: drift.Value(newColor)));
   }
 
   // ------------------ DayLog ------------------

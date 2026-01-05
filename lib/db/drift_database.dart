@@ -61,7 +61,8 @@ class LocalDatabase extends _$LocalDatabase {
   // ------------------ Category ------------------
 
   Future<Category?> getCategoryById(int id) {
-    return (select(categories)..where((c) => c.id.equals(id))).getSingleOrNull();
+    return (select(categories)
+      ..where((c) => c.id.equals(id))).getSingleOrNull();
   }
 
   Future<int> deleteCategoryById(int id) {
@@ -70,17 +71,21 @@ class LocalDatabase extends _$LocalDatabase {
 
   Future<void> updateChildrenOnCategoryDelete(int categoryId) {
     return transaction(() async {
-      await (update(routines)..where((tbl) => tbl.categoryId.equals(categoryId)))
-          .write(RoutinesCompanion(
-        colorType: Value(ColorType.uncategorizedBlack.index),
-        categoryId: const Value(null),
-      ));
+      await (update(routines)
+        ..where((tbl) => tbl.categoryId.equals(categoryId))).write(
+        RoutinesCompanion(
+          colorType: Value(ColorType.uncategorizedBlack.index),
+          categoryId: const Value(null),
+        ),
+      );
 
-      await (update(todos)..where((tbl) => tbl.categoryId.equals(categoryId)))
-          .write(TodosCompanion(
-        colorType: Value(ColorType.uncategorizedBlack.index),
-        categoryId: const Value(null),
-      ));
+      await (update(todos)
+        ..where((tbl) => tbl.categoryId.equals(categoryId))).write(
+        TodosCompanion(
+          colorType: Value(ColorType.uncategorizedBlack.index),
+          categoryId: const Value(null),
+        ),
+      );
     });
   }
 
@@ -88,10 +93,20 @@ class LocalDatabase extends _$LocalDatabase {
     return (select(categories)..where((c) => c.type.equals(type))).get();
   }
 
-  Future<int> insertCategory(String name, String type, String color) {
-    return into(
-      categories,
-    ).insert(CategoriesCompanion.insert(name: name, type: type, color: color));
+  Future<int> insertCategory({
+    required String name,
+    required String type,
+    required String color,
+    int? serverCategoryId,
+  }) {
+    return into(categories).insert(
+      CategoriesCompanion.insert(
+        name: name,
+        type: type,
+        color: color,
+        categoryId: Value(serverCategoryId),
+      ),
+    );
   }
 
   Future<int> updateCategoryName(int id, String newName) {
@@ -130,6 +145,14 @@ class LocalDatabase extends _$LocalDatabase {
         (t) => t.categoryId.equals(categoryId),
       )).write(TodosCompanion(colorType: Value(newColorIndex)));
     });
+  }
+
+  Future<int> updateCategoryServerId(int id, int serverId) {
+    return (update(categories)..where((t) => t.id.equals(id))).write(
+      CategoriesCompanion(
+        categoryId: Value(serverId),
+      ),
+    );
   }
 
   // ------------------ DayLog ------------------
