@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:ohmo/customize_category.dart';
 import 'package:ohmo/screen/profile_screen.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -28,7 +29,7 @@ class MyScreen extends StatefulWidget {
 
 class _MyScreenState extends State<MyScreen> {
   bool _showSearchRecords = false;
-
+  bool _isDiaryVisible = true;
   List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
 
@@ -55,6 +56,21 @@ class _MyScreenState extends State<MyScreen> {
       _searchResults = results;
       _isLoading = false;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVisibilitySettings();
+  }
+
+  Future<void> _loadVisibilitySettings() async {
+    final isDiaryVisible = await DiaryVisibilityHelper.getVisibility();
+    if (mounted) {
+      setState(() {
+        _isDiaryVisible = isDiaryVisible;
+      });
+    }
   }
 
   Future<void> _pickImage(BuildContext context) async {
@@ -133,8 +149,10 @@ class _MyScreenState extends State<MyScreen> {
                         _buildNotionButton(context),
                         SizedBox(height: 20.0),
                         _buildCategoryManaging(context),
-                        SizedBox(height: 10.0),
-                        _buildDiaryCollection(context),
+                        if (_isDiaryVisible) ...[
+                          SizedBox(height: 10.0),
+                          _buildDiaryCollection(context),
+                        ],
                       ],
                     ),
                   ),
@@ -385,6 +403,13 @@ class _MyScreenState extends State<MyScreen> {
     );
   }
 
+  Future<void> _updateDiaryVisibility() async {
+    final isVisible = await DiaryVisibilityHelper.getVisibility();
+    setState(() {
+      _isDiaryVisible = isVisible;
+    });
+  }
+
   Widget _buildCategoryManaging(BuildContext context) {
     return GestureDetector(
       onTap: () async {
@@ -392,6 +417,7 @@ class _MyScreenState extends State<MyScreen> {
           context,
           MaterialPageRoute(builder: (context) => CategoryScreen()),
         );
+        _updateDiaryVisibility();
         if (result == true) {
           if (widget.onDataChanged != null) {
             widget.onDataChanged!();

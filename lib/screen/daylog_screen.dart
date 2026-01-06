@@ -274,6 +274,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
               jsonDecode(existingLog.answerMapJson!),
             );
           }
+        } else {
+          _diaryController.clear();
+          _resetIconState();
+          _dailyAnswers.clear();
         }
       });
     }
@@ -302,6 +306,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
         }
       });
     }
+    final serverDiary = await dayLogService.getDiary(dateString);
+    if (serverDiary != null && serverDiary['content'] != null) {
+      setState(() {
+        _diaryController.text = serverDiary['content'];
+      });
+    }
   }
 
   Future<void> _updateFocusedDay(DateTime newDate) async {
@@ -325,10 +335,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     final mondayOfThisWeek = pureDate.subtract(Duration(days: weekday - 1));
 
-    print('--- [Debug] logWeeklyData 시작 ---');
-    print('선택된 날짜(Local): $pureDate');
-    print('이번 주 월요일: $mondayOfThisWeek');
-
     List<Routine> fetchedWeeklyRoutines = [];
 
     for (int i = 0; i < 7; i++) {
@@ -347,8 +353,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
       setState(() {
         weeklyRoutines = fetchedWeeklyRoutines;
       });
-      print('이번 주 전체 데이터 개수: ${weeklyRoutines.length}');
-      print('--- [Debug] logWeeklyData 끝 ---');
     }
   }
 

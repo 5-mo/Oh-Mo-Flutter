@@ -234,4 +234,33 @@ class DayLogService {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>?> getDiary(String date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) return null;
+
+      final url = Uri.parse('$baseUrl/api/diary?date=$date');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        if (jsonResponse['isSuccess'] == true) {
+          return jsonResponse['result'];
+        }
+      }
+      return null;
+    } catch (e) {
+      print('[DayLogService] 일기 조회 오류 : $e');
+      return null;
+    }
+  }
 }

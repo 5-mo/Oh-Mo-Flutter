@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import '../db/drift_database.dart' as db;
 import 'package:intl/intl.dart';
 
+import '../services/day_log_service.dart';
 import 'daylog_screen.dart';
 
 class DiaryCollectionScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
   db.Emotion _currentEmotion = db.Emotion.none;
   String _diaryText = '';
   final db.LocalDatabase _database = db.LocalDatabaseSingleton.instance;
+  final DayLogService _dayLogService = DayLogService();
 
   @override
   void initState() {
@@ -32,36 +34,46 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
   }
 
   Future<void> _loadDiaryForDay(DateTime date) async {
-    final dayLog = await _database.getDayLog(date);
-    if (!mounted) return;
+    final dateString=DateFormat('yyyy-MM-dd').format(date);
 
     db.Emotion loadedEmotion = db.Emotion.none;
     String loadedDiary = '아직 작성된 일기가 없어요.\n오늘을 기록하러 가볼까요?';
 
+    final dayLog=await _database.getDayLog(date);
     if (dayLog != null) {
       if (dayLog.emotion != null) {
-        switch (dayLog.emotion) {
-          case 'happy':
-            loadedEmotion = db.Emotion.happy;
-            break;
-          case 'soso':
-            loadedEmotion = db.Emotion.soso;
-            break;
-          case 'bad':
-            loadedEmotion = db.Emotion.bad;
-            break;
-        }
+        loadedEmotion=_mapStringToEmotion(dayLog.emotion!);
       }
-
       if (dayLog.diary != null && dayLog.diary!.isNotEmpty) {
         loadedDiary = dayLog.diary!;
       }
     }
 
-    setState(() {
-      _currentEmotion = loadedEmotion;
-      _diaryText = loadedDiary;
-    });
+    if(mounted){
+      setState(() {
+        _currentEmotion=loadedEmotion;
+        _diaryText=loadedDiary;
+      });
+    }
+
+    final serverDiary=await _dayLogService.getDiary(dateString);
+
+    if(serverDiary!=null&& serverDiary['content']!=null){
+      if(mounted){
+        setState(() {
+          _diaryText=serverDiary['content'];
+        });
+      }
+    }
+  }
+
+  db.Emotion _mapStringToEmotion(String emotion){
+    switch(emotion){
+      case 'happy':return db.Emotion.happy;
+      case 'soso':return db.Emotion.soso;
+      case 'bad':return db.Emotion.bad;
+      default:return db.Emotion.none;
+    }
   }
 
   Future<void> _updateFocusedDay(DateTime newDate) async {
