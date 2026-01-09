@@ -11,6 +11,7 @@ import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/category_screen.dart';
 import 'package:ohmo/screen/diary_collection_screen.dart';
 import '../db/drift_database.dart' as db;
+import 'etc_screen.dart';
 
 class MyScreen extends StatefulWidget {
   final Function(int) onTabChange;
@@ -150,8 +151,10 @@ class _MyScreenState extends State<MyScreen> {
                         SizedBox(height: 20.0),
                         _buildCategoryManaging(context),
                         if (_isDiaryVisible) ...[
-                          SizedBox(height: 10.0),
+                          SizedBox(height: 15.0),
                           _buildDiaryCollection(context),
+                          SizedBox(height: 15.0),
+                          _buildEtc(context)
                         ],
                       ],
                     ),
@@ -447,6 +450,25 @@ class _MyScreenState extends State<MyScreen> {
       },
       child: Text(
         '일기 모아보기',
+        style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
+      ),
+    );
+  }
+
+  Widget _buildEtc(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => EtcScreen(
+            ),
+          ),
+        );
+      },
+      child: Text(
+        '기타',
         style: TextStyle(fontSize: 18, fontFamily: 'PretendardBold'),
       ),
     );

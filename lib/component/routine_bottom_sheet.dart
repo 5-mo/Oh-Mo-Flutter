@@ -7,6 +7,7 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/screen/category_screen.dart';
 import 'package:ohmo/services/sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../db/drift_database.dart';
 import '../models/category_item.dart';
 import 'package:ohmo/services/notification_service.dart';
@@ -682,6 +683,21 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           return;
         }
 
+        final prefs = await SharedPreferences.getInstance();
+        bool isCalendarSettingOn = prefs.getBool('calendar_noti') ?? true;
+        bool isAllOn = prefs.getBool('all_noti') ?? true;
+
+        if (isChecked && (!isCalendarSettingOn || !isAllOn)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "현재 '일정 알림' 설정이 꺼져 있어 알람이 울리지 않습니다. 설정 화면을 확인해 주세요.",
+              ),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
         try {
           setState(() => _isLoading = true);
 
@@ -1036,7 +1052,6 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       if (oldRoutine != null &&
           oldRoutine.scheduleId != null &&
           oldRoutine.scheduleId != 0) {
-        print('🔄 기존 루틴 종료일 업데이트 시도 (ID: ${oldRoutine.scheduleId})');
 
         int actualServerCategoryId = 0;
         try {

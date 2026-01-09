@@ -7,6 +7,7 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/services/category_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_item.dart';
 import '../screen/category_screen.dart';
 import 'package:ohmo/services/notification_service.dart';
@@ -426,7 +427,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // RichText 구조 수정: text 속성 안에 children 리스트를 사용해야 합니다.
         RichText(
           text: TextSpan(
             children: [
@@ -443,7 +443,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 style: TextStyle(
                   fontSize: 16,
                   fontFamily: 'PretendardRegular',
-                  color: Color(0xFFE04747), // 빨간 별표
+                  color: Color(0xFFE04747),
                 ),
               ),
             ],
@@ -476,7 +476,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        // 1. 유효성 검사: 내용 입력 확인
         final String pureContent = contentController.text.trim();
         if (pureContent.isEmpty) {
           ScaffoldMessenger.of(
@@ -485,18 +484,27 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           return;
         }
 
-        // 2. 유효성 검사: 알람 설정 시 시간 선택 여부
         if (isChecked && selectedTime == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("알람을 켜려면 '시간 선택'은 필수입니다.")),
           );
           return;
         }
+        final prefs = await SharedPreferences.getInstance();
+        bool isCalendarSettingOn = prefs.getBool('calendar_noti') ?? true;
+        bool isAllOn = prefs.getBool('all_noti') ?? true;
+
+        if (isChecked && !isCalendarSettingOn || !isAllOn) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("현재 '일정 알림' 설정이 꺼져 있어 알람이 울리지 않습니다. 설정 화면을 확인해 주세요."),
+            duration: Duration(seconds: 2),
+          ),
+          );
+        }
 
         try {
           setState(() => _isLoading = true);
 
-          // 3. 카테고리 정보 결정
           int finalLocalCategoryId;
           int realServerId;
           int colorIndex = 0;
@@ -534,7 +542,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             colorIndex = ColorType.uncategorizedBlack.index;
           }
 
-          // 4. 날짜 및 시간 데이터 가공
           final String dateStr = DateFormat('yyyy-MM-dd').format(_currentDate);
           String? timeStr;
           int? dbTimeMinutes;
@@ -564,33 +571,21 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           final todoService = TodoService();
           final db = LocalDatabaseSingleton.instance;
 
-          // 5. 서버 및 로컬 DB 처리 (수정 vs 등록)
           if (widget.todoIdToEdit != null) {
-            // --- [수정 모드] ---
             final existingTodo = await db.getTodoById(widget.todoIdToEdit!);
             final int? serverScheduleId = existingTodo?.scheduleId;
 
-            print('[TodoSheet] 🔄 수정 모드 진입 - 서버 스케줄 ID: $serverScheduleId');
-
             if (serverScheduleId != null && serverScheduleId != 0) {
-              // (1) 서버 수정 API 호출
               bool isServerSuccess = await todoService.updateTodo(
                 scheduleId: serverScheduleId,
                 categoryId: realServerId,
                 content: pureContent,
-                // 카드에는 순수 텍스트만 전송
                 date: dateStr,
                 time: timeStr,
                 alarmTime: isChecked ? timeStr : null,
               );
-              print(
-                isServerSuccess
-                    ? '[TodoSheet] ✅ 서버 수정 완료'
-                    : '[TodoSheet] ❌ 서버 수정 실패',
-              );
             }
 
-            // (2) 로컬 DB 업데이트
             await db.updateTodo(
               TodosCompanion(
                 id: drift.Value(widget.todoIdToEdit!),
@@ -602,7 +597,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               ),
             );
 
-            // (3) 알람 취소 및 재등록
             await NotificationService().cancelNotification(
               widget.todoIdToEdit!,
             );
@@ -622,8 +616,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               date: dateStr,
             );
 
-            print('[TodoSheet] 서버에서 받아온 ID: $newServerTodoId');
-
             final newLocalId = await db.insertTodo(
               TodosCompanion.insert(
                 scheduleId: drift.Value(newServerTodoId),
@@ -638,16 +630,11 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               ),
             );
 
-            // (3) 알람 등록
             if (isChecked && fullTodoDate.isAfter(DateTime.now())) {
               await _registerNotification(newLocalId, fullTodoDate, 0);
             }
-            print(
-              '[TodoSheet] 🎉 신규 등록 완료 (로컬ID: $newLocalId, 서버ID: $newServerTodoId)',
-            );
-          }
 
-          // 6. 후처리 (콜백 실행 및 팝업 닫기)
+          }
           if (widget.onTodoAdded != null) await widget.onTodoAdded!();
           if (widget.onDataChanged != null) await widget.onDataChanged!();
 
@@ -658,7 +645,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             ).showSnackBar(const SnackBar(content: Text("저장 완료!")));
           }
         } catch (e) {
-          print("[TodoSheet] ❌ 저장 에러: $e");
           if (mounted) {
             ScaffoldMessenger.of(
               context,
@@ -667,6 +653,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
         } finally {
           if (mounted) setState(() => _isLoading = false);
         }
+
       },
       child: Container(
         width: double.infinity,

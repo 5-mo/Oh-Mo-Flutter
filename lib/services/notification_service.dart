@@ -1,8 +1,10 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:drift/drift.dart';
 import 'package:ohmo/db/drift_database.dart';
+import '../db/drift_database.dart';
 
 Future<void> _addNotificationToDBFromPayload(String? payload) async {
   if (payload == null || payload.isEmpty) return;
@@ -100,6 +102,15 @@ class NotificationService {
     required DateTime scheduledTime,
     required String payload,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    bool isAllOn = prefs.getBool('all_noti') ?? true;
+    bool isCalendarOn = prefs.getBool('calendar_noti') ?? true;
+
+    if (!isAllOn || !isCalendarOn) {
+      print('알림 설정이 꺼져 있어 예약을 중단합니다.');
+      return;
+    }
     final tz.TZDateTime tzScheduledTime = tz.TZDateTime.from(
       scheduledTime,
       tz.local,
@@ -123,10 +134,54 @@ class NotificationService {
       payload: payload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
-
-
   }
+
   Future<void> cancelNotification(int id) async {
     await _flutterLocalNotificationsPlugin.cancel(id);
+  }
+
+  Future<void> cancelAllNotifications() async {
+    await _flutterLocalNotificationsPlugin.cancelAll();
+    print("모든 예약 알림이 취소되었습니다.");
+  }
+
+  Future<void> cancelPersonalCalendarNotifications() async {
+    final database = LocalDatabaseSingleton.instance;
+
+    final personalTodos =
+        await (database.select(database.todos)
+          ..where((t) => t.groupId.isNull())).get();
+
+    for (var todo in personalTodos) {
+      await _flutterLocalNotificationsPlugin.cancel(todo.id);
+    }
+
+    final personalRoutines =
+        await (database.select(database.routines)
+          ..where((r) => r.groupId.isNull())).get();
+
+    for (var routine in personalRoutines) {
+      await _cancelRoutineAlarmsOnly(routine.id);
+    }
+    print("개인 일정 및 루틴 알람이 취소되었습니다.");
+  }
+
+  Future<void> _cancelRoutineAlarmsOnly(int routineId) async {
+    DateTime today = DateTime.now();
+    DateTime startDate = DateTime(today.year, today.month, today.day);
+
+    for (var i = 0; i < 730; i++) {
+      DateTime currentDay = startDate.add(Duration(days: i));
+      int uniqueNotificationId =
+          Object.hash(
+            routineId,
+            currentDay.year,
+            currentDay.month,
+            currentDay.day,
+          ) &
+          0x7FFFFFFF;
+
+      await _flutterLocalNotificationsPlugin.cancel(uniqueNotificationId);
+    }
   }
 }
