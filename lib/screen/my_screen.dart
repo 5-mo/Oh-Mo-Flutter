@@ -11,6 +11,7 @@ import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/category_screen.dart';
 import 'package:ohmo/screen/diary_collection_screen.dart';
 import '../db/drift_database.dart' as db;
+import '../services/calendar_service.dart';
 import 'etc_screen.dart';
 
 class MyScreen extends StatefulWidget {
@@ -33,6 +34,7 @@ class _MyScreenState extends State<MyScreen> {
   bool _isDiaryVisible = true;
   List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
+  final CalendarService _scheduleService = CalendarService();
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -50,8 +52,7 @@ class _MyScreenState extends State<MyScreen> {
       _showSearchRecords = true;
     });
 
-    final database = db.LocalDatabaseSingleton.instance;
-    final results = await database.searchSchedules(query);
+    final results = await _scheduleService.searchSchedules(query);
 
     setState(() {
       _searchResults = results;
@@ -154,7 +155,7 @@ class _MyScreenState extends State<MyScreen> {
                           SizedBox(height: 15.0),
                           _buildDiaryCollection(context),
                           SizedBox(height: 15.0),
-                          _buildEtc(context)
+                          _buildEtc(context),
                         ],
                       ],
                     ),
@@ -263,7 +264,7 @@ class _MyScreenState extends State<MyScreen> {
                 fontSize: 16,
                 fontFamily: 'PretendardRegular',
               ),
-
+              controller: _searchController,
               decoration: InputDecoration(
                 hintText: '일정 검색',
                 hintStyle: TextStyle(
@@ -460,11 +461,7 @@ class _MyScreenState extends State<MyScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder:
-                (context) => EtcScreen(
-            ),
-          ),
+          MaterialPageRoute(builder: (context) => EtcScreen()),
         );
       },
       child: Text(
