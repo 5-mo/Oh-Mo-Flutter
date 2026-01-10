@@ -5,7 +5,10 @@ import 'package:ohmo/screen/etc/community_guildeline.dart';
 import 'package:ohmo/screen/etc/opensource_license.dart';
 import 'package:ohmo/screen/etc/private_information.dart';
 
+import 'etc/bug.dart';
 import 'etc/faq.dart';
+import 'etc/inquire.dart';
+import 'etc/leave.dart';
 import 'etc/service.dart';
 
 class EtcScreen extends StatefulWidget {
@@ -247,7 +250,7 @@ class _EtcScreenState extends State<EtcScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => AlarmSettingScreen()),
+          MaterialPageRoute(builder: (context) => InquireScreen()),
         );
       },
       child: Row(
@@ -272,7 +275,7 @@ class _EtcScreenState extends State<EtcScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => AlarmSettingScreen()),
+          MaterialPageRoute(builder: (context) => BugScreen()),
         );
       },
       child: Row(
@@ -297,7 +300,7 @@ class _EtcScreenState extends State<EtcScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => AlarmSettingScreen()),
+          MaterialPageRoute(builder: (context) => LeaveScreen()),
         );
       },
       child: Row(

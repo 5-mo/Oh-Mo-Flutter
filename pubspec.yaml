@@ -91,6 +91,7 @@ flutter:
     - android/assets/images/right.svg
     - android/assets/images/close.svg
     - android/assets/images/open.svg
+    - android/assets/images/dropdown.svg
 
   uses-material-design: true
   fonts:
