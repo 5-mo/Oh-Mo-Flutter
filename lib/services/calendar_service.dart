@@ -90,15 +90,20 @@ class CalendarService {
       final String? token = prefs.getString('accessToken');
 
       if (token == null) {
-        print("토큰이 없어 검색을 진행할 수 없습니다.");
+        print("[검색 실패] 토큰이 없습니다.");
         return [];
       }
+
+      final uri = Uri.parse('$baseUrl').replace(queryParameters: {'query': query});
+
       final response = await http.get(
-        Uri.parse('$baseUrl?query=$query'),
+        uri,
         headers: {
-          'Authorization':'Bearer $token',
-          "Accept": "application/json"},
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
+
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(utf8.decode(response.bodyBytes));
@@ -108,28 +113,42 @@ class CalendarService {
           final List<dynamic> todoList = result['todoList'] ?? [];
           final List<dynamic> routineList = result['routineList'] ?? [];
 
+          final Set<String> seenItems = {};
           List<Map<String, dynamic>> combinedResults = [];
 
+          void addIfUnique(dynamic item, String type) {
+            final dynamic scheduleId = item['scheduleId'];
+            final String content = item['content'] ?? '제목 없음';
+            final String date = item['date'] ?? '';
+            final String uniqueKey = scheduleId?.toString() ?? '$content-$date';
+
+            if (!seenItems.contains(uniqueKey)) {
+              seenItems.add(uniqueKey);
+              combinedResults.add({
+                'scheduleId': scheduleId,
+                'content': content,
+                'date': DateTime.parse(date),
+                'type': type,
+              });
+            }
+          }
+
           for (var item in todoList) {
-            combinedResults.add({
-              'content': item['content'],
-              'date': DateTime.parse(item['date']),
-              'type': 'TODO',
-            });
+            addIfUnique(item, 'TODO');
           }
+
           for (var item in routineList) {
-            combinedResults.add({
-              'content': item['content'],
-              'date': DateTime.parse(item['date']),
-              'type': 'ROUTINE',
-            });
+            addIfUnique(item, 'ROUTINE');
           }
+
           return combinedResults;
         }
+      } else {
+        print("[서버 에러] 상태코드: ${response.statusCode}");
       }
       return [];
     } catch (e) {
-      print("ScheduleService 에러 : $e");
+      print("[에러 발생] ScheduleService: $e");
       return [];
     }
   }
