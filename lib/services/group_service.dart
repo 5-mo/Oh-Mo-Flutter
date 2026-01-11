@@ -147,4 +147,54 @@ class GroupService {
       return false;
     }
   }
+
+  Future<bool> createGroupTodo({
+    required int groupId,
+    required String content,
+    required String date,
+    String? time,
+    String? alarmTime,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/todo');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('accessToken');
+
+      final Map<String, dynamic> body = {
+        "groupId": groupId,
+        "content": content,
+        "date": date,
+        "time": (time == null || time.isEmpty) ? "00:00" : time,
+        "routineWeek": [],
+      };
+
+      if (alarmTime != null && alarmTime.trim().isNotEmpty) {
+        body['alarmTime'] = alarmTime;
+      }
+      print("[투두 전송 최종 JSON]:${jsonEncode(body)}");
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (response.body.isEmpty) return true;
+        final decodedDate = json.decode(utf8.decode(response.bodyBytes));
+        return decodedDate['isSuccess'] == true;
+      } else {
+        print("[투두 서버 에러] : ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("[createGroupTodo 에러]:$e");
+      return false;
+    }
+  }
 }

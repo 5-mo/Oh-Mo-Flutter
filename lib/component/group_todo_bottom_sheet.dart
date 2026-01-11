@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart' as drift;
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart' ;
+import 'package:flutter/material.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
+import 'package:ohmo/services/group_service.dart';
 import '../models/category_item.dart';
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:intl/intl.dart';
@@ -81,6 +82,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   DateTime? selectedEndDate;
   TimeOfDay? selectedTime;
   bool isChecked = false;
+  final GroupService _groupService = GroupService();
 
   @override
   void initState() {
@@ -321,49 +323,60 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
           return;
         }
 
-        final mentionRegex = RegExp(r'@');
         String finalContent = originalContent;
 
-        if (!mentionRegex.hasMatch(originalContent)) {
-          finalContent = '$originalContent @모두';
-        }
-
         try {
-          final db = LocalDatabaseSingleton.instance;
+          final formattedDate = DateFormat(
+            'yyyy-MM-dd',
+          ).format(widget.selectedDate);
 
-          final int newTodoId = await db.insertTodo(
-            TodosCompanion.insert(
-              groupId: drift.Value(widget.groupId),
-              content: finalContent,
-              date: widget.selectedDate,
-            ),
+          final bool isSuccess = await _groupService.createGroupTodo(
+            groupId: widget.groupId ?? 0,
+            content: finalContent,
+            date: formattedDate,
           );
-          if (finalContent.contains('(나)') || finalContent.contains('@모두')) {
-            final group = await db.getGroupById(widget.groupId ?? 0);
-            final groupName = group?.name ?? "ohmo";
-            final todoDateStr = DateFormat('MM/dd').format(widget.selectedDate);
 
-            String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
-            String line2 = "[To-do] $finalContent ( ~$todoDateStr까지)";
-            final String multiLineContent = "$line1\n$line2";
+          if (isSuccess) {
+            final db = LocalDatabaseSingleton.instance;
 
-            await db.insertNotification(
-              NotificationsCompanion(
-                type: drift.Value('group'),
-                content: drift.Value(multiLineContent),
-                timestamp: drift.Value(DateTime.now()),
-                relatedId: drift.Value(newTodoId),
-                isRead: drift.Value(true),
+            final int newTodoId = await db.insertTodo(
+              TodosCompanion.insert(
+                groupId: drift.Value(widget.groupId),
+                content: finalContent,
+                date: widget.selectedDate,
               ),
             );
-          }
-          widget.onTodoAdded?.call();
+            if (finalContent.contains('(나)') || finalContent.contains('@모두')) {
+              final group = await db.getGroupById(widget.groupId ?? 0);
+              final groupName = group?.name ?? "ohmo";
+              final todoDateStr = DateFormat(
+                'MM/dd',
+              ).format(widget.selectedDate);
 
-          if (mounted) {
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text("투두가 등록되었습니다!")));
+              String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
+              String line2 = "[To-do] $finalContent ( ~$todoDateStr까지)";
+              final String multiLineContent = "$line1\n$line2";
+
+              await db.insertNotification(
+                NotificationsCompanion(
+                  type: drift.Value('group'),
+                  content: drift.Value(multiLineContent),
+                  timestamp: drift.Value(DateTime.now()),
+                  relatedId: drift.Value(newTodoId),
+                  isRead: drift.Value(true),
+                ),
+              );
+            }
+            widget.onTodoAdded?.call();
+
+            if (mounted) {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("투두가 등록되었습니다!")));
+            }
+          } else {
+            throw Exception("서버 투두 등록 실패");
           }
         } catch (e) {
           print('투두 저장 실패: $e');
