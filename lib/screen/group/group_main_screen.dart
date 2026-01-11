@@ -16,6 +16,8 @@ import '../../component/routine_banner.dart';
 import '../../component/todo_banner.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../services/group_service.dart';
+
 class CalendarEvent {
   final int id;
   final String content;
@@ -47,6 +49,7 @@ class GroupMainScreen extends StatefulWidget {
 }
 
 class _GroupMainScreenState extends State<GroupMainScreen> {
+  final GroupService _groupService = GroupService();
   DateTime selectedDate = DateTime.now();
   late final LocalDatabase _db;
   Set<int> _completedRoutineIds = {};
@@ -153,7 +156,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Future<void> _fetchGroupData(DateTime date) async {
-    final group = await _db.getGroupById(widget.groupId);
+    final group = await _groupService.getGroupDetail(widget.groupId);
     if (group == null) {
       if (mounted) {
         Navigator.pop(context, true);
@@ -186,8 +189,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     if (mounted) {
       setState(() {
         if (group != null) {
-          _currentColor = ColorType.values[group.colorType];
-          _groupName = group.name;
+          _currentColor = ColorTypeExtension.fromString(
+            group['groupColor'] ?? 'pinkLight',
+          );
+          _groupName = group['groupName'] ?? '이름 없음';
         }
         _completedRoutineIds = routineIds.toSet();
         _completedTodoIds = todoIds.toSet();

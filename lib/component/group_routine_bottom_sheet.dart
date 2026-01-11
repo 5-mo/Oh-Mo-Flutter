@@ -4,6 +4,8 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import '../models/category_item.dart';
 import 'package:extended_text_field/extended_text_field.dart';
+import 'package:intl/intl.dart' as intl;
+import 'package:ohmo/services/group_service.dart';
 
 class MentionTextSpanBuilder extends SpecialTextSpanBuilder {
   @override
@@ -82,6 +84,8 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   DateTime? selectedEndDate;
   TimeOfDay? selectedTime;
   bool isChecked = false;
+
+  final GroupService _groupService=GroupService();
 
   @override
   void initState() {
@@ -196,6 +200,19 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     };
     final weekNumbers = selectedDays.map((d) => dayMap[d]!.toString()).toList();
     return weekNumbers;
+  }
+
+  List<String> convertToEnglishWeek(List<String> selectedDays){
+    const Map<String,String>dayMap={
+      "월":"MONDAY",
+      "화":"TUESDAY",
+      "수":"WEDNESDAY",
+      "목":"THURSDAY",
+      "금":"FRIDAY",
+      "토":"SATURDAY",
+      "일":"SUNDAY",
+    };
+    return selectedDays.map((d)=>dayMap[d]!).toList();
   }
 
   @override
@@ -394,7 +411,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       onTap: () async {
         final String content = contentController.text;
 
-        if (contentController.text.isEmpty || selectedDays.isEmpty) {
+        if (content.isEmpty || selectedDays.isEmpty) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")));
@@ -402,54 +419,70 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
         }
 
         try {
-          final db = LocalDatabaseSingleton.instance;
-          final weekString = getRoutineWeek().join(',');
+          final englishWeek = convertToEnglishWeek(selectedDays);
+          final formattedDate = intl.DateFormat('yyyy-MM-dd').format(
+              widget.selectedDate);
 
-          final int newRoutineId = await db.insertRoutine(
-            RoutinesCompanion.insert(
-              groupId: drift.Value(widget.groupId),
-              content: contentController.text,
-              weekDays: drift.Value(weekString),
-              startDate: drift.Value(widget.selectedDate),
-              endDate: drift.Value(DateTime(9999, 12, 31)),
-              timeMinutes: const drift.Value(0),
-              categoryId: const drift.Value(1),
-              colorType: const drift.Value(0),
-              isDone: const drift.Value(false),
-            ),
+          final bool isSuccess = await _groupService.createGroupRoutine(
+            groupId: widget.groupId ?? 0,
+            content: content,
+            routineWeek: englishWeek,
+            date: formattedDate,
           );
 
-          if (content.contains('(나)') || content.contains('@모두')) {
-            final group = await db.getGroupById(widget.groupId ?? 0);
-            final groupName = group?.name ?? "현재 그룹";
-            final days = selectedDays.join(',');
+          if (isSuccess) {
+            final db = LocalDatabaseSingleton.instance;
+            final weekString = getRoutineWeek().join(',');
 
-            String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
-            String line2 = "[Routine] $content (매주 $days)";
-            final String multiLineContent = "$line1\n$line2";
-
-            await db.insertNotification(
-              NotificationsCompanion(
-                type: drift.Value('group'),
-                content: drift.Value(multiLineContent),
-                timestamp: drift.Value(DateTime.now()),
-                relatedId: drift.Value(newRoutineId),
-                isRead: drift.Value(true),
+            final int newRoutineId = await db.insertRoutine(
+              RoutinesCompanion.insert(
+                groupId: drift.Value(widget.groupId),
+                content: contentController.text,
+                weekDays: drift.Value(weekString),
+                startDate: drift.Value(widget.selectedDate),
+                endDate: drift.Value(DateTime(9999, 12, 31)),
+                timeMinutes: const drift.Value(0),
+                categoryId: const drift.Value(1),
+                colorType: const drift.Value(0),
+                isDone: const drift.Value(false),
               ),
             );
-          }
 
-          if (widget.onRoutineAdded != null) {
-            await widget.onRoutineAdded!();
-          }
+            if (content.contains('(나)') || content.contains('@모두')) {
+              final group = await db.getGroupById(widget.groupId ?? 0);
+              final groupName = group?.name ?? "현재 그룹";
+              final days = selectedDays.join(',');
 
-          if (mounted) {
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text("루틴이 등록되었습니다!")));
+              String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
+              String line2 = "[Routine] $content (매주 $days)";
+              final String multiLineContent = "$line1\n$line2";
+
+              await db.insertNotification(
+                NotificationsCompanion(
+                  type: drift.Value('group'),
+                  content: drift.Value(multiLineContent),
+                  timestamp: drift.Value(DateTime.now()),
+                  relatedId: drift.Value(newRoutineId),
+                  isRead: drift.Value(true),
+                ),
+              );
+            }
+
+            if (widget.onRoutineAdded != null) {
+              await widget.onRoutineAdded!();
+            }
+
+            if (mounted) {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("루틴이 등록되었습니다!")));
+            }
+          } else {
+            throw Exception("서버 등록 실패"
+            );
           }
-        } catch (e) {
+        }catch (e) {
           print('루틴 저장 실패: $e');
           if (mounted) {
             ScaffoldMessenger.of(
@@ -481,7 +514,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
 
   void _loadCategories() async {
     try {
-      final localDb = LocalDatabase();
+      final localDb = LocalDatabaseSingleton.instance;
       final categoryRepo = LocalCategoryRepository(localDb);
 
       final loadedRoutines = await categoryRepo.fetchCategories(

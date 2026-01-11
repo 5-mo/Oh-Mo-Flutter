@@ -10,6 +10,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:ohmo/screen/group/group_main_screen.dart';
+import 'package:ohmo/services/group_service.dart';
 import '../component/color_palette_bottom_sheet.dart';
 import '../component/group_settings_bottom_sheet.dart';
 import '../customize_category.dart';
@@ -60,10 +61,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   late LocalCategoryRepository _repository;
   late LocalDatabase _db;
-  List<Group> _groups = [];
 
   final uuid = Uuid();
   final CategoryService _categoryService = CategoryService();
+  final GroupService _groupService=GroupService();
+  List<dynamic> _groups = [];
 
   @override
   void initState() {
@@ -133,7 +135,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       }
     }
 
-    final fetchedGroups = await _db.getGroupsForUser(currentUserId);
+    final fetchedGroups = await _groupService.fetchGroups();
 
     final isRoutineVisible = await RoutineVisibilityHelper.getVisibility();
     final isTodoVisible = await TodoVisibilityHelper.getVisibility();
@@ -1062,16 +1064,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Widget _buildGroupSection({required Group group}) {
+  Widget _buildGroupSection({required dynamic group}) {
+    final String name=group['groupName'] ?? '이름 없음';
+    final int groupId=group['groupId'] ??0;
+    final colorTypeString=group['groupColor'] ?? 'pinkLight';
     final Color color = ColorManager.getColor(
-      ColorType.values[group.colorType],
+      ColorTypeExtension.fromString(colorTypeString),
     );
     return InkWell(
       onTap: () async {
+        print("🚀 그룹 카드 클릭됨! 이동할 ID: $groupId");
+        if (groupId == null) {
+          print("⚠️ 에러: groupId가 비어있습니다.");
+          return;
+        }
         final bool? needsRefresh = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (context) => GroupMainScreen(groupId: group.id),
+            builder: (context) => GroupMainScreen(groupId: groupId),
           ),
         );
         if (needsRefresh == true) {
@@ -1113,7 +1123,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     ],
                   ),
                   child: Text(
-                    group.name.replaceAll(' ', '\n'),
+                   name.replaceAll(' ', '\n'),
                     style: TextStyle(
                       fontFamily: 'PretendardMedium',
                       fontSize: 12,
@@ -1139,7 +1149,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             ),
                             builder: (BuildContext bContext) {
                               return GroupSettingsBottomSheet(
-                                groupId: group.id,
+                                groupId: groupId,
                               );
                             },
                           );
@@ -1428,7 +1438,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
           ],
         ),
-        // [추가] 복구 액션 (왼쪽 스와이프)
         startActionPane: ActionPane(
           motion: const DrawerMotion(),
           extentRatio: 0.25,
