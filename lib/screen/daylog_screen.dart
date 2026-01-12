@@ -88,10 +88,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
   }
 
+  Future<Map<int, double>>? _monthlyProgressFuture;
+
   @override
   void initState() {
     super.initState();
-
+    _monthlyProgressFuture = _calculateMonthlyProgress();
     _focusedDay = widget.selectedDateNotifier.value;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -250,8 +252,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
           final isCompleted = todo.isDone;
           final isOnSelectedDay =
               todo.Date.year == _focusedDay.year &&
-              todo.Date.month == _focusedDay.month &&
-              todo.Date.day == _focusedDay.day;
+                  todo.Date.month == _focusedDay.month &&
+                  todo.Date.day == _focusedDay.day;
           return isCompleted && isOnSelectedDay;
         }).toList();
   }
@@ -317,6 +319,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Future<void> _updateFocusedDay(DateTime newDate) async {
     setState(() {
       _focusedDay = newDate;
+      _monthlyProgressFuture = _calculateMonthlyProgress();
+
       if (widget.selectedDateNotifier.value != newDate) {
         widget.selectedDateNotifier.value = newDate;
       }
@@ -342,9 +346,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
       final dailyRoutines = await fetchRoutines(currentDate);
 
       final scheduledForThisWeek =
-          dailyRoutines.where((r) {
-            return r.daysOfWeek.contains(currentDate.weekday);
-          }).toList();
+      dailyRoutines.where((r) {
+        return r.daysOfWeek.contains(currentDate.weekday);
+      }).toList();
 
       fetchedWeeklyRoutines.addAll(scheduledForThisWeek);
     }
@@ -443,13 +447,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
       return weekDaysStr
           .split(',')
           .map((e) {
-            final trimmed = e.trim();
-            final asInt = int.tryParse(trimmed);
-            if (asInt != null) {
-              return asInt;
-            }
-            return dayMap[trimmed.toUpperCase()] ?? 0;
-          })
+        final trimmed = e.trim();
+        final asInt = int.tryParse(trimmed);
+        if (asInt != null) {
+          return asInt;
+        }
+        return dayMap[trimmed.toUpperCase()] ?? 0;
+      })
           .where((e) => e != 0)
           .toList();
     } catch (e) {
@@ -688,15 +692,15 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     final Set<String> todayVisibleNames =
-        weeklyRoutines
-            .where((r) => isRoutineVisibleOnDate(r, _focusedDay))
-            .map((r) => r.content)
-            .toSet();
+    weeklyRoutines
+        .where((r) => isRoutineVisibleOnDate(r, _focusedDay))
+        .map((r) => r.content)
+        .toSet();
 
     final todaysRoutineEntries =
-        groupedRoutines.entries
-            .where((entry) => todayVisibleNames.contains(entry.key))
-            .toList();
+    groupedRoutines.entries
+        .where((entry) => todayVisibleNames.contains(entry.key))
+        .toList();
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 33.0),
@@ -723,85 +727,89 @@ class _DaylogScreenState extends State<DaylogScreen> {
                 Container(width: 320, child: Divider(color: Colors.grey)),
               ],
             ),
-          ] else ...[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children:
-                  todaysRoutineEntries.map((entry) {
-                    final routineContent = entry.key;
-                    final routineInstances = entry.value;
+          ] else
+            ...[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children:
+                todaysRoutineEntries.map((entry) {
+                  final routineContent = entry.key;
+                  final routineInstances = entry.value;
 
-                    final totalCount = routineInstances.length;
-                    final completedCount =
-                        routineInstances.where((r) => r.isDone).length;
+                  final totalCount = routineInstances.length;
+                  final completedCount =
+                      routineInstances
+                          .where((r) => r.isDone)
+                          .length;
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            " • ",
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          " • ",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            routineContent,
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 16,
+                              fontFamily: 'PretendardRegular',
                             ),
                           ),
-                          SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              routineContent,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'PretendardRegular',
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 3),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(
-                              totalCount,
-                              (index) => Container(
-                                width: 20,
-                                height: 4,
-                                margin: EdgeInsets.symmetric(horizontal: 1),
-                                decoration: BoxDecoration(
-                                  color:
-                                      index < completedCount
-                                          ? Colors.black
-                                          : Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(5),
+                        ),
+                        SizedBox(width: 3),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(
+                            totalCount,
+                                (index) =>
+                                Container(
+                                  width: 20,
+                                  height: 4,
+                                  margin: EdgeInsets.symmetric(horizontal: 1),
+                                  decoration: BoxDecoration(
+                                    color:
+                                    index < completedCount
+                                        ? Colors.black
+                                        : Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
                                 ),
-                              ),
+                          ),
+                        ),
+                        SizedBox(width: 20.0),
+                        Container(
+                          width: 40,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            "$completedCount/$totalCount",
+                            style: TextStyle(
+                              fontFamily: 'RubikSprayPaint',
+                              fontSize: 14.0,
+                              color: Colors.black,
                             ),
                           ),
-                          SizedBox(width: 20.0),
-                          Container(
-                            width: 40,
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              "$completedCount/$totalCount",
-                              style: TextStyle(
-                                fontFamily: 'RubikSprayPaint',
-                                fontSize: 14.0,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-            ),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(width: 320, child: Divider(color: Colors.grey)),
-              ],
-            ),
-          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(width: 320, child: Divider(color: Colors.grey)),
+                ],
+              ),
+            ],
         ],
       ),
     );
@@ -881,44 +889,45 @@ class _DaylogScreenState extends State<DaylogScreen> {
             ),
             SizedBox(height: 16),
             Center(child: _buildTodoButton()),
-          ] else ...[
-            GridView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: filteredTodos.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16.0,
-                childAspectRatio: 6 / 1,
-              ),
-              itemBuilder: (context, index) {
-                final todo = filteredTodos[index];
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      " • ",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        todo.content,
+          ] else
+            ...[
+              GridView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: filteredTodos.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16.0,
+                  childAspectRatio: 6 / 1,
+                ),
+                itemBuilder: (context, index) {
+                  final todo = filteredTodos[index];
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        " • ",
                         style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'PretendardRegular',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
+                      SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          todo.content,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'PretendardRegular',
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -998,16 +1007,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     for (int day = 1; day <= daysInMonth; day++) {
       final todosForDay =
-          allTodosFromDb.where((todo) {
-            return todo.date.year == year &&
-                todo.date.month == month &&
-                todo.date.day == day;
-          }).toList();
+      allTodosFromDb.where((todo) {
+        return todo.date.year == year &&
+            todo.date.month == month &&
+            todo.date.day == day;
+      }).toList();
 
       if (todosForDay.isEmpty) {
         progressMap[day] = -1.0;
       } else {
-        final completedCount = todosForDay.where((todo) => todo.isDone).length;
+        final completedCount = todosForDay
+            .where((todo) => todo.isDone)
+            .length;
         final totalCount = todosForDay.length;
         final percentage = (completedCount / totalCount) * 100.0;
         progressMap[day] = percentage;
@@ -1031,10 +1042,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildProgressSection() {
+    if (_monthlyProgressFuture == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 40.0),
       child: FutureBuilder<Map<int, double>>(
-        future: _calculateMonthlyProgress(),
+        future: _monthlyProgressFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Container(
@@ -1048,7 +1062,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
           if (snapshot.hasData) {
             final progressMap = snapshot.data!;
             final bool hasTodosThisMonth = progressMap.values.any(
-              (progress) => progress >= 0,
+                  (progress) => progress >= 0,
             );
 
             return Stack(
@@ -1168,12 +1182,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildQuestionButtons() {
     final allQuestionStrings =
-        _dbQuestions.map((q) {
-          if (q.emoji.isNotEmpty) {
-            return '${q.emoji} ${q.question}';
-          }
-          return q.question;
-        }).toList();
+    _dbQuestions.map((q) {
+      if (q.emoji.isNotEmpty) {
+        return '${q.emoji} ${q.question}';
+      }
+      return q.question;
+    }).toList();
     return Align(
       alignment: Alignment.centerLeft,
 
@@ -1184,12 +1198,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
           clipBehavior: Clip.none,
           child: Row(
             children:
-                allQuestionStrings.map((questionText) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: _buildQuestionButton(questionText),
-                  );
-                }).toList(),
+            allQuestionStrings.map((questionText) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: _buildQuestionButton(questionText),
+              );
+            }).toList(),
           ),
         ),
       ),
@@ -1333,9 +1347,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
             ),
           ),
           onChanged: (value) {
-            setState(() {
-              diary = value;
-            });
+            diary = value;
           },
         ),
       ),
@@ -1356,7 +1368,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     final String? answerMapString =
-        _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
+    _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
 
     await database.upsertDayLog(
       db.DayLogsCompanion(
@@ -1391,7 +1403,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         try {
           final targetQuestion = _dbQuestions.firstWhere((q) {
             final fullKey =
-                q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
+            q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
             return fullKey == questionKey;
           });
 
@@ -1403,6 +1415,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
         } catch (e) {
           print('[저장 오류] 해당 질문의 ID를 찾을 수 없음: $questionKey');
         }
+        setState(() {
+          _monthlyProgressFuture = _calculateMonthlyProgress();
+        });
       }
     }
     await _loadDayLogData(_focusedDay);
