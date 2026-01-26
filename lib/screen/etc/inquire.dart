@@ -126,7 +126,7 @@ class _InquireScreenState extends State<InquireScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'support@example.com',
+                      'ohmo.help@gmail.com',
                       style: const TextStyle(
                         fontSize: 13,
                         fontFamily: 'PretendardRegular',

@@ -6,6 +6,7 @@ import 'package:ohmo/screen/profile_screen.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:ohmo/services/member_service.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/category_screen.dart';
@@ -35,6 +36,7 @@ class _MyScreenState extends State<MyScreen> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
   final CalendarService _scheduleService = CalendarService();
+  final MemberService _memberService = MemberService();
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -64,6 +66,7 @@ class _MyScreenState extends State<MyScreen> {
   void initState() {
     super.initState();
     _loadVisibilitySettings();
+    _loadUserInfo();
   }
 
   Future<void> _loadVisibilitySettings() async {
@@ -75,16 +78,38 @@ class _MyScreenState extends State<MyScreen> {
     }
   }
 
-  Future<void> _pickImage(BuildContext context) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      Provider.of<ProfileData>(
-        context,
-        listen: false,
-      ).updateProfile(updateImage: File(pickedFile.path));
+  Future<void> _goToProfileEdit(BuildContext context) async {
+    final profile = Provider.of<ProfileData>(context, listen: false);
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => ProfileScreen(
+              initialImage: profile.image,
+              initialNickname: profile.nickname,
+              initialEmail: profile.email,
+            ),
+      ),
+    );
+
+    if (result != null) {
+      profile.updateProfile(
+        updateImage: result['image'],
+        updateNickname: result['nickname'],
+        updateEmail: result['email'],
+      );
+    }
+  }
+
+  Future<void> _loadUserInfo() async {
+    final result = await _memberService.fetchUserInfo();
+
+    if (result != null) {
+      if (mounted) {
+        Provider.of<ProfileData>(context, listen: false).updateFromApi(result);
+      }
     } else {
-      print('이미지를 선택하지 않았습니다.');
+      print("사용자 정보를 불러오지 못했습니다.");
     }
   }
 
@@ -120,7 +145,7 @@ class _MyScreenState extends State<MyScreen> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => _pickImage(context),
+                          onTap: () => _goToProfileEdit(context),
                           child:
                               profile.image != null
                                   ? ClipOval(
@@ -129,6 +154,24 @@ class _MyScreenState extends State<MyScreen> {
                                       width: 84,
                                       height: 84,
                                       fit: BoxFit.cover,
+                                    ),
+                                  )
+                                  : (profile.imageUrl != null &&
+                                      profile.imageUrl!.isNotEmpty)
+                                  ? ClipOval(
+                                    child: Image.network(
+                                      profile.imageUrl!,
+                                      width: 84,
+                                      height: 84,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) => SvgPicture.asset(
+                                            'android/assets/images/myprofile.svg',
+                                          ),
                                     ),
                                   )
                                   : SvgPicture.asset(
@@ -148,15 +191,15 @@ class _MyScreenState extends State<MyScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildNotionButton(context),
-                        SizedBox(height: 20.0),
+                        //_buildNotionButton(context),
+                        //SizedBox(height: 20.0),
                         _buildCategoryManaging(context),
                         if (_isDiaryVisible) ...[
                           SizedBox(height: 15.0),
                           _buildDiaryCollection(context),
-                          SizedBox(height: 15.0),
-                          _buildEtc(context),
                         ],
+                        SizedBox(height: 15.0),
+                        _buildEtc(context),
                       ],
                     ),
                   ),

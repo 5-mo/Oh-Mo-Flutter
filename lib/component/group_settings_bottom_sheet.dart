@@ -11,8 +11,9 @@ import 'package:ohmo/db/drift_database.dart';
 
 class GroupSettingsBottomSheet extends StatefulWidget {
   final int groupId;
+  final String groupName;
 
-  const GroupSettingsBottomSheet({Key? key, required this.groupId})
+  const GroupSettingsBottomSheet({Key? key, required this.groupId,required this.groupName})
     : super(key: key);
 
   @override
@@ -150,7 +151,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   Widget _buildInvitingMember() {
     return GestureDetector(
       onTap: () async {
-        await showModalBottomSheet<int>(
+        final bool? result=await showModalBottomSheet<bool>(
           context: context,
           isScrollControlled: true,
           isDismissible: true,
@@ -162,7 +163,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             ),
           ),
           builder: (context) {
-            return InvitingIdBottomSheet(groupId: widget.groupId);
+            return InvitingIdBottomSheet(groupId: widget.groupId,groupName: widget.groupName,);
           },
         );
       },

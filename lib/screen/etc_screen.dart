@@ -4,7 +4,9 @@ import 'package:ohmo/screen/etc/alarm_setting.dart';
 import 'package:ohmo/screen/etc/community_guildeline.dart';
 import 'package:ohmo/screen/etc/opensource_license.dart';
 import 'package:ohmo/screen/etc/private_information.dart';
+import 'package:ohmo/screen/login/login_screen.dart';
 
+import '../services/auth_service.dart';
 import 'etc/bug.dart';
 import 'etc/faq.dart';
 import 'etc/inquire.dart';
@@ -70,9 +72,10 @@ class _EtcScreenState extends State<EtcScreen> {
                   _buildBug(context),
                   const SizedBox(height: 15.0),
                   _buildLeave(context),
+                  const SizedBox(height: 15.0),
+                  _buildLogout(context),
                   const SizedBox(height: 30.0),
-                  Center(child:
-                    _buildVersion()),
+                  Center(child: _buildVersion()),
                 ],
               ),
             ),
@@ -244,6 +247,7 @@ class _EtcScreenState extends State<EtcScreen> {
       ),
     );
   }
+
   Widget _buildInquire(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -269,6 +273,7 @@ class _EtcScreenState extends State<EtcScreen> {
       ),
     );
   }
+
   Widget _buildBug(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -294,6 +299,7 @@ class _EtcScreenState extends State<EtcScreen> {
       ),
     );
   }
+
   Widget _buildLeave(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -308,7 +314,11 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '회원 탈퇴',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular',color: Color(0xFFE7000B)),
+            style: TextStyle(
+              fontSize: 14,
+              fontFamily: 'PretendardRegular',
+              color: Color(0xFFE7000B),
+            ),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -320,11 +330,142 @@ class _EtcScreenState extends State<EtcScreen> {
     );
   }
 
+  Widget _buildLogout(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        _showLogoutDialog(context);
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '로그아웃',
+            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+          ),
+          SvgPicture.asset(
+            'android/assets/images/right.svg',
+            width: 16,
+            height: 16,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          backgroundColor: Colors.white,
+          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "로그아웃하시겠습니까?",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontFamily: 'PretendardBold',
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 20),
+              Text(
+                "로그아웃해도 이전 일정 기록들은\n삭제되지 않습니다.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'PretendardRegular',
+                  color: Colors.black,
+                ),
+              ),
+
+              SizedBox(height: 35),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      width: 120,
+                      height: 51,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(9),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          '취소',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontFamily: 'PretendardBold',
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      minimumSize: Size(120, 51),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      await AuthService.logout();
+
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    },
+                    child: const Text(
+                      "로그아웃",
+                      style: TextStyle(
+                        fontFamily: 'PretendardBold',
+                        fontSize: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildVersion() {
     return Text(
       '버전 1.0.0',
-      style: TextStyle(fontFamily: 'PretendardRegular', fontSize: 10.5,color: Color(0xFF6A7282)),
+      style: TextStyle(
+        fontFamily: 'PretendardRegular',
+        fontSize: 10.5,
+        color: Color(0xFF6A7282),
+      ),
     );
   }
 }

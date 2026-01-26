@@ -64,18 +64,14 @@ class GroupTodoBottomSheet extends StatefulWidget {
 }
 
 class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
-  final Map<String, String> _groupMembers = {
-    '모두': 'android/assets/images/clear_ohmo.png',
-    '재원(나)': 'android/assets/images/clear_ohmo.png',
-    '유진': 'android/assets/images/clear_ohmo.png',
-    '은지': 'android/assets/images/clear_ohmo.png',
-    '효진': 'android/assets/images/clear_ohmo.png',
-  };
+  late Map<String, String> _groupMembers = {};
   List<String> _filterMembers = [];
   bool _showMentionSuggestions = false;
   List<CategoryItem> todos = [];
   int? selectedCategoryId;
   double _mentionBoxOffsetx = 0.0;
+  Map<String, int> _memberIds = {};
+  Set<int> _selectedAssigneeIds = {};
 
   final TextEditingController contentController = TextEditingController();
   final FocusNode _contentFocusNode = FocusNode();
@@ -87,6 +83,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   @override
   void initState() {
     super.initState();
+    _loadMembers();
     contentController.addListener(_onTextChanged);
   }
 
@@ -169,9 +166,50 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
     }
     Future(() {
       setState(() {
+        if (name == '모두') {
+          _selectedAssigneeIds.addAll(_memberIds.values);
+        } else if (_memberIds.containsKey(name)) {
+          _selectedAssigneeIds.add(_memberIds[name]!);
+        }
         _showMentionSuggestions = false;
       });
     });
+  }
+
+  Future<void> _loadMembers() async {
+    if (widget.groupId == null) return;
+
+    final myEmail = await _groupService.getMyEmail();
+    final memberData = await _groupService.fetchGroupMembers(widget.groupId!);
+
+    if (memberData != null && mounted) {
+      final List<dynamic> memberList = memberData['memberDtoList'] ?? [];
+
+      Map<String, String> updatedMembers = {
+        '모두': 'android/assets/images/clear_ohmo.png',
+      };
+      Map<String, int> updatedIds = {};
+
+      for (var member in memberList) {
+        String baseName =
+            member['groupNickname'] ?? member['nickname'] ?? '이름 없음';
+        int memberGroupId = member['memberGroupId'] ??0;
+        String email = (member['email'] ?? '').toString().trim().toLowerCase();
+        String compareMyEmail = (myEmail ?? '').trim().toLowerCase();
+
+        String displayName =
+            (email == compareMyEmail) ? '$baseName(나)' : baseName;
+
+        updatedMembers[displayName] = 'android/assets/images/clear_ohmo.png';
+        updatedIds[displayName] = memberGroupId;
+      }
+
+      setState(() {
+        _groupMembers = updatedMembers;
+        _memberIds = updatedIds;
+        _filterMembers = _groupMembers.keys.toList();
+      });
+    }
   }
 
   @override
@@ -289,9 +327,13 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                       CircleAvatar(
                         radius: 9,
                         backgroundImage:
-                            imagePath != null ? AssetImage(imagePath) : null,
+                            (imagePath != null &&
+                                    imagePath.startsWith('android/assets'))
+                                ? AssetImage(imagePath)
+                                : null,
                         child:
-                            imagePath == null
+                            (imagePath == null ||
+                                    !imagePath.startsWith('android/assets'))
                                 ? Icon(Icons.person, size: 11)
                                 : null,
                       ),
@@ -326,20 +368,23 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
         String finalContent = originalContent;
 
         try {
-          final formattedDate = DateFormat(
-            'yyyy-MM-dd',
-          ).format(widget.selectedDate);
-
-          final bool isSuccess = await _groupService.createGroupTodo(
+          final int? newTodoId = await _groupService.createGroupTodo(
             groupId: widget.groupId ?? 0,
-            content: finalContent,
-            date: formattedDate,
+            content: originalContent,
+            date: DateFormat('yyyy-MM-dd').format(widget.selectedDate),
           );
 
-          if (isSuccess) {
+          if (newTodoId != null) {
+            if (_selectedAssigneeIds.isNotEmpty) {
+              await _groupService.registerAssigneeTodo(
+                todoId: newTodoId,
+                memberGroupIdList: _selectedAssigneeIds.toList(),
+              );
+            }
+
             final db = LocalDatabaseSingleton.instance;
 
-            final int newTodoId = await db.insertTodo(
+            await db.insertTodo(
               TodosCompanion.insert(
                 groupId: drift.Value(widget.groupId),
                 content: finalContent,

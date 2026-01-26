@@ -64,13 +64,8 @@ class GroupRoutineBottomSheet extends StatefulWidget {
 }
 
 class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
-  final Map<String, String> _groupMembers = {
-    '모두': 'android/assets/images/clear_ohmo.png',
-    '재원(나)': 'android/assets/images/clear_ohmo.png',
-    '유진': 'android/assets/images/clear_ohmo.png',
-    '은지': 'android/assets/images/clear_ohmo.png',
-    '효진': 'android/assets/images/clear_ohmo.png',
-  };
+  late Map<String, String> _groupMembers = {};
+  Map<String, int> _memberNameToId = {};
   List<String> _filterMembers = [];
   bool _showMentionSuggestions = false;
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -85,12 +80,13 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   TimeOfDay? selectedTime;
   bool isChecked = false;
 
-  final GroupService _groupService=GroupService();
+  final GroupService _groupService = GroupService();
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    _loadMembers();
     contentController.addListener(_onTextChanged);
   }
 
@@ -148,6 +144,40 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     });
   }
 
+  Future<void> _loadMembers() async {
+    if (widget.groupId == null) return;
+
+    final myEmail = await _groupService.getMyEmail();
+
+    final memberData = await _groupService.fetchGroupMembers(widget.groupId!);
+
+    if (memberData != null && mounted) {
+      final List<dynamic> memberList = memberData['memberDtoList'] ?? [];
+
+      Map<String, String> updatedMembers = {
+        '모두': 'android/assets/images/clear_ohmo.png',
+      };
+
+      Map<String, int> updatedIds = {};
+
+      for (var member in memberList) {
+        String baseName =
+            member['groupNickname'] ?? member['nickname'] ?? '이름 없음';
+        String email = member['email'] ?? '';
+        int assigneeId = member['assigneeId'] ?? 0;
+        String displayName = (email == myEmail) ? '$baseName(나)' : baseName;
+
+        updatedMembers[displayName] = 'android/assets/images/clear_ohmo.png';
+        updatedIds[displayName] = assigneeId;
+      }
+      setState(() {
+        _groupMembers = updatedMembers;
+        _memberNameToId = updatedIds;
+        _filterMembers = _groupMembers.keys.toList();
+      });
+    }
+  }
+
   void _onMemberSelected(String name) {
     final text = contentController.text;
     final cursorPos = contentController.selection.baseOffset;
@@ -202,17 +232,17 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     return weekNumbers;
   }
 
-  List<String> convertToEnglishWeek(List<String> selectedDays){
-    const Map<String,String>dayMap={
-      "월":"MONDAY",
-      "화":"TUESDAY",
-      "수":"WEDNESDAY",
-      "목":"THURSDAY",
-      "금":"FRIDAY",
-      "토":"SATURDAY",
-      "일":"SUNDAY",
+  List<String> convertToEnglishWeek(List<String> selectedDays) {
+    const Map<String, String> dayMap = {
+      "월": "MONDAY",
+      "화": "TUESDAY",
+      "수": "WEDNESDAY",
+      "목": "THURSDAY",
+      "금": "FRIDAY",
+      "토": "SATURDAY",
+      "일": "SUNDAY",
     };
-    return selectedDays.map((d)=>dayMap[d]!).toList();
+    return selectedDays.map((d) => dayMap[d]!).toList();
   }
 
   @override
@@ -384,9 +414,13 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                       CircleAvatar(
                         radius: 9,
                         backgroundImage:
-                            imagePath != null ? AssetImage(imagePath) : null,
+                            imagePath != null &&
+                                    imagePath.startsWith('android/assets')
+                                ? AssetImage(imagePath)
+                                : null,
                         child:
-                            imagePath == null
+                            imagePath == null ||
+                                    !imagePath.startsWith('android/assets')
                                 ? Icon(Icons.person, size: 11)
                                 : null,
                       ),
@@ -418,23 +452,41 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
           return;
         }
 
+        List<int> selectedAssigneeIds = [];
+        if (content.contains('@모두')) {
+          selectedAssigneeIds = _memberNameToId.values.toList();
+        } else {
+          _memberNameToId.forEach((name, id) {
+            if (content.contains('@$name')) {
+              selectedAssigneeIds.add(id);
+            }
+          });
+        }
+
         try {
           final englishWeek = convertToEnglishWeek(selectedDays);
-          final formattedDate = intl.DateFormat('yyyy-MM-dd').format(
-              widget.selectedDate);
+          final formattedDate = intl.DateFormat(
+            'yyyy-MM-dd',
+          ).format(widget.selectedDate);
 
-          final bool isSuccess = await _groupService.createGroupRoutine(
+          final int? serverRoutineId = await _groupService.createGroupRoutine(
             groupId: widget.groupId ?? 0,
             content: content,
             routineWeek: englishWeek,
             date: formattedDate,
           );
 
-          if (isSuccess) {
+          if (serverRoutineId != null) {
+            if (selectedAssigneeIds.isNotEmpty) {
+              await _groupService.registerAssigneeRoutine(
+                routineId: serverRoutineId,
+                memberGroupIdList: selectedAssigneeIds,
+              );
+            }
             final db = LocalDatabaseSingleton.instance;
             final weekString = getRoutineWeek().join(',');
 
-            final int newRoutineId = await db.insertRoutine(
+            final int localRoutineId = await db.insertRoutine(
               RoutinesCompanion.insert(
                 groupId: drift.Value(widget.groupId),
                 content: contentController.text,
@@ -462,7 +514,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                   type: drift.Value('group'),
                   content: drift.Value(multiLineContent),
                   timestamp: drift.Value(DateTime.now()),
-                  relatedId: drift.Value(newRoutineId),
+                  relatedId: drift.Value(localRoutineId),
                   isRead: drift.Value(true),
                 ),
               );
@@ -479,10 +531,9 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
               ).showSnackBar(const SnackBar(content: Text("루틴이 등록되었습니다!")));
             }
           } else {
-            throw Exception("서버 등록 실패"
-            );
+            throw Exception("서버 등록 실패");
           }
-        }catch (e) {
+        } catch (e) {
           print('루틴 저장 실패: $e');
           if (mounted) {
             ScaffoldMessenger.of(

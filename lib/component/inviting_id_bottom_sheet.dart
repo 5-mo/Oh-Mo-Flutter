@@ -6,10 +6,15 @@ import 'dart:async';
 
 class InvitingIdBottomSheet extends StatefulWidget {
   final int groupId;
+  final String groupName;
   final String title;
 
-  const InvitingIdBottomSheet({Key? key, required this.groupId,this.title="아이디로 초대하기"})
-    : super(key: key);
+  const InvitingIdBottomSheet({
+    Key? key,
+    required this.groupId,
+    required this.groupName,
+    this.title = "아이디로 초대하기",
+  }) : super(key: key);
 
   @override
   State<InvitingIdBottomSheet> createState() => _InvitingIdBottomSheetState();
@@ -88,94 +93,71 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
   }
 
   Widget _buildIdSection() {
-    return FutureBuilder<Group?>(
-      future: _groupFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-          return Text(
-            "그룹 정보를 불러오는 데 실패했습니다.",
-            style: TextStyle(color: Colors.red),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              height: 49,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(9),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 3,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          height: 49,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 3),
+            ],
+          ),
+          child: Row(
+            children: [
+              SizedBox(width: 15),
+              Expanded(
+                child: TextField(
+                  controller: _idController,
+                  autofocus: true,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontFamily: 'PretendardMedium',
+                    color: Colors.black,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  SizedBox(width: 15),
-                  Expanded(
-                    child: TextField(
-                      controller: _idController,
-                      autofocus: true,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontFamily: 'PretendardMedium',
-                        color: Colors.black,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "아이디를 입력하세요",
-                        hintStyle: TextStyle(
-                          fontSize: 15,
-                          fontFamily: 'PretendardMedium',
-                          color: Color(0xFFAFAFAF),
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.only(bottom: 2),
-                      ),
+                  decoration: InputDecoration(
+                    hintText: "아이디를 입력하세요",
+                    hintStyle: TextStyle(
+                      fontSize: 15,
+                      fontFamily: 'PretendardMedium',
+                      color: Color(0xFFAFAFAF),
                     ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.only(bottom: 2),
                   ),
-                  IconButton(
-                    icon: SvgPicture.asset(
-                      'android/assets/images/round_check.svg',
-                      height: 24,
-                      width: 24,
-                      colorFilter: ColorFilter.mode(
-                        _isIdValid ? Colors.black : Color(0xFFAFAFAF),
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    onPressed: () {
-                      if (_isIdValid) {
-                        final enteredId = _idController.text.trim();
-                        print('초대할 ID: $enteredId');
-
-                        if (mounted) {
-                          Navigator.pop(context);
-                        }
-                      } else {
-                        print('유효하지 않은 ID입니다.');
-                      }
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
-        );
-      },
+              IconButton(
+                icon: SvgPicture.asset(
+                  'android/assets/images/round_check.svg',
+                  height: 24,
+                  width: 24,
+                  colorFilter: ColorFilter.mode(
+                    _isIdValid ? Colors.black : Color(0xFFAFAFAF),
+                    BlendMode.srcIn,
+                  ),
+                ),
+                onPressed: () {
+                  if (_isIdValid) {
+                    final enteredId = _idController.text.trim();
+                    print('초대할 ID: $enteredId');
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  } else {
+                    print('유효하지 않은 ID입니다.');
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -191,8 +173,13 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
             ).showSnackBar(SnackBar(content: Text("아이디를 입력해주세요.")));
             return;
           }
-
-          Navigator.pop(context);
+          if (_isIdValid) {
+            Navigator.pop(context, true);
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("존재하지 않는 아이디입니다.")));
+          }
         },
         child: Container(
           width: 327,

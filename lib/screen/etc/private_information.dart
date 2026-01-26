@@ -171,10 +171,10 @@ class _PrivateInformationScreenState extends State<PrivateInformationScreen> {
                     content:
                     '회사는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 개인정보 처리와 관련한 이용자의 불만처리 및 피해구제 등을 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.\n\n'
                         '  • 개인정보 보호책임자\n\n'
-                        '      - 성명: [책임자명]\n\n'
-                        '      - 직책: [직책]\n\n'
-                        '      - 이메일: privacy@example.com\n\n'
-                        '      - 전화번호: 02-xxxx-xxxx',
+                        '      - 성명: 홍재원\n\n'
+                        '      - 직책: [PM]\n\n'
+                        '      - 이메일: ohmo.help@gmail.comm\n\n'
+                        '      - 전화번호: 010-7502-2458',
                 ),
                 _buildTermsSection(
                   title: '10. 개인정보 처리방침 변경',
@@ -186,7 +186,7 @@ class _PrivateInformationScreenState extends State<PrivateInformationScreen> {
                 SizedBox(height: 10),
                 Text(
                   textAlign: TextAlign.start,
-                  '시행일자 : 2025년 1월 1일',
+                  '시행일자 : 2026년 1월 21일',
                   style: TextStyle(
                     fontSize: 12,
                     fontFamily: 'PretendardRegular',

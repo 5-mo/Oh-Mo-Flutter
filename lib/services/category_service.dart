@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoryService {
-  static const String baseUrl = 'http://54.116.11.20:8080';
+  static const String baseUrl = 'http://52.79.75.26:8080';
 
   Future<int?> createCategory({
     required String categoryName,

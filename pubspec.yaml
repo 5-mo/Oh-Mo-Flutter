@@ -38,6 +38,7 @@ dependencies:
   flutter_timezone: ^5.0.1
   connectivity_plus: ^7.0.0
   url_launcher: 6.3.2
+  video_player: ^2.8.1
 
 dev_dependencies:
   flutter_test:
@@ -46,6 +47,15 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   drift_dev: ^2.28.1
   build_runner: 2.7.0
+  flutter_launcher_icons: ^0.13.1
+  dio: ^5.4.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "android/assets/images/ohmo_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "android/assets/images/ohmo_icon.png"
 
 flutter:
   assets:
@@ -92,6 +102,11 @@ flutter:
     - android/assets/images/close.svg
     - android/assets/images/open.svg
     - android/assets/images/dropdown.svg
+    - android/assets/omo.mp4
+    - android/assets/images/splash.png
+    - android/assets/images/cal_month_unselected.svg
+    - android/assets/images/cal_week_selected.svg
+    - android/assets/images/ohmo_icon.png
 
   uses-material-design: true
   fonts:

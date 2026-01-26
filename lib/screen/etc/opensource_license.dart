@@ -61,7 +61,7 @@ class _OpenSourceLicenseScreenState extends State<OpenSourceLicenseScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                
+
                 _buildLibraryItem(
                   'flutter_local_notifications',
                   '19.4.2',
@@ -110,6 +110,23 @@ class _OpenSourceLicenseScreenState extends State<OpenSourceLicenseScreen> {
                   'A wrapper around InheritedWidget for state management.',
                   'MIT License',
                   'https://pub.dev/packages/provider',
+                  isLast: false,
+                ),
+                _buildLibraryItem(
+                  'Rubik Spray Paint',
+                  'Regular',
+                  'A spray-paint inspired display font by Jakub Cajthaml.',
+                  'SIL Open Font License 1.1',
+                  'https://fonts.google.com/specimen/Rubik+Spray+Paint',
+                  isLast: false,
+                ),
+
+                _buildLibraryItem(
+                  'Pretendard JP/KR',
+                  '1.3.9',
+                  'A system-ui typeface for better readability. (Regular, Medium, SemiBold, Bold)',
+                  'SIL Open Font License 1.1',
+                  'https://github.com/orioncactus/pretendard',
                   isLast: true,
                 ),
                 const Padding(
@@ -141,6 +158,34 @@ Copyright (c) 2026 OhMo Team\n\nRedistribution and use in source and binary form
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.''',
                 ),
                 const SizedBox(height: 30),
+                _buildLicenseTextSection('SIL Open Font License 1.1', '''
+[Pretendard]
+Copyright (c) 2021, Kil Hyung-jin (https://github.com/orioncactus/pretendard)
+
+[Rubik Spray Paint]
+Copyright (c) 2015, Hubert & Fischer (https://github.com/googlefonts/rubik-spray-paint)
+
+-----------------------------------------------------------
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+-----------------------------------------------------------
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder.'''),
+                const SizedBox(height: 30),
 
                 _buildInternalNoticeBox(),
               ],
@@ -152,13 +197,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
     );
   }
 
-  Widget _buildLibraryItem(String name,
-      String version,
-      String desc,
-      String license,
-      String url, {
-        bool isLast = false,
-      }) {
+  Widget _buildLibraryItem(
+    String name,
+    String version,
+    String desc,
+    String license,
+    String url, {
+    bool isLast = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2.0),
       child: Column(
@@ -219,10 +265,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
                 onTap: () => _launchURL(url),
                 child: const Text(
                   '웹사이트 방문',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF2563EB),
-                  ),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF2563EB)),
                 ),
               ),
             ],

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:ohmo/screen/login/login_screen.dart';
+import 'package:ohmo/services/auth_service.dart';
 
 class FinalLeaveScreen extends StatefulWidget {
   const FinalLeaveScreen({super.key});
@@ -104,7 +106,7 @@ class _FinalLeaveScreenState extends State<FinalLeaveScreen> {
                 ),
                 const SizedBox(height: 15),
                 GestureDetector(
-                  onTap: isReadyToLeave ? () {} : null,
+                  onTap: isReadyToLeave ? _processWithdrawal : null,
                   child: Container(
                     width: double.infinity,
                     height: 45,
@@ -355,6 +357,40 @@ class _FinalLeaveScreenState extends State<FinalLeaveScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _processWithdrawal() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
+    );
+
+    bool isSuccess = await AuthService.withdraw();
+
+    if (!mounted) return;
+    Navigator.pop(context);
+
+    if (isSuccess) {
+      _showSnackBar('회원 탈퇴가 완료되었습니다.');
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        (route) => false,
+      );
+    } else {
+      _showSnackBar('탈퇴 처리에 실패했습니다. 다시 시도해주세요.');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 

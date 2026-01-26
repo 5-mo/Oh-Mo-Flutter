@@ -13,7 +13,8 @@ class DiaryCollectionScreen extends StatefulWidget {
 
   DiaryCollectionScreen({
     required this.selectedDateNotifier,
-    required this.onTabChange,});
+    required this.onTabChange,
+  });
 
   @override
   State<DiaryCollectionScreen> createState() => _DiaryCollectionScreenState();
@@ -34,45 +35,56 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
   }
 
   Future<void> _loadDiaryForDay(DateTime date) async {
-    final dateString=DateFormat('yyyy-MM-dd').format(date);
+    final dateString = DateFormat('yyyy-MM-dd').format(date);
 
     db.Emotion loadedEmotion = db.Emotion.none;
     String loadedDiary = '아직 작성된 일기가 없어요.\n오늘을 기록하러 가볼까요?';
 
-    final dayLog=await _database.getDayLog(date);
+    final dayLog = await _database.getDayLog(date);
     if (dayLog != null) {
       if (dayLog.emotion != null) {
-        loadedEmotion=_mapStringToEmotion(dayLog.emotion!);
+        loadedEmotion = _mapStringToEmotion(dayLog.emotion!);
       }
       if (dayLog.diary != null && dayLog.diary!.isNotEmpty) {
         loadedDiary = dayLog.diary!;
       }
     }
 
-    if(mounted){
+    if (mounted) {
       setState(() {
-        _currentEmotion=loadedEmotion;
-        _diaryText=loadedDiary;
+        _currentEmotion = loadedEmotion;
+        _diaryText = loadedDiary;
       });
     }
 
-    final serverDiary=await _dayLogService.getDiary(dateString);
+    final serverEmoji = await _dayLogService.getEmoji(dateString);
+    if (serverEmoji != null && mounted) {
+      setState(() {
+        _currentEmotion = _mapStringToEmotion(serverEmoji);
+      });
+    }
 
-    if(serverDiary!=null&& serverDiary['content']!=null){
-      if(mounted){
+    final serverDiary = await _dayLogService.getDiary(dateString);
+
+    if (serverDiary != null && serverDiary['content'] != null) {
+      if (mounted) {
         setState(() {
-          _diaryText=serverDiary['content'];
+          _diaryText = serverDiary['content'];
         });
       }
     }
   }
 
-  db.Emotion _mapStringToEmotion(String emotion){
-    switch(emotion){
-      case 'happy':return db.Emotion.happy;
-      case 'soso':return db.Emotion.soso;
-      case 'bad':return db.Emotion.bad;
-      default:return db.Emotion.none;
+  db.Emotion _mapStringToEmotion(String emotion) {
+    switch (emotion) {
+      case 'happy':
+        return db.Emotion.happy;
+      case 'soso':
+        return db.Emotion.soso;
+      case 'bad':
+        return db.Emotion.bad;
+      default:
+        return db.Emotion.none;
     }
   }
 
@@ -195,7 +207,9 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
         decoration: BoxDecoration(color: Colors.grey[100]),
         child: Column(
           mainAxisAlignment:
-          isPlaceholder ? MainAxisAlignment.center : MainAxisAlignment.start,
+              isPlaceholder
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
           children: [
             Text(
               _diaryText,
@@ -217,8 +231,8 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
 
   Widget _buildDiaryButton() {
     return GestureDetector(
-      onTap: (){
-         Navigator.push(
+      onTap: () async {
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder:

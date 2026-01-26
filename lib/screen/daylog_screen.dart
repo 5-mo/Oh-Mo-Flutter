@@ -314,6 +314,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
         _diaryController.text = serverDiary['content'];
       });
     }
+
+    final serverEmoji=await dayLogService.getEmoji(dateString);
+    if(serverEmoji!=null && mounted){
+      setState(() {
+        _setSelectedEmotion(serverEmoji);
+      });
+    }
   }
 
   Future<void> _updateFocusedDay(DateTime newDate) async {
@@ -1441,7 +1448,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         ),
         child: Center(
           child: Text(
-            '일기 저장하기',
+            '저장하기',
             style: TextStyle(
               fontSize: 20,
               fontFamily: 'PretendardBold',

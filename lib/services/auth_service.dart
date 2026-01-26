@@ -1,26 +1,47 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http_parser/http_parser.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://54.116.11.20:8080';
+  static const String baseUrl = 'http://52.79.75.26:8080';
 
   // 회원가입
-  static Future<String?> signup(String email,
-      String password,
-      String nickname,) async {
+  static Future<String?> signup(
+    String email,
+    String password,
+    String nickname,
+  ) async {
     final url = Uri.parse('$baseUrl/api/member/signup');
 
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-          'nickname': nickname,
-        }),
+      var request = http.MultipartRequest('POST', url);
+
+      var signupData = jsonEncode({
+        'email': email,
+        'password': password,
+        'nickname': nickname,
+      });
+
+      request.files.add(
+        http.MultipartFile.fromString(
+          'request',
+          signupData,
+          contentType: MediaType('application', 'json'),
+        ),
       );
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      print('상태 코드 : ${response.statusCode}');
+      print('응답 바디 : ${response.body}');
+
+      if (response.body.isEmpty) {
+        print('에러: 서버 응답 바디가 완전히 비어있습니다.');
+        return '서버에서 빈 응답을 보냈습니다. (상태 코드: ${response.statusCode})';
+      }
 
       final decodeBody = utf8.decode(response.bodyBytes);
       final data = jsonDecode(decodeBody);
@@ -40,8 +61,10 @@ class AuthService {
   }
 
   // 로그인
-  static Future<Map<String, dynamic>?> login(String email,
-      String password,) async {
+  static Future<Map<String, dynamic>?> login(
+    String email,
+    String password,
+  ) async {
     final url = Uri.parse('$baseUrl/api/member/login');
 
     try {
@@ -64,6 +87,10 @@ class AuthService {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('accessToken', accessToken);
           await prefs.setString('refreshToken', refreshToken);
+          await prefs.setString('userEmail', email);
+          if (result['nickname'] != null) {
+            await prefs.setString('userNickname', result['nickname']);
+          }
           return result;
         } else {
           print('로그인 실패 : accessToken이 없습니다');
@@ -89,52 +116,118 @@ class AuthService {
       return null;
     }
 
-    final url = Uri.parse('$baseUrl/api/member/refresh');
+    final url = Uri.parse('$baseUrl/api/member/reissue');
 
     try {
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'refreshToken': refreshToken,
-        }),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
       );
 
-      print('토큰 갱신 상태코드: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final decodeBody = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(decodeBody);
 
-      if (response.statusCode != 200) {
-        print('토큰 갱신 실패 (Status: ${response.statusCode})');
+        if (data['isSuccess'] == true) {
+          final tokenData = data['result']['token'];
+          final newAccessToken = tokenData['accessToken'];
+          final newRefreshToken = tokenData['refreshToken'];
+
+          await prefs.setString('accessToken', newAccessToken);
+
+          if (newRefreshToken != null) {
+            await prefs.setString('refreshToken', newRefreshToken);
+          }
+          print('토큰 재발급 성공!');
+          return newAccessToken;
+        } else {
+          print('재발급 로직 실패 : ${data['message']}');
+          return null;
+        }
+      } else {
+        print('토큰 갱신 실패(Status : ${response.statusCode})');
         return null;
       }
+    } catch (e) {
+      print('재발급 중 오류 발생 : $e');
+      return null;
+    }
+  }
 
-      if (response.body.isEmpty) {
-        print('토큰 갱신 실패: 응답 본문이 비어있습니다.');
-        return null;
-      }
+  //로그아웃
+  static Future<bool> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+    final url = Uri.parse('$baseUrl/api/member/logout');
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $accessToken',
+            },
+          )
+          .timeout(const Duration(seconds: 3));
 
       final decodeBody = utf8.decode(response.bodyBytes);
       final data = jsonDecode(decodeBody);
 
-      if (data['isSuccess'] == true) {
-        final newAccessToken = data['result']['accessToken'];
+      await prefs.remove('accessToken');
+      await prefs.remove('refreshToken');
+      await prefs.remove('userEmail');
+      await prefs.remove('userNickname');
 
-        await prefs.setString('accessToken', newAccessToken);
-
-        if (data['result']['refreshToken'] != null) {
-          await prefs.setString('refreshToken', data['result']['refreshToken']);
-        }
-
-        print('토큰 갱신 성공!');
-        return newAccessToken;
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        print('서버 로그아웃 성공');
+        return true;
       } else {
-        print('재발급 로직 실패: ${data['message']}');
-        return null;
+        print('서버 로그아웃 실패 : ${data['message']}');
+        return false;
       }
     } catch (e) {
-      print('재발급 중 오류 발생: $e');
-      return null;
+      print('로그아웃 중 오류 발생 : $e');
+      await prefs.remove('accessToken');
+      await prefs.remove('refreshToken');
+      return false;
+    }
+  }
+
+  static Future<bool> withdraw() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+    final url = Uri.parse('$baseUrl/api/member/withdraw');
+
+    try {
+      final response = await http
+          .delete(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $accessToken',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      final decodeBody = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decodeBody);
+
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        print('회원 탈퇴 성공');
+        await prefs.remove('accessToken');
+        await prefs.remove('refreshToken');
+        await prefs.remove('userEmail');
+        await prefs.remove('userNickname');
+        return true;
+      } else {
+        print('회원 탈퇴 실패 : ${data['message']}');
+        return false;
+      }
+    } catch (e) {
+      print('회원 탈퇴 중 오류 발생 : $e');
+      return false;
     }
   }
 }

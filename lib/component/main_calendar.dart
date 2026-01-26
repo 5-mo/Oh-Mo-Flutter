@@ -125,14 +125,18 @@ class _MainCalendarState extends State<MainCalendar> {
                   Transform.translate(
                     offset: widget.monthButtonOffset ?? const Offset(20, -10),
                     child: _buildFormatButton(
-                      'android/assets/images/cal_month.svg',
+                      _format == CalendarFormat.month
+                          ? 'android/assets/images/cal_month.svg'
+                          : 'android/assets/images/cal_month_unselected.svg',
                       CalendarFormat.month,
                     ),
                   ),
                   Transform.translate(
                     offset: widget.weekButtonOffset ?? const Offset(0, -10),
                     child: _buildFormatButton(
-                      'android/assets/images/cal_week.svg',
+                      _format == CalendarFormat.week
+                          ? 'android/assets/images/cal_week_selected.svg'
+                          : 'android/assets/images/cal_week.svg',
                       CalendarFormat.week,
                     ),
                   ),

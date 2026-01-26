@@ -219,7 +219,7 @@ class _CommunityGuidelineScreenState extends State<CommunityGuildelineScreen> {
                 SizedBox(height: 10),
                 Text(
                   textAlign: TextAlign.start,
-                  '시행일자 : 2025년 1월 1일',
+                  '시행일자 : 2026년 1월 21일',
                   style: TextStyle(
                     fontSize: 12,
                     fontFamily: 'PretendardRegular',

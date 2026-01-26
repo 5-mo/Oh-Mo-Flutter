@@ -10,7 +10,6 @@ class FaqScreen extends StatefulWidget {
 }
 
 class _FaqScreenState extends State<FaqScreen> {
-  // FAQ 데이터를 리스트화하여 관리하면 코드가 더 깔끔해집니다.
   final List<Map<String, String>> faqData = [
     {
       'question': '서비스는 무료인가요?',

@@ -5,6 +5,7 @@ class GroupPopup extends StatelessWidget {
   final String message;
   final String confirmButtonText;
   final Color? confirmButtonColor;
+  final bool showCancelButton;
 
   const GroupPopup({
     Key? key,
@@ -12,6 +13,7 @@ class GroupPopup extends StatelessWidget {
     required this.message,
     this.confirmButtonText = '확인',
     this.confirmButtonColor,
+    this.showCancelButton = true,
   }) : super(key: key);
 
   @override
@@ -36,8 +38,10 @@ class GroupPopup extends StatelessWidget {
           Column(
             children: [
               _buildConfirmButton(context),
-              SizedBox(height: 8),
-              _buildCancelButton(context),
+              const SizedBox(height: 8),
+              if (showCancelButton) ...[
+                _buildCancelButton(context),
+              ],
             ],
           ),
         ],

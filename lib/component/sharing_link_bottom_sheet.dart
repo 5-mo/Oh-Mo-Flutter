@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
+import 'package:ohmo/component/group_popup.dart';
 import 'package:share_plus/share_plus.dart';
 
 class SharingLinkBottomSheet extends StatelessWidget {
@@ -37,7 +38,7 @@ class SharingLinkBottomSheet extends StatelessWidget {
 
   Widget _buildSharingLink(BuildContext context) {
     final String inviteText =
-        "오모(ohmo) 그룹 초대장\n\n그룹명:$groupName\n초대코드 : $groupCode\n\n앱에서 코드를 입력해 입장하세요!";
+        "$groupName 그룹에 입장하세요!\n 입장 시 초대 코드를 복사하여 입력하세요.\n초대코드 : $groupCode";
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -47,7 +48,7 @@ class SharingLinkBottomSheet extends StatelessWidget {
             await Share.share(inviteText);
 
             if (context.mounted) {
-              Navigator.pop(context);
+              Navigator.pop(context, true);
             }
           },
           child: Container(

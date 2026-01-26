@@ -46,12 +46,12 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(height: 40),
               _buildLoginButton(),
               SizedBox(height: 100),
-              _buildGoogleLogin(),
+              /*_buildGoogleLogin(),
               SizedBox(height: 13),
               _buildNaverLogin(),
               SizedBox(height: 13),
               _buildKakaoLogin(),
-              SizedBox(height: 13),
+              SizedBox(height: 13),*/
 
             ],
           ),

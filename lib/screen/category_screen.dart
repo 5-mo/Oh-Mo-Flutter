@@ -64,7 +64,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   final uuid = Uuid();
   final CategoryService _categoryService = CategoryService();
-  final GroupService _groupService=GroupService();
+  final GroupService _groupService = GroupService();
   List<dynamic> _groups = [];
 
   @override
@@ -137,6 +137,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     final fetchedGroups = await _groupService.fetchGroups();
 
+    final List<Map<String, dynamic>> groupWithMembers = await Future.wait(
+      fetchedGroups.map((group) async {
+        final int groupId = group['groupId'];
+        final memberData = await _groupService.fetchGroupMembers(groupId);
+
+        return {
+          ...group,
+          'members': memberData != null ? memberData['memberDtoList'] : [],
+          'totalCount': memberData != null ? memberData['numPeople'] : 0,
+        };
+      }),
+    );
+
     final isRoutineVisible = await RoutineVisibilityHelper.getVisibility();
     final isTodoVisible = await TodoVisibilityHelper.getVisibility();
     final isDaylogVisible = await QuestionVisibilityHelper.getVisibility();
@@ -148,7 +161,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         routines = filteredRoutines;
         todos = filteredTodos;
         daylogQuestions = uniqueDaylogs;
-        _groups = fetchedGroups;
+        _groups = groupWithMembers;
         if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
 
         _isRoutineDeleted = !isRoutineVisible;
@@ -201,11 +214,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
               ),
               SizedBox(height: 10.0),
 
-              Padding(
+             /* Padding(
                 padding: const EdgeInsets.only(left: 31),
                 child: _buildGroupAccordion(),
               ),
               SizedBox(height: 60),
+
+              */
             ],
           ),
         ),
@@ -1065,17 +1080,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Widget _buildGroupSection({required dynamic group}) {
-    final String name=group['groupName'] ?? '이름 없음';
-    final int groupId=group['groupId'] ??0;
-    final colorTypeString=group['groupColor'] ?? 'pinkLight';
+    final String name = group['groupName'] ?? '이름 없음';
+    final int groupId = group['groupId'] ?? 0;
+    final colorTypeString = group['groupColor'] ?? 'pinkLight';
     final Color color = ColorManager.getColor(
       ColorTypeExtension.fromString(colorTypeString),
     );
+    final List<dynamic> members = group['members'] ?? [];
+    final int totalCount = group['totalCount'] ?? members.length;
     return InkWell(
       onTap: () async {
-        print("🚀 그룹 카드 클릭됨! 이동할 ID: $groupId");
         if (groupId == null) {
-          print("⚠️ 에러: groupId가 비어있습니다.");
+          print("에러: groupId가 비어있습니다.");
           return;
         }
         final bool? needsRefresh = await Navigator.push<bool>(
@@ -1123,7 +1139,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     ],
                   ),
                   child: Text(
-                   name.replaceAll(' ', '\n'),
+                    name.replaceAll(' ', '\n'),
                     style: TextStyle(
                       fontFamily: 'PretendardMedium',
                       fontSize: 12,
@@ -1150,6 +1166,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             builder: (BuildContext bContext) {
                               return GroupSettingsBottomSheet(
                                 groupId: groupId,
+                                groupName: name,
                               );
                             },
                           );
@@ -1173,41 +1190,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.8,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.5,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    1.0,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                    color,
-                  ),
-                  const SizedBox(width: 5),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                    color,
-                  ),
+                  ...members.take(6).map((member) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4.0),
+                      child: _buildMemberProfile(
+                        'android/assets/images/clear_ohmo.png',
+                        0.2,
+                        color,
+                      ),
+                    );
+                  }).toList(),
                 ],
               ),
             ),

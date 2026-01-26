@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:ohmo/component/group_popup.dart';
 import 'package:ohmo/component/sharing_link_bottom_sheet.dart';
 import '../../component/inviting_id_bottom_sheet.dart';
 import '../../const/colors.dart';
 import '../../services/group_service.dart';
-
+import '../category_screen.dart';
 
 class GroupAddMemberScreen extends StatefulWidget {
   final String roomName;
@@ -217,7 +218,7 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
     }
 
     try {
-      final int newGroupId = await _groupService.createGroup(
+      final Map<String,dynamic> groupResult = await _groupService.createGroup(
         groupName: widget.roomName,
         password: widget.password,
         groupColor: widget.selectedColor.name,
@@ -225,26 +226,52 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
         nickname: nickname,
       );
 
+      final int serverGroupId=groupResult['groupId'];
+      final String serverGroupCode=groupResult['groupCode'];
+
       if (!mounted) return;
 
-      showModalBottomSheet(
+      final bool? result = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(59),
-            topRight: Radius.circular(59),
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
           ),
         ),
-        builder: (_) {
-          if (isSharingLink) {
-            return SharingLinkBottomSheet(groupName: widget.roomName,groupCode: widget.password);
-          } else {
-            return InvitingIdBottomSheet(groupId: newGroupId);
-          }
-        },
+        builder:
+            (_) =>
+                isSharingLink
+                    ? SharingLinkBottomSheet(
+                      groupName: widget.roomName,
+                      groupCode: serverGroupCode,
+                    )
+                    : InvitingIdBottomSheet(groupId: serverGroupId,groupName: widget.roomName,),
       );
+
+      if (result == true && mounted) {
+        await Future.delayed(const Duration(milliseconds: 200));
+
+        final bool? isConfirmed = await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => const GroupPopup(
+                messageHeader: "멤버 초대하기",
+                message: "성공적으로 초대장이 발송되었습니다!",
+                confirmButtonText: "확인",
+                showCancelButton: false,
+              ),
+        );
+        if (isConfirmed == true && mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const CategoryScreen()),
+            (route) => false,
+          );
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

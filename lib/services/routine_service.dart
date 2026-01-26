@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/routine.dart';
 
 class RoutineService {
-  final String baseUrl = 'http://54.116.11.20:8080';
+  final String baseUrl = 'http://52.79.75.26:8080';
 
   Future<List<Routine>> getRoutines(DateTime date, String token) async {
     final formattedDate = date.toIso8601String().split('T').first;

@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DayLogService {
-  final String baseUrl = 'http://54.116.11.20:8080';
+  final String baseUrl = 'http://52.79.75.26:8080';
 
   Future<bool> registerEmoji({
     required String date,
@@ -40,6 +40,37 @@ class DayLogService {
     } catch (e) {
       print('[통신 오류]$e');
       return false;
+    }
+  }
+
+  Future<String?> getEmoji(String date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      if (token == null) return null;
+
+      final url = Uri.parse('$baseUrl/api/day-log/emoji?date=$date');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        if (jsonResponse['isSuccess'] == true &&
+            jsonResponse['result'] != null) {
+          return jsonResponse['result']['emoji'];
+        }
+      }
+      return null;
+    } catch (e) {
+      print('[DaylogService] 이모지 조회 오류 : $e');
+      return null;
     }
   }
 

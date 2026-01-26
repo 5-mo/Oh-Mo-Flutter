@@ -6,6 +6,8 @@ import 'package:ohmo/screen/password_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 
+import '../services/member_service.dart';
+
 class ProfileScreen extends StatefulWidget {
   final File? initialImage;
   final String? initialNickname;
@@ -25,7 +27,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _image;
   final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -33,17 +35,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final profile = Provider.of<ProfileData>(context, listen: false);
     _image = profile.image;
     _nicknameController.text = profile.nickname;
-    _emailController.text = profile.email;
   }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+
     setState(() {
       if (pickedFile != null) {
         _image = File(pickedFile.path);
-      } else {
-        print('이미지를 선택하지 않았습니다.');
+        print('압축된 이미지 경로: ${_image!.path}');
       }
     });
   }
@@ -70,14 +76,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         actions: <Widget>[
           TextButton(
-            onPressed: () {
-              Provider.of<ProfileData>(context, listen: false).updateProfile(
-                updateImage: _image,
-                updateNickname: _nicknameController.text,
-                updateEmail: _emailController.text,
-              );
-              Navigator.pop(context);
-            },
+            onPressed:
+                _isLoading
+                    ? null
+                    : () async {
+                      setState(() => _isLoading = true);
+                      String newNickname = _nicknameController.text;
+
+                      MemberService memberService = MemberService();
+                      bool isSuccess = true;
+
+                      isSuccess = await memberService.updateNickname(
+                        _nicknameController.text,
+                      );
+
+                      await Future.delayed(Duration(milliseconds: 500));
+
+                      if (isSuccess && _image != null) {
+                        isSuccess = await memberService.updateProfileImage(
+                          _image!,
+                        );
+                      }
+                      if (isSuccess) {
+                        Provider.of<ProfileData>(
+                          context,
+                          listen: false,
+                        ).updateProfile(
+                          updateImage: _image,
+                          updateNickname: newNickname,
+                        );
+
+                        Navigator.pop(context);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('닉네임 수정에 실패했습니다. 다시 시도해주세요.')),
+                        );
+                      }
+                      setState(() => _isLoading = false);
+                    },
             child: Text(
               '완료',
               style: TextStyle(
@@ -108,21 +144,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
             left: 150,
             child: GestureDetector(
               onTap: _pickImage,
-              child: Row(
-                children: [
-                  _image != null
-                      ? ClipOval(
-                        child: Image.file(
-                          _image!,
-                          width: 103,
-                          height: 103,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                      : SvgPicture.asset(
-                        'android/assets/images/profile_photo.svg',
+              child: Consumer<ProfileData>(
+                builder: (context, profile, child) {
+                  if (_image != null) {
+                    return ClipOval(
+                      child: Image.file(
+                        _image!,
+                        width: 103,
+                        height: 103,
+                        fit: BoxFit.cover,
                       ),
-                ],
+                    );
+                  } else if (profile.imageUrl != null &&
+                      profile.imageUrl!.isNotEmpty) {
+                    return ClipOval(
+                      child: Image.network(
+                        profile.imageUrl!,
+                        width: 103,
+                        height: 103,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (context, error, stackTrace) => SvgPicture.asset(
+                              'android/assets/images/profile_photo.svg',
+                            ),
+                      ),
+                    );
+                  } else {
+                    return SvgPicture.asset(
+                      'android/assets/images/profile_photo.svg',
+                    );
+                  }
+                },
               ),
             ),
           ),
@@ -133,7 +185,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               children: [
                 _buildNickname(context),
-                _buildEmail(context),
                 SizedBox(height: 20.0),
                 _buildPassword(context),
                 SizedBox(height: 20.0),
@@ -185,60 +236,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onPressed: () {
                           setState(() {
                             _nicknameController.clear();
-                          });
-                        },
-                      )
-                      : null,
-            ),
-            onChanged: (value) {
-              setState(() {});
-            },
-          ),
-        ),
-        SizedBox(height: 10.0),
-      ],
-    );
-  }
-
-  Widget _buildEmail(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '이메일',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16.0,
-            fontFamily: 'PretendardBold',
-          ),
-        ),
-
-        Container(
-          width: 320,
-          child: TextField(
-            controller: _emailController,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16.0,
-              fontFamily: 'PretendardRegular',
-            ),
-
-            decoration: InputDecoration(
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.white),
-              ),
-
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.white, width: 2.0),
-              ),
-
-              suffixIcon:
-                  _emailController.text.isNotEmpty
-                      ? IconButton(
-                        icon: Icon(Icons.cancel, color: Colors.grey, size: 14),
-                        onPressed: () {
-                          setState(() {
-                            _emailController.clear();
                           });
                         },
                       )

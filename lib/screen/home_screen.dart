@@ -779,13 +779,11 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
   }
 
   Future<void> _showTodoAlarmSheet(Todo todo) async {
-    // 1. DB에서 최신 투두 정보 가져오기
     final currentTodo = await db.LocalDatabaseSingleton.instance.getTodoById(
       todo.id,
     );
     if (currentTodo == null || !mounted) return;
 
-    // 2. 알람 설정 바텀시트 띄우기
     final result = await showModalBottomSheet<dynamic>(
       context: context,
       isScrollControlled: true,
@@ -805,7 +803,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
           ),
     );
 
-    // --- [A] 날짜 변경 처리 ---
     if (result != null && result is DateTime) {
       await db.LocalDatabaseSingleton.instance.updateTodoDate(
         currentTodo.id,
@@ -813,7 +810,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
       );
       widget.onDataChanged?.call();
     }
-    // --- [B] 알람 삭제 처리 ---
     else if (result != null && result == 0) {
       await db.LocalDatabaseSingleton.instance.updateTodo(
         db.TodosCompanion(id: Value(currentTodo.id), alarmMinutes: Value(null)),
@@ -826,7 +822,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
       }
       widget.onDataChanged?.call();
     }
-    // --- [C] 미리 알림 설정 처리 (int > 0) ---
     else if (result != null && result is int && result > 0) {
       final minutes = result;
 
@@ -839,7 +834,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
         return;
       }
 
-      // 3. ⭐ 정확한 알람 시각 계산 (날짜 + 시간 - 설정분)
       final DateTime baseDate = DateTime(
         currentTodo.date.year,
         currentTodo.date.month,
@@ -852,16 +846,12 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
         Duration(minutes: minutes),
       );
 
-      // 서버 전송용 포맷 (HH:mm:ss)
       final String alarmTimeStr = DateFormat(
         'HH:mm:ss',
       ).format(notificationTime);
 
       try {
         final todoService = TodoService();
-        print(
-          '📡 서버에 알람 시각 전송 요청: {scheduleId: ${currentTodo.scheduleId}, alarmTime: $alarmTimeStr}',
-        );
 
         final isServerSuccess = await todoService.updateAlarmTime(
           currentTodo.scheduleId!,
@@ -869,7 +859,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
         );
 
         if (isServerSuccess) {
-          // 4. 로컬 DB 업데이트
           await db.LocalDatabaseSingleton.instance.updateTodo(
             db.TodosCompanion(
               id: Value(currentTodo.id),
@@ -877,7 +866,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
             ),
           );
 
-          // 5. 이전 알림 취소 및 새 알림 예약
           await NotificationService().cancelNotification(currentTodo.id);
 
           if (notificationTime.isAfter(DateTime.now())) {
@@ -890,9 +878,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
               scheduledTime: notificationTime,
               payload: 'todo_${currentTodo.id}',
             );
-            print('🔔 로컬 알람 예약 성공: $notificationTime');
 
-            // 6. 알림함 DB 기록
             try {
               await (db.LocalDatabaseSingleton.instance.delete(
                 db.LocalDatabaseSingleton.instance.notifications,
@@ -913,7 +899,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                   );
             } catch (e) {}
           } else {
-            print('⚠️ 알람 시각이 이미 지났습니다. (과거 시점)');
+            print('알람 시각이 이미 지났습니다.');
           }
 
           if (mounted) {
@@ -923,10 +909,10 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
           }
           widget.onDataChanged?.call();
         } else {
-          print('❌ 서버 응답 실패');
+          print('서버 응답 실패');
         }
       } catch (e) {
-        print("🚨 오류: $e");
+        print("오류: $e");
       }
     }
   }
