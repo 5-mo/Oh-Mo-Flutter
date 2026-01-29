@@ -163,7 +163,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         colorType: ColorTypeExtension.fromString(item['category']?['color'] ?? 'pinkLight').index,
         isDone: isDone,
         scheduleType: 'TO_DO',
-        isSynced: true,
+        isSynced: true, isDeleted: true,
       ));
       if (isDone) tempCompletedTodoIds.add(id);
       tempTodoCounts[id] = isDone ? 1 : 0;
@@ -184,7 +184,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         colorType: ColorTypeExtension.fromString(item['category']?['color'] ?? 'pinkLight').index,
         isDone: isDone,
         scheduleType: 'ROUTINE',
-        isSynced: true,
+        isSynced: true, isDeleted: false,
       ));
       if (isDone) tempCompletedRoutineIds.add(id);
       tempRoutineCounts[id] = isDone ? 1 : 0;

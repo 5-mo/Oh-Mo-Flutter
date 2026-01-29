@@ -9,8 +9,10 @@ import 'package:ohmo/component/category_todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/group/group_main_screen.dart';
 import 'package:ohmo/services/group_service.dart';
+import 'package:provider/provider.dart';
 import '../component/color_palette_bottom_sheet.dart';
 import '../component/group_settings_bottom_sheet.dart';
 import '../customize_category.dart';
@@ -214,7 +216,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               ),
               SizedBox(height: 10.0),
 
-             /* Padding(
+              /* Padding(
                 padding: const EdgeInsets.only(left: 31),
                 child: _buildGroupAccordion(),
               ),
@@ -445,22 +447,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newRoutineController.text.trim();
                                     if (newText.isEmpty) return;
 
-                                    final int? serverId = await _categoryService
-                                        .createCategory(
-                                          categoryName: newText,
-                                          color:
-                                              _selectedColorType.name
-                                                  .toUpperCase(),
-                                          scheduleType: 'ROUTINE',
-                                        );
+                                    final profile = Provider.of<ProfileData>(
+                                      context,
+                                      listen: false,
+                                    );
 
-                                    if (serverId == null) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(content: Text("서버 저장 실패")),
-                                      );
-                                      return;
+                                    int? serverId;
+                                    bool isSynced = false;
+
+                                    if (!profile.isGuest) {
+                                      try {
+                                        serverId = await _categoryService
+                                            .createCategory(
+                                              categoryName: newText,
+                                              color:
+                                                  _selectedColorType.name
+                                                      .toUpperCase(),
+                                              scheduleType: 'ROUTINE',
+                                            );
+
+                                        if (serverId == null) isSynced = true;
+                                      } catch (e) {
+                                        print("서버 저장 실패 : $e");
+                                      }
                                     }
 
                                     final newItem = await _repository
@@ -468,6 +477,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                           name: newText,
                                           type: 'ROUTINE',
                                           color: _selectedColorType.name,
+                                          serverCategoryId: serverId,
+                                          isSynced: isSynced,
                                         );
                                     setState(() {
                                       routines.add(newItem);
@@ -696,22 +707,40 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newTodoController.text.trim();
                                     if (newText.isEmpty) return;
 
-                                    final int? serverId = await _categoryService
-                                        .createCategory(
-                                          categoryName: newText,
-                                          color:
-                                              _selectedColorType.name
-                                                  .toUpperCase(),
-                                          scheduleType: "TO_DO",
-                                        );
+                                    final profile = Provider.of<ProfileData>(
+                                      context,
+                                      listen: false,
+                                    );
+                                    int? serverId;
+                                    bool isSynced = false;
 
-                                    if (serverId == null) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(content: Text("서버 저장 실패")),
-                                      );
-                                      return;
+                                    if (!profile.isGuest) {
+                                      try {
+                                        serverId = await _categoryService
+                                            .createCategory(
+                                              categoryName: newText,
+                                              color:
+                                                  _selectedColorType.name
+                                                      .toUpperCase(),
+                                              scheduleType: "TO_DO",
+                                            );
+
+                                        if (serverId != null) {
+                                          isSynced = true;
+                                        } else {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                "서버 저장 실패. 오프라인으로 저장합니다.",
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        print("서버 에러: $e");
+                                      }
                                     }
 
                                     final newItem = await _repository
@@ -719,7 +748,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                           name: newText,
                                           type: 'TO_DO',
                                           color: _selectedColorType.name,
+                                          serverCategoryId: serverId,
+                                          isSynced: isSynced,
                                         );
+
                                     setState(() {
                                       todos.add(newItem);
                                       _isAddingNewTodo = false;
@@ -1029,38 +1061,57 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newQuestionController.text.trim();
                                     if (newText.isEmpty) return;
 
+                                    final profile = Provider.of<ProfileData>(
+                                      context,
+                                      listen: false,
+                                    );
                                     final dayLogService = DayLogService();
 
-                                    final bool isApiSuccess =
-                                        await dayLogService.registerQuestion(
-                                          questionContent: newText,
-                                          emoji: _newEmoji,
-                                        );
+                                    bool canSaveLocal = false;
 
-                                    if (!isApiSuccess) {
-                                      print("질문 서버 등록 실패");
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text("서버 저장에 실패했습니다."),
-                                        ),
-                                      );
-                                      return;
+                                    if (!profile.isGuest) {
+                                      final bool isApiSuccess =
+                                          await dayLogService.registerQuestion(
+                                            questionContent: newText,
+                                            emoji: _newEmoji,
+                                          );
+
+                                      if (isApiSuccess) {
+                                        canSaveLocal = true;
+                                      } else {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text("서버 저장에 실패했습니다."),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      canSaveLocal = true;
                                     }
 
-                                    final newItem = await _repository
-                                        .insertDayLogQuestion(
-                                          newText,
-                                          _newEmoji,
+                                    if (canSaveLocal) {
+                                      final newItem = await _repository
+                                          .insertDayLogQuestion(
+                                            newText,
+                                            _newEmoji,
+                                          );
+                                      if (mounted) {
+                                        setState(() {
+                                          daylogQuestions.add(newItem);
+                                          _isAddingNewQuestion = false;
+                                          _newQuestionController.clear();
+                                          _needsRefresh = true;
+                                        });
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text("질문이 추가되었습니다."),
+                                          ),
                                         );
-                                    if (mounted) {
-                                      setState(() {
-                                        daylogQuestions.add(newItem);
-                                        _isAddingNewQuestion = false;
-                                        _newQuestionController.clear();
-                                        _needsRefresh = true;
-                                      });
+                                      }
                                     }
                                   },
                                 ),

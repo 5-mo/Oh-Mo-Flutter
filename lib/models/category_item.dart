@@ -6,6 +6,7 @@ class CategoryItem {
   String categoryName;
   String colorType;
   String scheduleType;
+  final bool isSynced;
 
   CategoryItem({
     required this.id,
@@ -13,6 +14,7 @@ class CategoryItem {
     required this.categoryName,
     required this.colorType,
     required this.scheduleType,
+    this.isSynced = false,
   });
 }
 

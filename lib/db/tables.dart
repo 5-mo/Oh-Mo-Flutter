@@ -40,6 +40,8 @@ class Categories extends Table{
   TextColumn get type => text()();
   TextColumn get color => text()();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  IntColumn get serverId=>integer().nullable()();
+  BoolColumn get isSynced=>boolean().withDefault(const Constant(false))();
 }
 
 class DayLogQuestions extends Table {
@@ -63,6 +65,7 @@ class Routines extends Table {
   TextColumn get scheduleType => text().withDefault(const Constant('ROUTINE'))();
   IntColumn get categoryId => integer().nullable()();
   IntColumn get alarmMinutes => integer().nullable()();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
   BoolColumn get isSynced=>boolean().withDefault(const Constant(true))();
 }
 
@@ -79,6 +82,7 @@ class Todos extends Table {
   IntColumn get alarmMinutes => integer().nullable()();
   DateTimeColumn get date => dateTime()();
   IntColumn get todoServerId=>integer().nullable()();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
   BoolColumn get isSynced=>boolean().withDefault(const Constant(true))();
 }
 

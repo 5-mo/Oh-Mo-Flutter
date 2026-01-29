@@ -1,8 +1,11 @@
+
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/alarm_setting.dart';
+import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/services/notification_service.dart';
 import 'package:ohmo/services/routine_service.dart';
 import 'package:ohmo/services/todo_service.dart';
+import 'package:provider/provider.dart';
 import '../db/drift_database.dart' as db;
 import 'package:intl/intl.dart';
 import 'package:drift/drift.dart' as drift;
@@ -61,45 +64,38 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
         try {
           final database = db.LocalDatabaseSingleton.instance;
           final routineService = RoutineService();
+          final profile = Provider.of<ProfileData>(context, listen: false);
 
           final routine = await database.getRoutineById(widget.routineId);
           final int? serverRoutineId = routine?.routineId;
 
-          bool isServerSuccess = true;
+          if (profile.isGuest) {
+            await database.softDeleteRoutine(widget.routineId, profile.isGuest);
+          } else {
+            bool isServerSuccess = true;
+            if (serverRoutineId != null && serverRoutineId != 0) {
+              isServerSuccess = await routineService.deleteRoutine(serverRoutineId);
+            }
 
-          if (serverRoutineId != null && serverRoutineId != 0) {
-            isServerSuccess = await routineService.deleteRoutine(
-              serverRoutineId,
-            );
+            if (isServerSuccess) {
+              await database.deleteRoutine(widget.routineId);
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("서버 삭제에 실패했습니다. 다시 시도해주세요.")),
+                );
+              }
+              return;
+            }
           }
 
-          if (isServerSuccess) {
-            await database.deleteRoutine(widget.routineId);
-
-            if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text("루틴이 삭제되었습니다.")));
-            }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("루틴이 삭제되었습니다.")));
             widget.onDataChanged?.call();
-
-            if (mounted && Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("서버 삭제에 실패했습니. 다시 시도해주세요.")),
-              );
-            }
+            if (Navigator.canPop(context)) Navigator.pop(context);
           }
         } catch (e) {
           print('루틴 삭제 실패 : $e');
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('루틴 삭제에 실패했습니다.')));
-          }
         }
       },
       child: Container(
@@ -237,38 +233,29 @@ class _TodoAlarmState extends State<TodoAlarm> {
         try {
           final database = db.LocalDatabaseSingleton.instance;
           final todoService = TodoService();
+          final profile = Provider.of<ProfileData>(context, listen: false);
 
-          final todo = await database.getTodoById(widget.todoId);
-          final int? serverTodoId = todo?.todoServerId;
-
-          if (serverTodoId == null) {
-            await database.deleteTodo(widget.todoId);
+          if (profile.isGuest) {
+            await (database.update(database.todos)..where((t) => t.id.equals(widget.todoId))).write(
+                const db.TodosCompanion(isDeleted: drift.Value(true), isSynced: drift.Value(false))
+            );
           } else {
-            bool isServerSuccess = true;
+            final todo = await database.getTodoById(widget.todoId);
+            final int? serverTodoId = todo?.todoServerId;
+
             if (serverTodoId != null && serverTodoId != 0) {
-              isServerSuccess = await todoService.deleteTodo(serverTodoId);
+              bool isServerSuccess = await todoService.deleteTodo(serverTodoId);
+              if (!isServerSuccess) throw Exception("서버 삭제 실패");
             }
+            await database.deleteTodo(widget.todoId);
+          }
 
-            if (isServerSuccess) {
-              await database.deleteTodo(widget.todoId);
-              widget.onDataChanged?.call();
-
-              if (mounted) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("투두가 삭제되었습니다.")));
-              }
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("서버 삭제 실패")));
-              }
-            }
+          widget.onDataChanged?.call();
+          if (mounted) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("투두가 삭제되었습니다.")));
           }
         } catch (e) {
-          print('투두 삭제 catch 에러: $e');
         }
       },
       child: Container(
@@ -298,17 +285,21 @@ class _TodoAlarmState extends State<TodoAlarm> {
   Widget _buildSettingNextDay(DateTime currentTodoDate) {
     return GestureDetector(
       onTap: () async {
+        final profile = Provider.of<ProfileData>(context, listen: false);
         final nextDay = currentTodoDate.add(const Duration(days: 1));
         final nextDayString = DateFormat('yyyy-MM-dd').format(nextDay);
+        final database = db.LocalDatabaseSingleton.instance;
+
         try {
-          final todoService = TodoService();
-          final isSuccess = await todoService.updateTodoDate(
-            widget.todoId,
-            nextDayString,
-          );
+          var isSuccess = true;
+          if (!profile.isGuest) {
+            isSuccess = await TodoService().updateTodoDate(
+              widget.todoId,
+              nextDayString,
+            );
+          }
 
           if (isSuccess) {
-            final database = db.LocalDatabaseSingleton.instance;
             await database.updateTodoDate(widget.todoId, nextDay);
 
             widget.onDataChanged?.call();
@@ -319,17 +310,12 @@ class _TodoAlarmState extends State<TodoAlarm> {
                 context,
               ).showSnackBar(SnackBar(content: Text("날짜가 변경되었습니다.")));
             }
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text("날짜 변경에 실패했습니다.")));
-            }
           }
         } catch (e) {
           print("에러 발생:$e");
         }
       },
+
       child: Container(
         width: 318,
         height: 43,
@@ -362,6 +348,8 @@ class _TodoAlarmState extends State<TodoAlarm> {
     return GestureDetector(
       onTap: () async {
         final dbInstance = db.LocalDatabaseSingleton.instance;
+        final profile = Provider.of<ProfileData>(context, listen: false);
+
         final todo = await dbInstance.getTodoById(widget.todoId);
 
         if (todo == null || todo.timeMinutes == null) {
@@ -412,10 +400,16 @@ class _TodoAlarmState extends State<TodoAlarm> {
 
           try {
             final todoService = TodoService();
-            final isSuccess = await todoService.updateAlarmTime(
-              todo.scheduleId!,
-              alarmTimeStr,
-            );
+            var isSuccess = true;
+
+            if (!profile.isGuest) {
+              if (todo.scheduleId != null && todo.scheduleId != 0) {
+                isSuccess = await todoService.updateAlarmTime(
+                  todo.scheduleId!,
+                  alarmTimeStr,
+                );
+              }
+            }
 
             if (isSuccess) {
               await dbInstance.updateTodo(

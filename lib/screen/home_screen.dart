@@ -12,6 +12,7 @@ import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:ohmo/services/calendar_service.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'dart:convert';
@@ -20,6 +21,7 @@ import '../component/routine_bottom_sheet.dart';
 import '../const/colors.dart';
 import '../customize_category.dart';
 import '../db/drift_database.dart' as db;
+import '../models/profile_data_provider.dart';
 import '../models/routine.dart';
 import '../models/todo.dart';
 import '../services/category_service.dart';
@@ -148,6 +150,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         alarm: t.alarmMinutes != null,
       );
     }).toList();
+  }
+
+  int? _parseTimeToMinutes(String? timeStr) {
+    if (timeStr == null || !timeStr.contains(':')) return null;
+    try {
+      final parts = timeStr.split(':');
+      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  String _convertWeekDaysListToString(List<String> repeatWeek) {
+    final Map<String, int> dayMap = {
+      'MONDAY': 1,
+      'TUESDAY': 2,
+      'WEDNESDAY': 3,
+      'THURSDAY': 4,
+      'FRIDAY': 5,
+      'SATURDAY': 6,
+      'SUNDAY': 7,
+    };
+    final weekInts =
+        repeatWeek
+            .map((d) => dayMap[d.toUpperCase().trim()] ?? 0)
+            .where((i) => i != 0)
+            .toList()
+          ..sort();
+    return weekInts.join(',');
   }
 
   List<int> parseWeekDays(String? weekDaysStr) {
@@ -409,77 +440,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final database = db.LocalDatabaseSingleton.instance;
     final dateString = DateFormat('yyyy-MM-dd').format(date);
 
-    final serverTodoIds =
-        data.todoList
-            .where(
-              (t) => t.scheduleType.toUpperCase() == 'TO_DO' && t.todo != null,
-            )
-            .map((t) => t.scheduleId)
-            .toSet();
+    await database.transaction(() async {
+      final serverTodoIds =
+          data.todoList
+              .where(
+                (t) =>
+                    t.scheduleType.toUpperCase() == 'TO_DO' && t.todo != null,
+              )
+              .map((t) => t.scheduleId)
+              .toSet();
 
-    final serverRoutineUiIds =
-        data.routineList.map((r) => r.scheduleId).toSet();
-    final serverRoutineInstanceIds = <int>{};
+      final serverRoutineUiIds =
+          data.routineList.map((r) => r.scheduleId).toSet();
+      final serverRoutineInstanceIds = <int>{};
 
-    for (var item in data.routineList) {
-      if (item.routineByDateList.isNotEmpty) {
-        final match = item.routineByDateList.where((x) => x.date == dateString);
-        if (match.isNotEmpty) {
-          serverRoutineInstanceIds.add(match.first.routineId);
-        } else {
-          serverRoutineInstanceIds.add(item.routineByDateList.first.routineId);
+      for (var item in data.routineList) {
+        if (item.routineByDateList.isNotEmpty) {
+          final match = item.routineByDateList.where(
+            (x) => x.date == dateString,
+          );
+          if (match.isNotEmpty) {
+            serverRoutineInstanceIds.add(match.first.routineId);
+          } else {
+            serverRoutineInstanceIds.add(
+              item.routineByDateList.first.routineId,
+            );
+          }
         }
       }
-    }
-    final localTodos =
-        await (database.select(database.todos)..where(
-          (t) =>
-              t.date.year.equals(date.year) &
-              t.date.month.equals(date.month) &
-              t.date.day.equals(date.day),
-        )).get();
 
-    final localRoutines =
-        await (database.select(database.routines)..where(
-          (r) =>
-              r.startDate.isSmallerOrEqualValue(date) &
-              r.endDate.isBiggerOrEqualValue(date),
-        )).get();
+      final localTodos =
+          await (database.select(database.todos)..where(
+            (t) =>
+                t.date.year.equals(date.year) &
+                t.date.month.equals(date.month) &
+                t.date.day.equals(date.day),
+          )).get();
 
-    for (final local in localTodos) {
-      if (!serverTodoIds.contains(local.id)) {
-        await (database.delete(database.todos)
-          ..where((t) => t.id.equals(local.id))).go();
+      final localRoutines =
+          await (database.select(database.routines)..where(
+            (r) =>
+                r.startDate.isSmallerOrEqualValue(date) &
+                r.endDate.isBiggerOrEqualValue(date),
+          )).get();
+
+      for (final local in localTodos) {
+        if (local.isSynced && !serverTodoIds.contains(local.id)) {
+          await (database.delete(database.todos)
+            ..where((t) => t.id.equals(local.id))).go();
+        }
       }
-    }
 
-    for (final local in localRoutines) {
-      final isMatchedByUiId = serverRoutineUiIds.contains(local.id);
-      final isMatchedByInstanceId = serverRoutineInstanceIds.contains(
-        local.routineId,
-      );
-
-      if (!isMatchedByUiId && !isMatchedByInstanceId) {
-        await (database.delete(database.routines)
-          ..where((r) => r.id.equals(local.id))).go();
+      for (final local in localRoutines) {
+        final isMatchedByUiId = serverRoutineUiIds.contains(local.id);
+        final isMatchedByInstanceId = serverRoutineInstanceIds.contains(
+          local.routineId,
+        );
+        if (local.isSynced && !isMatchedByUiId && !isMatchedByInstanceId) {
+          await (database.delete(database.routines)
+            ..where((r) => r.id.equals(local.id))).go();
+        }
       }
-    }
 
-    await (database.delete(database.todos)..where(
-      (t) =>
-          t.date.year.equals(date.year) &
-          t.date.month.equals(date.month) &
-          t.date.day.equals(date.day),
-    )).go();
+      for (var item in data.todoList) {
+        if (item.scheduleType.toUpperCase() != 'TO_DO' || item.todo == null)
+          continue;
 
-    for (var item in data.todoList) {
-      if (item.scheduleType.toUpperCase() != 'TO_DO') continue;
-      if (item.todo == null) continue;
-
-      try {
         int? timeMinutesValue;
         int? alarmMinutesValue;
-
         if (item.time != null && item.time!.contains(':')) {
           final parts = item.time!.split(':');
           timeMinutesValue = int.parse(parts[0]) * 60 + int.parse(parts[1]);
@@ -489,17 +517,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           alarmMinutesValue = int.parse(parts[0]) * 60 + int.parse(parts[1]);
         }
 
-        DateTime fullDate = date;
-        if (timeMinutesValue != null) {
-          fullDate = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            timeMinutesValue ~/ 60,
-            timeMinutesValue % 60,
-          );
-        }
-        int? serverCategoryId = item.category.id;
+        DateTime fullDate = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          (timeMinutesValue ?? 0) ~/ 60,
+          (timeMinutesValue ?? 0) % 60,
+        );
+
         await database
             .into(database.todos)
             .insertOnConflictUpdate(
@@ -508,22 +533,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 scheduleId: Value(item.scheduleId),
                 todoServerId: Value(item.todo?.todoId),
                 content: item.content,
-                groupId: const Value(null),
                 date: fullDate,
                 colorType: Value(_parseColorType(item.category.color).index),
                 isDone: Value(item.todo!.status),
                 timeMinutes: Value(timeMinutesValue),
                 alarmMinutes: Value(alarmMinutesValue),
-                categoryId: Value(serverCategoryId),
+                categoryId: Value(item.category.id),
+                isSynced: const Value(true),
               ),
             );
-      } catch (e) {
-        print("Todo 저장 오류: $e");
       }
-    }
 
-    for (var item in data.routineList) {
-      try {
+      for (var item in data.routineList) {
         int uiScheduleId = item.scheduleId;
         int apiInstanceId = uiScheduleId;
         bool isServerDone = false;
@@ -535,62 +556,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (matched.isNotEmpty) {
             apiInstanceId = matched.first.routineId;
             isServerDone = matched.first.status;
-          } else {
-            apiInstanceId = item.routineByDateList.first.routineId;
-            isServerDone = item.routineByDateList.first.status;
           }
         }
 
-        final weekInts = <int>{};
-        for (var d in item.repeatWeek) {
-          switch (d.toUpperCase().trim()) {
-            case 'MONDAY':
-              weekInts.add(1);
-              break;
-            case 'TUESDAY':
-              weekInts.add(2);
-              break;
-            case 'WEDNESDAY':
-              weekInts.add(3);
-              break;
-            case 'THURSDAY':
-              weekInts.add(4);
-              break;
-            case 'FRIDAY':
-              weekInts.add(5);
-              break;
-            case 'SATURDAY':
-              weekInts.add(6);
-              break;
-            case 'SUNDAY':
-              weekInts.add(7);
-              break;
-          }
-        }
-        if (!weekInts.contains(date.weekday)) weekInts.add(date.weekday);
-        final newWeekDays = weekInts.toList()..sort();
-        final weekStr = newWeekDays.join(',');
-
-        int? resolvedCategoryId;
-        final categoryList = await database.categories.select().get();
-        final match =
-            categoryList
-                .where((c) => c.name == item.category.categoryName)
-                .firstOrNull;
-        if (match != null) resolvedCategoryId = match.id;
-
-        int? parsedTimeMinutes;
-        if (item.time != null && item.time!.contains(':')) {
-          final parts = item.time!.split(':');
-          parsedTimeMinutes = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-        }
-
-        DateTime? parsedEndDate;
-        try {
-          parsedEndDate = DateTime.parse(item.date);
-        } catch (e) {
-          parsedEndDate = DateTime(3000, 12, 31);
-        }
+        final weekStr = _convertWeekDaysListToString(item.repeatWeek);
 
         await database
             .into(database.routines)
@@ -602,25 +571,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 content: Value(item.content),
                 colorType: Value(_parseColorType(item.category.color).index),
                 weekDays: Value(weekStr),
-                categoryId: Value(resolvedCategoryId),
+                categoryId: Value(item.category.id),
                 startDate: Value(date),
-                endDate: Value(parsedEndDate),
-                timeMinutes: Value(parsedTimeMinutes),
+                endDate: Value(
+                  DateTime.tryParse(item.date) ?? DateTime(3000, 12, 31),
+                ),
+                timeMinutes: Value(_parseTimeToMinutes(item.time)),
                 alarmMinutes: Value(item.alarmTime != null ? 0 : null),
-                isSynced: Value(true),
+                isSynced: const Value(true),
               ),
             );
 
         final completedIds = await database.getCompletedRoutineIds(date);
-        final isLocalDone = completedIds.contains(uiScheduleId);
-
-        if (isServerDone != isLocalDone) {
+        if (isServerDone != completedIds.contains(uiScheduleId)) {
           await database.toggleRoutineCompletion(uiScheduleId, date);
         }
-      } catch (e) {
-        print("Routine 저장 오류 (${item.scheduleId}): $e");
       }
-    }
+    });
+
+    if (mounted) setState(() {});
   }
 
   Future<void> _fetchMonthlyDataAndRefresh(DateTime date) async {
@@ -809,8 +778,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
         result,
       );
       widget.onDataChanged?.call();
-    }
-    else if (result != null && result == 0) {
+    } else if (result != null && result == 0) {
       await db.LocalDatabaseSingleton.instance.updateTodo(
         db.TodosCompanion(id: Value(currentTodo.id), alarmMinutes: Value(null)),
       );
@@ -821,8 +789,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
         ).showSnackBar(const SnackBar(content: Text('알람이 삭제되었습니다!')));
       }
       widget.onDataChanged?.call();
-    }
-    else if (result != null && result is int && result > 0) {
+    } else if (result != null && result is int && result > 0) {
       final minutes = result;
 
       if (currentTodo.timeMinutes == null) {
@@ -1019,6 +986,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                   visibleRoutines
                                       .map(
                                         (routine) => RoutineCard(
+                                          selectedDate: selectedDate,
                                           content: routine.content,
                                           colorType: routine.colorType,
                                           scheduleId: routine.id,
@@ -1114,12 +1082,22 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                     .LocalDatabaseSingleton
                                                     .instance;
                                             final todoService = TodoService();
+                                            final profile =
+                                                Provider.of<ProfileData>(
+                                                  context,
+                                                  listen: false,
+                                                );
 
                                             final newIsDone = !todo.isDone;
 
-                                            await localDb.updateTodoCompletion(
-                                              todo.id,
-                                              newIsDone,
+                                            await localDb.updateTodo(
+                                              db.TodosCompanion(
+                                                id: Value(todo.id),
+                                                isDone: Value(newIsDone),
+                                                isSynced: const Value(
+                                                  false,
+                                                ),
+                                              ),
                                             );
 
                                             await localDb.toggleTodoCompletion(
@@ -1129,61 +1107,64 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
 
                                             widget.onDataChanged?.call();
 
-                                            try {
-                                              final serverId =
-                                                  todo.todoServerId;
+                                            if (!profile.isGuest) {
+                                              try {
+                                                final serverId =
+                                                    todo.todoServerId;
+                                                if (serverId != null &&
+                                                    serverId != 0) {
+                                                  final serverResult =
+                                                      await todoService
+                                                          .toggleTodoStatus(
+                                                            serverId,
+                                                          );
 
-                                              if (serverId == null) {
-                                                throw Exception("서버 ID가 없습니다.");
-                                              }
+                                                  if (serverResult != null) {
+                                                    await localDb.updateTodo(
+                                                      db.TodosCompanion(
+                                                        id: Value(todo.id),
+                                                        isSynced: const Value(
+                                                          true,
+                                                        ),
+                                                      ),
+                                                    );
 
-                                              final serverResult =
-                                                  await todoService
-                                                      .toggleTodoStatus(
-                                                        serverId,
+                                                    if (serverResult !=
+                                                        newIsDone) {
+                                                      await localDb.updateTodo(
+                                                        db.TodosCompanion(
+                                                          id: Value(todo.id),
+                                                          isDone: Value(
+                                                            serverResult,
+                                                          ),
+                                                        ),
                                                       );
-
-                                              if (serverResult == null) {
-                                                throw Exception('서버 동기화 실패');
-                                              }
-
-                                              if (serverResult != newIsDone) {
+                                                      widget.onDataChanged
+                                                          ?.call();
+                                                    }
+                                                  }
+                                                }
+                                              } catch (e) {
+                                                print(
+                                                  "투두 상태 서버 동기화 실패: $e",
+                                                );
+                                                await localDb.updateTodo(
+                                                  db.TodosCompanion(
+                                                    id: Value(todo.id),
+                                                    isDone: Value(!newIsDone),
+                                                    isSynced: const Value(true),
+                                                  ),
+                                                );
                                                 await localDb
-                                                    .updateTodoCompletion(
+                                                    .toggleTodoCompletion(
                                                       todo.id,
-                                                      serverResult,
+                                                      widget
+                                                          .selectedDateNotifier
+                                                          .value,
                                                     );
                                                 widget.onDataChanged?.call();
                                               }
-                                            } catch (e) {
-                                              print("투두 상태 변경 실패 (롤백): $e");
-
-                                              await localDb
-                                                  .updateTodoCompletion(
-                                                    todo.id,
-                                                    !newIsDone,
-                                                  );
-                                              await localDb
-                                                  .toggleTodoCompletion(
-                                                    todo.id,
-                                                    widget
-                                                        .selectedDateNotifier
-                                                        .value,
-                                                  );
-
-                                              widget.onDataChanged?.call();
-
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      "상태 변경에 실패했습니다. 잠시 후 다시 시도해주세요.",
-                                                    ),
-                                                  ),
-                                                );
-                                              }
+                                            } else {
                                             }
                                           },
                                           onDateChanged: (id, newDate) async {

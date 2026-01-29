@@ -20,6 +20,7 @@ class LocalCategoryRepository {
             categoryName: r.name,
             colorType: r.color,
             scheduleType: r.type,
+            isSynced: r.isSynced,
           ),
         )
         .toList();
@@ -34,12 +35,14 @@ class LocalCategoryRepository {
     required String type,
     required String color,
     int? serverCategoryId,
+    bool isSynced = false,
   }) async {
     final id = await _db.insertCategory(
       name: name,
       type: type,
       color: color,
       serverCategoryId: serverCategoryId,
+      isSynced: isSynced,
     );
     return CategoryItem(
       id: id,
@@ -47,6 +50,7 @@ class LocalCategoryRepository {
       categoryName: name,
       colorType: color,
       scheduleType: type,
+      isSynced: isSynced,
     );
   }
 

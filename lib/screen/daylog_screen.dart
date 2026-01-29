@@ -9,7 +9,9 @@ import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
 import 'package:ohmo/services/day_log_service.dart';
+import 'package:provider/provider.dart';
 import '../customize_category.dart';
+import '../models/profile_data_provider.dart';
 import '../models/todo.dart';
 import '../db/drift_database.dart' as db;
 import 'home_screen.dart';
@@ -150,55 +152,38 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Future<void> _loadAndInitializeQuestions() async {
     final dayLogService = DayLogService();
+    final profile = Provider.of<ProfileData>(context, listen: false);
 
-    final serverQuestions = await dayLogService.getQuestions();
-    final Set<String> serverContents = {};
-    if (serverQuestions != null) {
-      for (var q in serverQuestions) {
-        serverContents.add((q['questionContent'] ?? '').trim());
-      }
+    final localQuestions = await _repository.fetchDayLogQuestions();
+
+    if (localQuestions.isEmpty) {
+      await _repository.insertDayLogQuestion('오늘의 소비는?', '💰');
+      await _repository.insertDayLogQuestion('오늘의 내가 감사했던 일은?', '😊');
+      final updatedLocal = await _repository.fetchDayLogQuestions();
+      if (mounted) setState(() => _dbQuestions = updatedLocal);
+    } else {
+      if (mounted) setState(() => _dbQuestions = localQuestions);
     }
 
-    final List<Map<String, String>> defaultQuestions = [
-      {'emoji': '💰', 'text': '오늘의 소비는?'},
-      {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
-    ];
+    if (profile.isGuest) return;
 
-    for (var defaultQ in defaultQuestions) {
-      final String content = defaultQ['text']!.trim();
-      if (!serverContents.contains(content)) {
-        await dayLogService.registerQuestion(
-          questionContent: content,
-          emoji: defaultQ['emoji']!,
-        );
+    try {
+      final serverQuestions = await dayLogService.getQuestions();
+      if (serverQuestions != null) {
+        final Set<String> localContents = _dbQuestions.map((q) => q.question.trim()).toSet();
+
+        for (var sq in serverQuestions) {
+          final String qText = (sq['questionContent'] ?? '').trim();
+          if (!localContents.contains(qText)) {
+            await _repository.insertDayLogQuestion(qText, sq['emoji'] ?? '');
+          }
+        }
+
+        final finalLocal = await _repository.fetchDayLogQuestions();
+        if (mounted) setState(() => _dbQuestions = finalLocal);
       }
-    }
-
-    final finalServerQuestions = await dayLogService.getQuestions();
-
-    if (finalServerQuestions != null) {
-      List<DayLogQuestionItem> updatedQuestions = [];
-      for (var serverQ in finalServerQuestions) {
-        updatedQuestions.add(
-          DayLogQuestionItem(
-            id: serverQ['id'],
-            question: (serverQ['questionContent'] ?? '').trim(),
-            emoji: serverQ['emoji'] ?? '',
-          ),
-        );
-
-        await _repository.insertDayLogQuestion(
-          (serverQ['questionContent'] ?? '').trim(),
-          serverQ['emoji'] ?? '',
-        );
-      }
-
-      if (mounted) {
-        setState(() {
-          _dbQuestions = updatedQuestions;
-        });
-        print("불러온 질문 개수: ${_dbQuestions.length}");
-      }
+    } catch (e) {
+      print("서버 질문 동기화 실패: $e");
     }
   }
 
@@ -1363,6 +1348,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   void _saveDaylogData({bool showSnackbar = true}) async {
     final database = db.LocalDatabaseSingleton.instance;
+    final profile = Provider.of<ProfileData>(context, listen: false); // 👈 이거 추가됨
+
     final dateOnly = DateTime(
       _focusedDay.year,
       _focusedDay.month,
@@ -1377,6 +1364,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     final String? answerMapString =
     _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
 
+    // 1. [공통] 무조건 로컬 DB에 먼저 저장 (나중에 로그인 시 동기화하기 위함)
     await database.upsertDayLog(
       db.DayLogsCompanion(
         date: Value(dateOnly),
@@ -1386,6 +1374,16 @@ class _DaylogScreenState extends State<DaylogScreen> {
       ),
     );
 
+    // 2. [분기] 게스트 모드라면 여기서 중단
+    if (profile.isGuest) {
+      print("🛡️ 게스트 모드: 데이로그 로컬 저장 완료 (로그인 시 동기화 예정)");
+      if (mounted && showSnackbar) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('게스트 모드로 저장되었습니다.')));
+      }
+      return;
+    }
+
+    // 3. [회원 전용] 서버 API 호출
     final dayLogService = DayLogService();
 
     String? emotion = _getSelectedEmotion();
@@ -1404,13 +1402,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
       for (var entry in _dailyAnswers.entries) {
         final questionKey = entry.key;
         final answerText = entry.value.trim();
-
         if (answerText.isEmpty) continue;
 
         try {
           final targetQuestion = _dbQuestions.firstWhere((q) {
-            final fullKey =
-            q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
+            final fullKey = q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
             return fullKey == questionKey;
           });
 
@@ -1420,19 +1416,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
             date: dateString,
           );
         } catch (e) {
-          print('[저장 오류] 해당 질문의 ID를 찾을 수 없음: $questionKey');
+          print('[저장 오류]: $questionKey');
         }
-        setState(() {
-          _monthlyProgressFuture = _calculateMonthlyProgress();
-        });
       }
     }
+
     await _loadDayLogData(_focusedDay);
+    setState(() {
+      _monthlyProgressFuture = _calculateMonthlyProgress();
+    });
 
     if (mounted && showSnackbar) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('데이로그가 저장되었습니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('데이로그가 서버에 저장되었습니다.')));
     }
   }
 

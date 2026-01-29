@@ -7,8 +7,10 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/services/category_service.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_item.dart';
+import '../models/profile_data_provider.dart';
 import '../screen/category_screen.dart';
 import 'package:ohmo/services/notification_service.dart';
 import 'package:ohmo/services/todo_service.dart';
@@ -490,57 +492,12 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           );
           return;
         }
-        final prefs = await SharedPreferences.getInstance();
-        bool isCalendarSettingOn = prefs.getBool('calendar_noti') ?? true;
-        bool isAllOn = prefs.getBool('all_noti') ?? true;
-
-        if (isChecked && !isCalendarSettingOn || !isAllOn) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("현재 '일정 알림' 설정이 꺼져 있어 알람이 울리지 않습니다. 설정 화면을 확인해 주세요."),
-            duration: Duration(seconds: 2),
-          ),
-          );
-        }
 
         try {
           setState(() => _isLoading = true);
-
-          int finalLocalCategoryId;
-          int realServerId;
-          int colorIndex = 0;
-
-          if (selectedCategoryId != null) {
-            finalLocalCategoryId = selectedCategoryId!;
-            final localCategory = todos.firstWhere(
-              (c) => c.id == selectedCategoryId,
-            );
-            colorIndex =
-                ColorTypeExtension.fromString(
-                  localCategory.colorType ?? 'pinkLight',
-                ).index;
-            realServerId = finalLocalCategoryId;
-          } else {
-            final defaultCat = todos.firstWhere(
-              (cat) => cat.categoryName == 'default',
-              orElse:
-                  () => CategoryItem(
-                    id: -1,
-                    categoryName: 'default',
-                    colorType: 'black',
-                    scheduleType: 'TO_DO',
-                  ),
-            );
-            if (defaultCat.id == -1) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("기본 카테고리 정보를 불러오지 못했습니다.")),
-              );
-              setState(() => _isLoading = false);
-              return;
-            }
-            finalLocalCategoryId = defaultCat.id;
-            realServerId = defaultCat.id;
-            colorIndex = ColorType.uncategorizedBlack.index;
-          }
+          final profile = Provider.of<ProfileData>(context, listen: false);
+          final todoService = TodoService();
+          final db = LocalDatabaseSingleton.instance;
 
           final String dateStr = DateFormat('yyyy-MM-dd').format(_currentDate);
           String? timeStr;
@@ -559,8 +516,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               selectedTime!.minute,
             );
           } else {
-            timeStr = null;
-            dbTimeMinutes = null;
             fullTodoDate = DateTime(
               _currentDate.year,
               _currentDate.month,
@@ -568,22 +523,55 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             );
           }
 
-          final todoService = TodoService();
-          final db = LocalDatabaseSingleton.instance;
+          int finalLocalCategoryId;
+          int? realServerCategoryId;
+          int colorIndex = ColorType.uncategorizedBlack.index;
+
+          if (selectedCategoryId != null) {
+            finalLocalCategoryId = selectedCategoryId!;
+            final localCategory = todos.firstWhere(
+              (c) => c.id == selectedCategoryId,
+            );
+            colorIndex =
+                ColorTypeExtension.fromString(
+                  localCategory.colorType ?? 'pinkLight',
+                ).index;
+            realServerCategoryId = localCategory.serverId;
+          } else {
+            final defaultCat = todos.firstWhere(
+              (cat) => cat.categoryName == 'default',
+              orElse:
+                  () => CategoryItem(
+                    id: -1,
+                    categoryName: 'default',
+                    colorType: 'uncategorizedBlack',
+                    scheduleType: 'TO_DO',
+                  ),
+            );
+            finalLocalCategoryId = defaultCat.id;
+            realServerCategoryId = defaultCat.serverId;
+            colorIndex = ColorType.uncategorizedBlack.index;
+          }
+
+          int? newServerTodoId;
+          bool isSynced = false;
 
           if (widget.todoIdToEdit != null) {
             final existingTodo = await db.getTodoById(widget.todoIdToEdit!);
             final int? serverScheduleId = existingTodo?.scheduleId;
 
-            if (serverScheduleId != null && serverScheduleId != 0) {
-              bool isServerSuccess = await todoService.updateTodo(
+            if (!profile.isGuest &&
+                serverScheduleId != null &&
+                serverScheduleId != 0) {
+              await todoService.updateTodo(
                 scheduleId: serverScheduleId,
-                categoryId: realServerId,
+                categoryId: realServerCategoryId ?? 0,
                 content: pureContent,
                 date: dateStr,
                 time: timeStr,
                 alarmTime: isChecked ? timeStr : null,
               );
+              isSynced = true;
             }
 
             await db.updateTodo(
@@ -594,6 +582,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 categoryId: drift.Value(finalLocalCategoryId),
                 timeMinutes: drift.Value(dbTimeMinutes),
                 date: drift.Value(fullTodoDate),
+                isSynced: drift.Value(profile.isGuest ? false : true),
               ),
             );
 
@@ -608,13 +597,16 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               );
             }
           } else {
-            final int? newServerTodoId = await todoService.registerTodo(
-              categoryId: realServerId,
-              time: timeStr,
-              alarm: isChecked,
-              content: pureContent,
-              date: dateStr,
-            );
+            if (!profile.isGuest) {
+              newServerTodoId = await todoService.registerTodo(
+                categoryId: realServerCategoryId ?? 0,
+                time: timeStr,
+                alarm: isChecked,
+                content: pureContent,
+                date: dateStr,
+              );
+              if (newServerTodoId != null) isSynced = true;
+            }
 
             final newLocalId = await db.insertTodo(
               TodosCompanion.insert(
@@ -623,18 +615,19 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
                 content: pureContent,
                 colorType: drift.Value(colorIndex),
                 categoryId: drift.Value(finalLocalCategoryId),
-                scheduleType: drift.Value('TO_DO'),
+                scheduleType: const drift.Value('TO_DO'),
                 timeMinutes: drift.Value(dbTimeMinutes),
-                isDone: drift.Value(false),
+                isDone: const drift.Value(false),
                 date: fullTodoDate,
+                isSynced: drift.Value(isSynced),
               ),
             );
 
             if (isChecked && fullTodoDate.isAfter(DateTime.now())) {
               await _registerNotification(newLocalId, fullTodoDate, 0);
             }
-
           }
+
           if (widget.onTodoAdded != null) await widget.onTodoAdded!();
           if (widget.onDataChanged != null) await widget.onDataChanged!();
 
@@ -645,6 +638,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             ).showSnackBar(const SnackBar(content: Text("저장 완료!")));
           }
         } catch (e) {
+          print("저장 에러: $e");
           if (mounted) {
             ScaffoldMessenger.of(
               context,
@@ -653,7 +647,6 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
         } finally {
           if (mounted) setState(() => _isLoading = false);
         }
-
       },
       child: Container(
         width: double.infinity,
@@ -722,19 +715,23 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
 
     try {
       final serverCategories = await categoryService.getCategories('TO_DO');
-
       final currentLocalCategories = await categoryRepo.fetchCategories(
         scheduleType: 'TO_DO',
       );
 
-      final serverCategoryNames =
-          serverCategories.map((e) => e['categoryName']).toSet();
       final localCategoryNames =
           currentLocalCategories.map((e) => e.categoryName).toSet();
 
       if (serverCategories.isNotEmpty) {
         for (var item in serverCategories) {
-          final String name = item['categoryName'];
+          final String name = item['categoryName'] ?? '이름 없음';
+
+          final dynamic rawId = item['categoryId'] ?? item['id'];
+          final int serverId =
+              (rawId is int)
+                  ? rawId
+                  : int.tryParse(rawId?.toString() ?? '0') ?? 0;
+
           final String rawColor = item['color'] ?? 'pinkLight';
           final String localColor = _mapServerColorToLocal(rawColor);
 
@@ -743,23 +740,27 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               name: name,
               type: 'TO_DO',
               color: localColor,
+              serverCategoryId: serverId,
+              isSynced: true,
             );
           } else {
             final existingItem = currentLocalCategories.firstWhere(
               (e) => e.categoryName == name,
             );
+
+            if (existingItem.serverId == null || existingItem.serverId == 0) {
+              await categoryRepo.updateCategoryServerId(
+                existingItem.id,
+                serverId,
+              );
+            }
+
             if (existingItem.colorType != localColor) {
               await categoryRepo.updateCategoryColor(
                 existingItem.id,
                 localColor,
               );
             }
-          }
-        }
-
-        for (var localItem in currentLocalCategories) {
-          if (!serverCategoryNames.contains(localItem.categoryName)) {
-            await categoryRepo.deleteCategory(localItem.id);
           }
         }
       }

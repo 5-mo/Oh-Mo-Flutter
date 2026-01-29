@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/screen/login/signup_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   SizedBox(width: 90),
                   Image.asset(
-                    'android/assets/images/clear_ohmo.png',width: 53,
+                    'android/assets/images/clear_ohmo.png',
+                    width: 53,
                   ),
                   SizedBox(width: 20),
                   Center(
@@ -43,19 +45,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-          ],
-        ),
-                  SizedBox(height: 60),
-                  _buildTextField('이메일 주소', false, _emailController),
-                  SizedBox(height: 30),
-                  _buildTextField('비밀번호', true, _passwordController),
-                  SizedBox(height: 20),
-                  _buildSignup(context),
-                  SizedBox(height: 40),
-                  _buildLoginButton(),
-                  SizedBox(height: 30),
+                ],
+              ),
+              SizedBox(height: 60),
+              _buildTextField('이메일 주소', false, _emailController),
+              SizedBox(height: 30),
+              _buildTextField('비밀번호', true, _passwordController),
+              SizedBox(height: 20),
+              _buildSignup(context),
+              SizedBox(height: 40),
+              _buildLoginButton(),
+              SizedBox(height: 30),
 
-                  /*_buildGoogleLogin(),
+              /*_buildGoogleLogin(),
               SizedBox(height: 13),
               _buildNaverLogin(),
               SizedBox(height: 13),
@@ -71,10 +73,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Color(0xFFC2C2C2),
                 ),
               ),
-                ],
-              ),
+            ],
           ),
         ),
+      ),
     );
   }
 
@@ -228,30 +230,51 @@ class _LoginScreenState extends State<LoginScreen> {
         final password = _passwordController.text;
 
         if (email.isEmpty || password.isEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('이메일과 비밀번호를 모두 입력해주세요.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('이메일과 비밀번호를 모두 입력해주세요.')),
+          );
           return;
         }
+
         final response = await AuthService.login(email, password);
 
         if (response != null) {
           print('로그인 성공');
-          print('Access Token: ${response['token']['accessToken']}');
 
           final profile = Provider.of<ProfileData>(context, listen: false);
+
+          profile.setGeustMode(false);
           profile.updateProfile(
             updateEmail: email,
             updateNickname: response['nickname'],
           );
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => HomeScreen()),
-          );
+
+          final db = LocalDatabaseSingleton.instance;
+
+          try {
+            await db.syncCategoriesToServer();
+
+            await Future.delayed(const Duration(milliseconds: 500));
+
+            await db.syncTodosToServer();
+            await db.syncRoutinesToServer();
+            await db.syncDayLogsToServer();
+
+            print('모든 데이터 동기화 완료');
+          } catch (e) {
+            print("동기화 도중 에러 발생 : $e");
+          }
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomeScreen()),
+            );
+          }
         } else {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('로그인에 실패했습니다.')));
+          ).showSnackBar(const SnackBar(content: Text('로그인에 실패했습니다.')));
         }
       },
       child: Container(
@@ -278,9 +301,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildGuestMode(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        Provider.of<ProfileData>(context, listen: false).setGeustMode(true);
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) =>HomeScreen()),
+          MaterialPageRoute(builder: (context) => HomeScreen()),
         );
       },
       child: Text(

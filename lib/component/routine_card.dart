@@ -2,13 +2,16 @@ import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:provider/provider.dart';
 import '../db/drift_database.dart';
+import '../models/profile_data_provider.dart';
 import '../services/notification_service.dart';
 import 'alarm_bottom_sheet.dart';
 import 'color_palette_bottom_sheet.dart';
 import '../services/routine_service.dart';
 
 class RoutineCard extends StatefulWidget {
+  final DateTime selectedDate;
   final String content;
   final bool showCheckbox;
   final Widget Function(BuildContext)? deletePopupBuilder;
@@ -21,6 +24,7 @@ class RoutineCard extends StatefulWidget {
   final VoidCallback? onEditPressed;
 
   const RoutineCard({
+    required this.selectedDate,
     required this.content,
     required this.colorType,
     required this.scheduleId,
@@ -203,35 +207,41 @@ class _RoutineCardState extends State<RoutineCard> {
                 vertical: VisualDensity.minimumDensity,
               ),
               value: _isChecked,
+
               onChanged: (bool? value) async {
                 if (value == null) return;
 
-                // 1. UI 먼저 반응 (빠른 응답)
                 setState(() => _isChecked = value);
 
                 try {
                   final db = LocalDatabaseSingleton.instance;
-
+                  final profile = Provider.of<ProfileData>(context, listen: false);
                   final currentRoutine = await db.getRoutineById(widget.scheduleId);
-                  final int realApiId = currentRoutine?.routineId ?? widget.scheduleId;
 
-                  final routineService = RoutineService();
-                  final bool? serverState = await routineService.toggleRoutineStatus(realApiId);
+                  if (currentRoutine == null) return;
 
-                  if (serverState != null) {
-                    setState(() => _isChecked = serverState);
-
-                    final isLocalDone = currentRoutine?.isDone ?? !serverState;
-
-                    if (isLocalDone != serverState) {
-                      await db.toggleRoutineStatus(widget.scheduleId);
+                  if (!profile.isGuest) {
+                    final int? realApiId = currentRoutine.routineId;
+                    if (realApiId != null && realApiId != 0) {
+                      final routineService = RoutineService();
+                      await routineService.toggleRoutineStatus(realApiId);
                     }
+                  }
 
-                    if (widget.onStatusChanged != null) {
-                      await widget.onStatusChanged!();
-                    }
-                  } else {
-                    throw Exception('서버 응답 실패 (null)');
+                  await db.toggleRoutineCompletion(widget.scheduleId, widget.selectedDate);
+
+                  if (profile.isGuest) {
+                    await db.updateRoutine(
+                      RoutinesCompanion(
+                        id: Value(widget.scheduleId),
+                        isSynced: const Value(false),
+                      ),
+                    );
+                    print('🛡️ 게스트 모드: [${widget.content}] 완료 상태 저장 및 동기화 예약');
+                  }
+
+                  if (widget.onStatusChanged != null) {
+                    await widget.onStatusChanged!();
                   }
                 } catch (e) {
                   print('루틴 상태 변경 실패: $e');

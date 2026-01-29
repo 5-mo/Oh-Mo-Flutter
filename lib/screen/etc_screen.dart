@@ -5,7 +5,9 @@ import 'package:ohmo/screen/etc/community_guildeline.dart';
 import 'package:ohmo/screen/etc/opensource_license.dart';
 import 'package:ohmo/screen/etc/private_information.dart';
 import 'package:ohmo/screen/login/login_screen.dart';
+import 'package:provider/provider.dart';
 
+import '../models/profile_data_provider.dart';
 import '../services/auth_service.dart';
 import 'etc/bug.dart';
 import 'etc/faq.dart';
@@ -28,6 +30,7 @@ class _EtcScreenState extends State<EtcScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final profile = Provider.of<ProfileData>(context);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -71,10 +74,12 @@ class _EtcScreenState extends State<EtcScreen> {
                   const SizedBox(height: 15.0),
                   _buildBug(context),
                   const SizedBox(height: 15.0),
-                  _buildLeave(context),
-                  const SizedBox(height: 15.0),
-                  _buildLogout(context),
-                  const SizedBox(height: 30.0),
+                  if (!profile.isGuest) ...[
+                    _buildLeave(context),
+                    const SizedBox(height: 15.0),
+                    _buildLogout(context),
+                    const SizedBox(height: 15.0),
+                  ],
                   Center(child: _buildVersion()),
                 ],
               ),

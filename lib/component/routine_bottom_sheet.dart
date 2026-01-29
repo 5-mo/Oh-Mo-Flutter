@@ -7,12 +7,14 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/screen/category_screen.dart';
 import 'package:ohmo/services/sync_service.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../db/drift_database.dart';
 import '../models/category_item.dart';
 import 'package:ohmo/services/notification_service.dart';
 import 'package:intl/intl.dart';
 
+import '../models/profile_data_provider.dart';
 import '../services/category_service.dart';
 import '../services/routine_service.dart';
 
@@ -120,7 +122,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       if (routine.categoryId != null) {
         try {
           final matchedCategory = routines.firstWhere(
-            (cat) => cat.serverId == routine.categoryId,
+            (cat) => cat.id == routine.categoryId,
             orElse:
                 () => CategoryItem(
                   id: -1,
@@ -675,7 +677,6 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           );
           return;
         }
-
         if (isChecked && selectedTime == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("알람을 켜려면 시간을 선택해야 합니다.")),
@@ -686,87 +687,60 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
         final prefs = await SharedPreferences.getInstance();
         bool isCalendarSettingOn = prefs.getBool('calendar_noti') ?? true;
         bool isAllOn = prefs.getBool('all_noti') ?? true;
-
         if (isChecked && (!isCalendarSettingOn || !isAllOn)) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "현재 '일정 알림' 설정이 꺼져 있어 알람이 울리지 않습니다. 설정 화면을 확인해 주세요.",
-              ),
-              duration: Duration(seconds: 2),
-            ),
+            const SnackBar(content: Text("현재 '일정 알림' 설정이 꺼져 있어 알람이 울리지 않습니다.")),
           );
         }
 
         try {
           setState(() => _isLoading = true);
 
-          final DateTime now = DateTime.now();
-          final DateTime endDateToSave =
-              selectedEndDate ?? DateTime(now.year, now.month + 3, now.day);
-
-          final String dateStr = DateFormat('yyyy-MM-dd').format(endDateToSave);
+          final profile = Provider.of<ProfileData>(context, listen: false);
           final db = LocalDatabaseSingleton.instance;
           final routineService = RoutineService();
 
+          final DateTime now = DateTime.now();
+          final DateTime endDateToSave =
+              selectedEndDate ?? DateTime(now.year, now.month + 3, now.day);
+          final String dateStr = DateFormat('yyyy-MM-dd').format(endDateToSave);
+          final startDate = widget.selectedDate ?? DateTime.now();
+          final routineWeekEng = _convertDaysToEng(selectedDays);
+          final String weekString = getRoutineWeek().join(',');
+
+          String? timeStr;
+          int? minutes;
+          if (selectedTime != null) {
+            minutes = selectedTime!.hour * 60 + selectedTime!.minute;
+            timeStr =
+                "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
+          }
+          String? alarmTimeStr = isChecked ? timeStr : null;
+          int? alarmMinutesValue = isChecked ? 0 : null;
+
+          int localCategoryId;
           int realServerCategoryId = 0;
           int colorIndex = ColorType.uncategorizedBlack.index;
 
           if (selectedCategoryId != null) {
             final selectedCat = routines.firstWhere(
               (cat) => cat.id == selectedCategoryId,
-              orElse:
-                  () => CategoryItem(
-                    id: -1,
-                    categoryName: '',
-                    colorType: 'uncategorizedBlack',
-                    scheduleType: '',
-                  ),
             );
+            localCategoryId = selectedCat.id;
             realServerCategoryId = selectedCat.serverId ?? 0;
             colorIndex =
-                ColorTypeExtension.fromString(
-                  selectedCat.colorType ?? 'uncategorizedBlack',
-                ).index;
+                ColorTypeExtension.fromString(selectedCat.colorType).index;
           } else {
             final defaultCat = routines.firstWhere(
               (cat) => cat.categoryName == 'default',
-              orElse:
-                  () => CategoryItem(
-                    id: -1,
-                    categoryName: '',
-                    colorType: 'uncategorizedBlack',
-                    scheduleType: '',
-                  ),
+              orElse: () => CategoryItem(id: -1, categoryName: 'default', colorType: 'uncategorizedBlack', scheduleType: 'ROUTINE'),
             );
+            localCategoryId = defaultCat.id;
             realServerCategoryId = defaultCat.serverId ?? 0;
             colorIndex = ColorType.uncategorizedBlack.index;
           }
 
-          if (realServerCategoryId == 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("카테고리 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요."),
-              ),
-            );
-            setState(() => _isLoading = false);
-            return;
-          }
-
-          final startDate = widget.selectedDate ?? DateTime.now();
-          final routineWeekEng = _convertDaysToEng(selectedDays);
-          final String weekString = getRoutineWeek().join(',');
-
-          int? minutes;
-          String? timeStr;
-          if (selectedTime != null) {
-            minutes = selectedTime!.hour * 60 + selectedTime!.minute;
-            timeStr =
-                "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
-          }
-
-          String? alarmTimeStr = isChecked ? timeStr : null;
-          int? alarmMinutesValue = isChecked ? 0 : null;
+          bool isSynced = false;
 
           if (widget.routineIdToEdit != null) {
             if (_originalWeekDaysString != weekString) {
@@ -776,7 +750,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
                 endDate: drift.Value(endDateToSave),
                 timeMinutes: drift.Value(minutes),
                 weekDays: drift.Value(weekString),
-                categoryId: drift.Value(realServerCategoryId),
+                categoryId: drift.Value(localCategoryId),
                 alarmMinutes: drift.Value(alarmMinutesValue),
               );
               setState(() => _isLoading = false);
@@ -789,7 +763,9 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
             );
             final int? masterScheduleId = routineData?.scheduleId;
 
-            if (masterScheduleId != null && masterScheduleId != 0) {
+            if (!profile.isGuest &&
+                masterScheduleId != null &&
+                masterScheduleId != 0) {
               final bool isServerSuccess = await routineService.updateRoutine(
                 scheduleId: masterScheduleId,
                 categoryId: realServerCategoryId,
@@ -799,10 +775,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
                 date: dateStr,
                 routineWeek: routineWeekEng,
               );
-
-              if (!isServerSuccess) {
-                print("서버 수정 실패: SCHEDULE4002 등의 이유일 수 있음");
-              }
+              if (isServerSuccess) isSynced = true;
             }
 
             await db.updateRoutine(
@@ -812,13 +785,40 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
                 endDate: drift.Value(endDateToSave),
                 timeMinutes: drift.Value(minutes),
                 weekDays: drift.Value(weekString),
-                categoryId: drift.Value(realServerCategoryId),
+                categoryId: drift.Value(localCategoryId),
                 alarmMinutes: drift.Value(alarmMinutesValue),
                 colorType: drift.Value(colorIndex),
+                isSynced: drift.Value(isSynced),
               ),
             );
             await _updateNotifications(widget.routineIdToEdit!);
           } else {
+            int? realRoutineId;
+            int? realScheduleId;
+
+            if (!profile.isGuest) {
+              try {
+                final Map<String, int?>? serverIds = await routineService
+                    .registerRoutine(
+                      categoryId: realServerCategoryId,
+                      time: timeStr ?? "",
+                      alarmTime: alarmTimeStr,
+                      content: contentController.text,
+                      date: dateStr,
+                      routineWeek: routineWeekEng,
+                      color: ColorType.values[colorIndex].name,
+                    );
+
+                if (serverIds != null) {
+                  realRoutineId = serverIds['routineId'];
+                  realScheduleId = serverIds['scheduleId'];
+                  isSynced = true;
+                }
+              } catch (e) {
+                print("서버 등록 실패: $e");
+              }
+            }
+
             final tempLocalId = await db.insertRoutine(
               RoutinesCompanion.insert(
                 groupId: drift.Value(widget.groupId),
@@ -829,47 +829,14 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
                 endDate: drift.Value(endDateToSave),
                 timeMinutes: drift.Value(minutes),
                 weekDays: drift.Value(weekString),
-                categoryId: drift.Value(realServerCategoryId),
+                categoryId: drift.Value(localCategoryId),
                 alarmMinutes: drift.Value(alarmMinutesValue),
-                isSynced: drift.Value(false),
-                routineId: const drift.Value.absent(),
+                isSynced: drift.Value(isSynced),
+                routineId: drift.Value(realRoutineId),
+                scheduleId: drift.Value(realScheduleId),
               ),
             );
             await _updateNotifications(tempLocalId);
-
-            String colorNameForServer = ColorType.values[colorIndex].name;
-            try {
-              final Map<String, int?>? serverIds = await routineService
-                  .registerRoutine(
-                    categoryId: realServerCategoryId,
-                    time: timeStr ?? "",
-                    alarmTime: alarmTimeStr,
-                    content: contentController.text,
-                    date: dateStr,
-                    routineWeek: routineWeekEng,
-                    color: colorNameForServer,
-                  );
-
-              if (serverIds != null) {
-                final int? realRoutineId = serverIds['routineId'];
-                final int? realScheduleId = serverIds['scheduleId'];
-
-                print(
-                  '[UI] 서버 등록 성공! RoutineID: $realRoutineId, ScheduleID: $realScheduleId',
-                );
-
-                await db.updateRoutine(
-                  RoutinesCompanion(
-                    id: drift.Value(tempLocalId),
-                    routineId: drift.Value(realRoutineId),
-                    scheduleId: drift.Value(realScheduleId),
-                    isSynced: drift.Value(true),
-                  ),
-                );
-              }
-            } catch (serverError) {
-              print("서버 등록 실패: $serverError");
-            }
           }
 
           if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
@@ -1029,38 +996,30 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   }
 
   Future<void> _splitRoutine(
-    LocalDatabase db,
-    RoutinesCompanion newRoutineData,
-    DateTime splitDate,
-  ) async {
-    final normalizedSplitDate = DateTime(
-      splitDate.year,
-      splitDate.month,
-      splitDate.day,
-    );
+      LocalDatabase db,
+      RoutinesCompanion newRoutineData,
+      DateTime splitDate,
+      ) async {
+    final profile = Provider.of<ProfileData>(context, listen: false);
+    final routineService = RoutineService();
+
+    final normalizedSplitDate = DateTime(splitDate.year, splitDate.month, splitDate.day);
     final oldEndDate = normalizedSplitDate.subtract(const Duration(days: 1));
-    final String oldRoutineEndDateStr = DateFormat(
-      'yyyy-MM-dd',
-    ).format(oldEndDate);
+    final String oldRoutineEndDateStr = DateFormat('yyyy-MM-dd').format(oldEndDate);
 
     setState(() => _isLoading = true);
 
     try {
-      final routineService = RoutineService();
       final oldRoutine = await db.getRoutineById(widget.routineIdToEdit!);
+      if (oldRoutine == null) return;
 
-      if (oldRoutine != null &&
-          oldRoutine.scheduleId != null &&
-          oldRoutine.scheduleId != 0) {
-
+      bool oldRoutineSynced = false;
+      if (!profile.isGuest && oldRoutine.scheduleId != null && oldRoutine.scheduleId != 0) {
         int actualServerCategoryId = 0;
         try {
           final catMatch = routines.firstWhere(
-            (c) =>
-                c.id == oldRoutine.categoryId ||
-                c.serverId == oldRoutine.categoryId,
-            orElse:
-                () => routines.firstWhere((c) => c.categoryName == 'default'),
+                (c) => c.id == oldRoutine.categoryId || c.serverId == oldRoutine.categoryId,
+            orElse: () => routines.firstWhere((c) => c.categoryName == 'default'),
           );
           actualServerCategoryId = catMatch.serverId ?? 0;
         } catch (e) {
@@ -1069,8 +1028,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
         String oldTimeStr = "";
         if (oldRoutine.timeMinutes != null) {
-          oldTimeStr =
-              "${(oldRoutine.timeMinutes! ~/ 60).toString().padLeft(2, '0')}:${(oldRoutine.timeMinutes! % 60).toString().padLeft(2, '0')}";
+          oldTimeStr = "${(oldRoutine.timeMinutes! ~/ 60).toString().padLeft(2, '0')}:${(oldRoutine.timeMinutes! % 60).toString().padLeft(2, '0')}";
         }
 
         final bool isPatchSuccess = await routineService.updateRoutine(
@@ -1080,78 +1038,77 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           content: oldRoutine.content,
           date: oldRoutineEndDateStr,
           routineWeek: _convertDaysToEng(
-            oldRoutine.weekDays!
-                .split(',')
-                .map((e) => _dayMapReverse[int.parse(e)]!)
-                .toList(),
+            oldRoutine.weekDays!.split(',').map((e) => _dayMapReverse[int.parse(e.trim())]!).toList(),
+          ),
+        );
+        if (isPatchSuccess) oldRoutineSynced = true;
+      }
+
+      int? realRoutineId;
+      int? realScheduleId;
+      bool newRoutineSynced = false;
+
+      String? newTimeStr;
+      if (selectedTime != null) {
+        newTimeStr = "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
+      }
+
+      if (!profile.isGuest) {
+        final String newRoutineEndDateStr = DateFormat('yyyy-MM-dd').format(selectedEndDate!);
+        final List<String> newRoutineWeekEng = _convertDaysToEng(selectedDays);
+
+        final Map<String, int?>? serverIds = await routineService.registerRoutine(
+          categoryId: newRoutineData.categoryId.value ?? 0,
+          time: newTimeStr ?? "",
+          alarmTime: isChecked ? newTimeStr : null,
+          content: contentController.text,
+          date: newRoutineEndDateStr,
+          routineWeek: newRoutineWeekEng,
+          color: ColorType.values[newRoutineData.colorType.value].name,
+        );
+
+        if (serverIds != null) {
+          realRoutineId = serverIds['routineId'];
+          realScheduleId = serverIds['scheduleId'];
+          newRoutineSynced = true;
+        }
+      }
+
+      await db.transaction(() async {
+        await db.updateRoutine(
+          RoutinesCompanion(
+            id: drift.Value(widget.routineIdToEdit!),
+            endDate: drift.Value(oldEndDate),
+            isSynced: drift.Value(oldRoutineSynced),
           ),
         );
 
-        if (!isPatchSuccess) {
-          throw Exception("기존 루틴 종료 날짜를 변경하는 데 실패했습니다. (카테고리 타입 확인 필요)");
-        }
+        final newLocalId = await db.insertRoutine(
+          newRoutineData.copyWith(
+            startDate: drift.Value(normalizedSplitDate),
+            routineId: drift.Value(realRoutineId),
+            scheduleId: drift.Value(realScheduleId),
+            isSynced: drift.Value(newRoutineSynced),
+            groupId: drift.Value(widget.groupId),
+            isDone: const drift.Value(false),
+          ),
+        );
 
-        String? newTimeStr;
-        if (selectedTime != null) {
-          newTimeStr =
-              "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
-        }
+        await _updateNotifications(widget.routineIdToEdit!);
+        await _updateNotifications(newLocalId);
+      });
 
-        final String newRoutineEndDateStr = DateFormat(
-          'yyyy-MM-dd',
-        ).format(selectedEndDate!);
-        final List<String> newRoutineWeekEng = _convertDaysToEng(selectedDays);
-        final String colorName =
-            ColorType.values[newRoutineData.colorType.value].name;
-        final Map<String, int?>? serverIds = await routineService
-            .registerRoutine(
-              categoryId: newRoutineData.categoryId.value ?? 0,
-              time: newTimeStr ?? "",
-              alarmTime: isChecked ? newTimeStr : null,
-              content: contentController.text,
-              date: newRoutineEndDateStr,
-              routineWeek: newRoutineWeekEng,
-              color: ColorType.values[newRoutineData.colorType.value].name,
-            );
+      if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+      if (widget.onDataChanged != null) await widget.onDataChanged!();
 
-        if (serverIds == null) throw Exception("새 루틴 등록 실패");
-
-        await db.transaction(() async {
-          await db.updateRoutine(
-            RoutinesCompanion(
-              id: drift.Value(widget.routineIdToEdit!),
-              endDate: drift.Value(oldEndDate),
-            ),
-          );
-
-          final newLocalId = await db.insertRoutine(
-            newRoutineData.copyWith(
-              startDate: drift.Value(normalizedSplitDate),
-              routineId: drift.Value(serverIds['routineId']),
-              scheduleId: drift.Value(serverIds['scheduleId']),
-              isSynced: drift.Value(true),
-              groupId: drift.Value(widget.groupId),
-              isDone: const drift.Value(false),
-            ),
-          );
-
-          await _updateNotifications(widget.routineIdToEdit!);
-          await _updateNotifications(newLocalId);
-        });
-        if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
-        if (widget.onDataChanged != null) await widget.onDataChanged!();
-
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("루틴이 분할 저장되었습니다.")));
-          Navigator.of(context).pop();
-        }
-      }
-    } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("루틴이 분할 저장되었습니다.")));
+        Navigator.of(context).pop();
       }
+    } catch (e) {
+      print('루틴 분할 오류: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -1263,17 +1220,9 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
     try {
       final serverCategories = await categoryService.getCategories('ROUTINE');
-
       final currentLocalCategories = await categoryRepo.fetchCategories(
         scheduleType: 'ROUTINE',
       );
-
-      final serverCategoryNames =
-          serverCategories
-              .map((e) => e['categoryName']?.toString() ?? '')
-              .toSet();
-      final localCategoryNames =
-          currentLocalCategories.map((e) => e.categoryName).toSet();
 
       if (serverCategories.isNotEmpty) {
         for (var item in serverCategories) {
@@ -1287,46 +1236,24 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
           if (serverId == 0) continue;
 
-          String rawColor = item['color']?.toString() ?? 'pinkLight';
-
-          if (name.toLowerCase().trim() == 'default') {
-            rawColor = 'uncategorizedBlack';
-          }
-
-          final String localColor = _mapServerColorToLocal(rawColor);
-
-          if (!localCategoryNames.contains(name)) {
+          final localMatch = currentLocalCategories.any(
+            (e) => e.categoryName == name,
+          );
+          if (!localMatch) {
             await categoryRepo.insertCategory(
               name: name,
               type: 'ROUTINE',
-              color: localColor,
+              color: _mapServerColorToLocal(item['color'] ?? 'pinkLight'),
               serverCategoryId: serverId,
+              isSynced: true,
             );
           } else {
-            final existingItem = currentLocalCategories.firstWhere(
+            final existing = currentLocalCategories.firstWhere(
               (e) => e.categoryName == name,
             );
-
-            if (existingItem.serverId == null || existingItem.serverId == 0) {
-              await categoryRepo.updateCategoryServerId(
-                existingItem.id,
-                serverId,
-              );
+            if (existing.serverId == null || existing.serverId == 0) {
+              await categoryRepo.updateCategoryServerId(existing.id, serverId);
             }
-
-            if (existingItem.colorType != localColor) {
-              await categoryRepo.updateCategoryColor(
-                existingItem.id,
-                localColor,
-              );
-            }
-          }
-        }
-
-        for (var localItem in currentLocalCategories) {
-          if (!serverCategoryNames.contains(localItem.categoryName)) {
-            await categoryRepo.deleteCategory(localItem.id);
-            print('삭제된 카테고리 로컬 제거: [${localItem.categoryName}]');
           }
         }
       }
@@ -1336,12 +1263,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       final loadedRoutines = await categoryRepo.fetchCategories(
         scheduleType: 'ROUTINE',
       );
-
-      if (mounted) {
-        setState(() {
-          routines = loadedRoutines;
-        });
-      }
+      if (mounted) setState(() => routines = loadedRoutines);
     }
   }
 }

@@ -6,12 +6,21 @@ class ProfileData extends ChangeNotifier {
   String? imageUrl;
   String nickname = '오모';
   String email = 'user@ohmo.com';
+  bool _isGuest = false;
+
+  bool get isGuest => _isGuest;
+
+  void setGeustMode(bool value) {
+    _isGuest = value;
+    notifyListeners();
+  }
 
   void updateProfile({
     File? updateImage,
     String? updateNickname,
     String? updateEmail,
   }) {
+    _isGuest = false;
     if (updateImage != null) image = updateImage;
     if (updateNickname != null) nickname = updateNickname;
     if (updateEmail != null) email = updateEmail;

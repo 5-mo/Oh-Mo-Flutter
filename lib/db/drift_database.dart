@@ -1,11 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' as drift;
 import 'package:ohmo/db/tables.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:intl/intl.dart';
 
 import '../const/colors.dart';
+import '../services/category_service.dart';
+import '../services/day_log_service.dart';
+import '../services/routine_service.dart';
+import '../services/todo_service.dart';
 
 part 'drift_database.g.dart';
 
@@ -98,6 +105,7 @@ class LocalDatabase extends _$LocalDatabase {
     required String type,
     required String color,
     int? serverCategoryId,
+    bool isSynced = false,
   }) {
     return into(categories).insert(
       CategoriesCompanion.insert(
@@ -105,6 +113,8 @@ class LocalDatabase extends _$LocalDatabase {
         type: type,
         color: color,
         categoryId: Value(serverCategoryId),
+        serverId: drift.Value(serverCategoryId),
+        isSynced: drift.Value(isSynced),
       ),
     );
   }
@@ -148,11 +158,9 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   Future<int> updateCategoryServerId(int id, int serverId) {
-    return (update(categories)..where((t) => t.id.equals(id))).write(
-      CategoriesCompanion(
-        categoryId: Value(serverId),
-      ),
-    );
+    return (update(categories)..where(
+      (t) => t.id.equals(id),
+    )).write(CategoriesCompanion(categoryId: Value(serverId)));
   }
 
   // ------------------ DayLog ------------------
@@ -190,15 +198,14 @@ class LocalDatabase extends _$LocalDatabase {
     );
     final weekDayString = selectedDate.weekday.toString();
 
-    return (select(routines)
-          ..where((tbl) => tbl.groupId.equals(groupId))
-          ..where(
-            (tbl) =>
-                (tbl.startDate.isSmallerOrEqualValue(dateOnly)) &
-                (tbl.endDate.isBiggerOrEqualValue(dateOnly)),
-          )
-          ..where((tbl) => tbl.weekDays.like('$weekDayString')))
-        .watch();
+    return (select(routines)..where(
+      (tbl) =>
+          tbl.groupId.equals(groupId) &
+          tbl.isDeleted.equals(false) &
+          tbl.startDate.isSmallerOrEqualValue(dateOnly) &
+          tbl.endDate.isBiggerOrEqualValue(dateOnly) &
+          tbl.weekDays.like('%$weekDayString%'),
+    )).watch();
   }
 
   Future<int?> getMemberCountInGroup(int groupId) async {
@@ -231,7 +238,9 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   Future<List<Routine>> getPersonalRoutines() {
-    return (select(routines)..where((tbl) => tbl.groupId.isNull())).get();
+    return (select(routines)..where(
+      (tbl) => tbl.groupId.isNull() & tbl.isDeleted.equals(false),
+    )).get();
   }
 
   Future<int> insertRoutine(RoutinesCompanion entry) =>
@@ -257,8 +266,9 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   Future<List<Routine>> getAllRoutines({String scheduleType = 'ROUTINE'}) {
-    return (select(routines)
-      ..where((t) => t.scheduleType.equals(scheduleType))).get();
+    return (select(routines)..where(
+      (t) => t.scheduleType.equals(scheduleType) & t.isDeleted.equals(false),
+    )).get();
   }
 
   Future<Routine?> getRoutineById(int id) async {
@@ -337,6 +347,16 @@ class LocalDatabase extends _$LocalDatabase {
     )).write(RoutinesCompanion(endDate: Value(dateOnly)));
   }
 
+  Future<void> softDeleteRoutine(int id, bool isGuest) async {
+    if (isGuest) {
+      await (update(routines)..where((t) => t.id.equals(id))).write(
+        const RoutinesCompanion(isDeleted: Value(true), isSynced: Value(false)),
+      );
+    } else {
+      await (delete(routines)..where((t) => t.id.equals(id))).go();
+    }
+  }
+
   // ------------------Todo------------------
 
   Future<List<Todo>> getPersonalTodosByDate(DateTime date) {
@@ -344,7 +364,9 @@ class LocalDatabase extends _$LocalDatabase {
     final endOfDay = startOfDay.add(const Duration(days: 1));
     return (select(todos)..where(
       (tbl) =>
-          tbl.date.isBetweenValues(startOfDay, endOfDay) & tbl.groupId.isNull(),
+          tbl.date.isBetweenValues(startOfDay, endOfDay) &
+          tbl.groupId.isNull() &
+          tbl.isDeleted.equals(false),
     )).get();
   }
 
@@ -756,6 +778,333 @@ class LocalDatabase extends _$LocalDatabase {
 
     return query.map((row) => row.read(unreadCount)!).watchSingle();
   }
+
+  // ------------------ Sync Logic ------------------
+
+  Future<void> syncCategoriesToServer() async {
+    final categoryService = CategoryService();
+    try {
+      final routineServerCats = await categoryService.getCategories('ROUTINE');
+      final todoServerCats = await categoryService.getCategories('TO_DO');
+      final allServerCats = [...routineServerCats, ...todoServerCats];
+
+      var allLocalCategories = await select(categories).get();
+
+      if (allLocalCategories.isEmpty) {
+        await insertCategory(
+          name: 'default',
+          type: 'ROUTINE',
+          color: '#000000',
+        );
+        await insertCategory(name: 'default', type: 'TO_DO', color: '#000000');
+        allLocalCategories = await select(categories).get();
+      }
+
+      for (var localCat in allLocalCategories) {
+        if (localCat.name.length > 10 && localCat.name != 'default') continue;
+
+        final serverMatch = allServerCats.firstWhere(
+          (s) =>
+              (s['categoryName'] ?? s['name']).toString().toLowerCase() ==
+                  localCat.name.toLowerCase() &&
+              s['scheduleType'] == localCat.type,
+          orElse: () => null,
+        );
+
+        if (serverMatch != null) {
+          final int sId =
+              (serverMatch['categoryId'] ?? serverMatch['id']) as int;
+          await (update(categories)
+            ..where((tbl) => tbl.id.equals(localCat.id))).write(
+            CategoriesCompanion(
+              serverId: Value(sId),
+              categoryId: Value(sId),
+              isSynced: const Value(true),
+            ),
+          );
+        } else if (!localCat.isSynced) {
+          final int? assignedServerId = await categoryService.createCategory(
+            categoryName: localCat.name,
+            color: localCat.color,
+            scheduleType: localCat.type,
+          );
+          if (assignedServerId != null) {
+            await (update(categories)
+              ..where((tbl) => tbl.id.equals(localCat.id))).write(
+              CategoriesCompanion(
+                serverId: Value(assignedServerId),
+                categoryId: Value(assignedServerId),
+                isSynced: const Value(true),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('카테고리 동기화 에러: $e');
+    }
+  }
+
+  Future<void> syncTodosToServer() async {
+    final todoService = TodoService();
+
+    final deletedTodos =
+        await (select(todos)..where((tbl) => tbl.isDeleted.equals(true))).get();
+    for (var t in deletedTodos) {
+      if (t.todoServerId != null && t.todoServerId != 0)
+        await todoService.deleteTodo(t.todoServerId!);
+      await (delete(todos)..where((tbl) => tbl.id.equals(t.id))).go();
+    }
+
+    final unsyncedTodos =
+        await (select(todos)..where(
+          (tbl) => tbl.isSynced.equals(false) & tbl.isDeleted.equals(false),
+        )).get();
+
+    for (var todo in unsyncedTodos) {
+      try {
+        var category =
+            await (select(categories)..where(
+              (tbl) => tbl.id.equals(todo.categoryId ?? -1),
+            )).getSingleOrNull();
+
+        if (category == null || category.serverId == null) {
+          category =
+              await (select(categories)..where(
+                (tbl) => tbl.name.equals('default') & tbl.type.equals('TO_DO'),
+              )).getSingleOrNull();
+        }
+
+        if (category == null || category.serverId == null) {
+          continue;
+        }
+
+        if (todo.todoServerId == null || todo.todoServerId == 0) {
+          final int? sId = await todoService.registerTodo(
+            categoryId: category.serverId!,
+            content: todo.content,
+            date: DateFormat('yyyy-MM-dd').format(todo.date),
+            time: _formatTime(todo.timeMinutes),
+            alarm: todo.alarmMinutes != null,
+          );
+          if (sId != null) {
+            await (update(todos)..where((tbl) => tbl.id.equals(todo.id))).write(
+              TodosCompanion(
+                scheduleId: Value(sId),
+                todoServerId: Value(sId),
+                categoryId: Value(category.id),
+              ),
+            );
+          }
+        } else {
+          await todoService.updateTodo(
+            scheduleId: todo.scheduleId!,
+            categoryId: category.serverId!,
+            content: todo.content,
+            date: DateFormat('yyyy-MM-dd').format(todo.date),
+            time: _formatTime(todo.timeMinutes),
+            alarmTime:
+                todo.alarmMinutes != null
+                    ? _formatTime(todo.timeMinutes)
+                    : null,
+          );
+        }
+
+        if (todo.todoServerId != null)
+          await todoService.toggleTodoStatus(todo.todoServerId!);
+        await (update(todos)..where(
+          (tbl) => tbl.id.equals(todo.id),
+        )).write(const TodosCompanion(isSynced: Value(true)));
+      } catch (e) {
+        print('투두 동기화 실패: $e');
+      }
+    }
+  }
+
+  Future<void> syncRoutinesToServer() async {
+    final routineService = RoutineService();
+
+    final deletedRoutines =
+        await (select(routines)
+          ..where((tbl) => tbl.isDeleted.equals(true))).get();
+    for (var r in deletedRoutines) {
+      if (r.routineId != null && r.routineId != 0)
+        await routineService.deleteRoutine(r.routineId!);
+      await (delete(routines)..where((tbl) => tbl.id.equals(r.id))).go();
+    }
+
+    final unsyncedRoutines =
+        await (select(routines)..where(
+          (tbl) => tbl.isSynced.equals(false) & tbl.isDeleted.equals(false),
+        )).get();
+
+    for (var routine in unsyncedRoutines) {
+      try {
+        var category =
+            await (select(categories)..where(
+              (tbl) => tbl.id.equals(routine.categoryId ?? -1),
+            )).getSingleOrNull();
+
+        if (category == null || category.serverId == null) {
+          category =
+              await (select(categories)..where(
+                (tbl) =>
+                    tbl.name.equals('default') & tbl.type.equals('ROUTINE'),
+              )).getSingleOrNull();
+        }
+
+        if (category == null || category.serverId == null) continue;
+
+        if (routine.routineId == null || routine.routineId == 0) {
+          final Map<String, int?>? sIds = await routineService.registerRoutine(
+            categoryId: category.serverId!,
+            content: routine.content,
+            time: _formatTime(routine.timeMinutes) ?? "",
+            routineWeek: _convertWeekDaysToEng(routine.weekDays),
+            color: category.color.toUpperCase().replaceAll('#', ''),
+            date: DateFormat('yyyy-MM-dd').format(
+              routine.endDate ?? DateTime.now().add(const Duration(days: 365)),
+            ),
+            alarmTime:
+                routine.alarmMinutes != null
+                    ? (_formatTime(routine.timeMinutes) ?? "")
+                    : "",
+          );
+          if (sIds != null) {
+            await (update(routines)
+              ..where((tbl) => tbl.id.equals(routine.id))).write(
+              RoutinesCompanion(
+                routineId: Value(sIds['routineId']),
+                scheduleId: Value(sIds['scheduleId']),
+                categoryId: Value(category.id),
+              ),
+            );
+          }
+        } else {
+          await routineService.updateRoutine(
+            scheduleId: routine.scheduleId!,
+            categoryId: category.serverId!,
+            content: routine.content,
+            date: DateFormat(
+              'yyyy-MM-dd',
+            ).format(routine.endDate ?? DateTime.now()),
+            time: _formatTime(routine.timeMinutes) ?? "",
+            routineWeek: _convertWeekDaysToEng(routine.weekDays),
+            alarmTime:
+                routine.alarmMinutes != null
+                    ? (_formatTime(routine.timeMinutes) ?? "")
+                    : "",
+          );
+        }
+
+        final records =
+            await (select(completedRoutines)
+              ..where((tbl) => tbl.routineId.equals(routine.id))).get();
+        if (routine.routineId != null) {
+          for (var rec in records)
+            await routineService.toggleRoutineStatus(routine.routineId!);
+        }
+
+        await (update(routines)..where(
+          (tbl) => tbl.id.equals(routine.id),
+        )).write(const RoutinesCompanion(isSynced: Value(true)));
+      } catch (e) {
+        print('루틴 동기화 실패: $e');
+      }
+    }
+  }
+
+  Future<void> syncDayLogsToServer() async {
+    final dayLogService = DayLogService();
+
+    final localQuestions = await select(dayLogQuestions).get();
+    final serverQuestionsResponse = await dayLogService.getQuestions();
+    Set<String> serverContents = {};
+
+    if (serverQuestionsResponse != null) {
+      for (var sq in serverQuestionsResponse) {
+        serverContents.add((sq['questionContent'] ?? '').trim());
+      }
+    }
+
+    for (var lq in localQuestions) {
+      if (!serverContents.contains(lq.question.trim())) {
+        await dayLogService.registerQuestion(
+          questionContent: lq.question,
+          emoji: lq.emoji,
+        );
+      }
+    }
+
+    final allLogs = await select(dayLogs).get();
+    final finalServerQuestions = await dayLogService.getQuestions();
+
+    for (var log in allLogs) {
+      final dateStr = DateFormat('yyyy-MM-dd').format(log.date);
+
+      try {
+        if (log.emotion != null) {
+          await dayLogService.registerEmoji(date: dateStr, emoji: log.emotion!);
+        }
+
+        if (log.diary != null && log.diary!.isNotEmpty) {
+          await dayLogService.registerDiary(date: dateStr, content: log.diary!);
+        }
+
+        if (log.answerMapJson != null && finalServerQuestions != null) {
+          final Map<String, dynamic> answers = jsonDecode(log.answerMapJson!);
+          for (var entry in answers.entries) {
+            try {
+              final target = finalServerQuestions.firstWhere((sq) {
+                final String qContent = sq['questionContent'] ?? '';
+                final String qEmoji = sq['emoji'] ?? '';
+                final String combined =
+                    qEmoji.isNotEmpty ? '$qEmoji $qContent' : qContent;
+                return combined.trim() == entry.key.trim();
+              });
+
+              await dayLogService.registerAnswer(
+                questionId: target['id'],
+                answer: entry.value.toString(),
+                date: dateStr,
+              );
+            } catch (e) {
+              print('질문 매칭 실패: ${entry.key}');
+            }
+          }
+        }
+        print('$dateStr 데이로그 동기화 완료');
+      } catch (e) {
+        print('$dateStr 데이로그 동기화 에러: $e');
+      }
+    }
+  }
+}
+// ------------------ Helper Methods ------------------
+
+String? _formatTime(int? minutes) {
+  if (minutes == null) return null;
+  final int hours = minutes ~/ 60;
+  final int mins = minutes % 60;
+  return "${hours.toString().padLeft(2, '0')}:${mins.toString().padLeft(2, '0')}";
+}
+
+List<String> _convertWeekDaysToEng(String? weekDaysStr) {
+  if (weekDaysStr == null) return [];
+  const map = {
+    '1': 'MONDAY',
+    '2': 'TUESDAY',
+    '3': 'WEDNESDAY',
+    '4': 'THURSDAY',
+    '5': 'FRIDAY',
+    '6': 'SATURDAY',
+    '7': 'SUNDAY',
+  };
+  return weekDaysStr
+      .split(',')
+      .map((d) => map[d.trim()] ?? '')
+      .where((s) => s.isNotEmpty)
+      .toList();
 }
 
 // ------------------ Singleton ------------------

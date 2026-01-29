@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/customize_category.dart';
+import 'package:ohmo/screen/login/login_screen.dart';
 import 'package:ohmo/screen/profile_screen.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -54,7 +55,17 @@ class _MyScreenState extends State<MyScreen> {
       _showSearchRecords = true;
     });
 
-    final results = await _scheduleService.searchSchedules(query);
+    final profile = Provider.of<ProfileData>(context, listen: false);
+    List<Map<String, dynamic>> results = [];
+
+    if (profile.isGuest) {
+      final database = db.LocalDatabaseSingleton.instance;
+      results = await database.searchSchedules(query);
+      print("🔎 [게스트 검색] 로컬 DB 결과: ${results.length}건");
+    } else {
+      results = await _scheduleService.searchSchedules(query);
+      print("🔎 [회원 검색] 서버 결과: ${results.length}건");
+    }
 
     setState(() {
       _searchResults = results;
@@ -145,7 +156,7 @@ class _MyScreenState extends State<MyScreen> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => _goToProfileEdit(context),
+                          onTap: profile.isGuest?null:() => _goToProfileEdit(context),
                           child:
                               profile.image != null
                                   ? ClipOval(
@@ -230,10 +241,10 @@ class _MyScreenState extends State<MyScreen> {
     return Column(
       children: [
         Text(
-          profile.nickname,
+          profile.isGuest?"GUEST":profile.nickname,
           style: TextStyle(color: Colors.white, fontSize: 16.0),
         ),
-        Text(
+        if(!profile.isGuest)Text(
           profile.email,
           style: TextStyle(color: Colors.white, fontSize: 16.0),
         ),
@@ -247,23 +258,29 @@ class _MyScreenState extends State<MyScreen> {
     final profile = Provider.of<ProfileData>(context, listen: false);
     return GestureDetector(
       onTap: () async {
-        final result = await Navigator.push<Map<String, dynamic>>(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => ProfileScreen(
-                  initialImage: profile.image,
-                  initialNickname: profile.nickname,
-                  initialEmail: profile.email,
-                ),
-          ),
-        );
-
-        profile.updateProfile(
-          updateImage: result?['image'],
-          updateNickname: result?['nickname'],
-          updateEmail: result?['email'],
-        );
+        if(profile.isGuest){
+          Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginScreen()));
+        } else {
+          final result = await Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                  ProfileScreen(
+                    initialImage: profile.image,
+                    initialNickname: profile.nickname,
+                    initialEmail: profile.email,
+                  ),
+            ),
+          );
+          if (result != null) {
+            profile.updateProfile(
+              updateImage: result?['image'],
+              updateNickname: result?['nickname'],
+              updateEmail: result?['email'],
+            );
+          }
+        }
       },
       child: Container(
         width: 87,
@@ -276,7 +293,7 @@ class _MyScreenState extends State<MyScreen> {
 
         child: Center(
           child: Text(
-            '프로필 수정',
+            profile.isGuest? '로그인해주세요':'프로필 수정',
             style: TextStyle(
               fontSize: 10,
               fontFamily: 'PretendardRegular',
