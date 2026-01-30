@@ -148,7 +148,6 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     if (widget.groupId == null) return;
 
     final myEmail = await _groupService.getMyEmail();
-
     final memberData = await _groupService.fetchGroupMembers(widget.groupId!);
 
     if (memberData != null && mounted) {
@@ -454,7 +453,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
 
         List<int> selectedAssigneeIds = [];
         if (content.contains('@모두')) {
-          selectedAssigneeIds = _memberNameToId.values.toList();
+          selectedAssigneeIds = _memberNameToId.values.where((id)=>id!=0).toList();
         } else {
           _memberNameToId.forEach((name, id) {
             if (content.contains('@$name')) {
@@ -477,6 +476,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
           );
 
           if (serverRoutineId != null) {
+            print("성공적으로 추출된 routineId: $serverRoutineId");
             if (selectedAssigneeIds.isNotEmpty) {
               await _groupService.registerAssigneeRoutine(
                 routineId: serverRoutineId,

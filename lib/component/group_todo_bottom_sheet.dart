@@ -193,7 +193,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
       for (var member in memberList) {
         String baseName =
             member['groupNickname'] ?? member['nickname'] ?? '이름 없음';
-        int memberGroupId = member['memberGroupId'] ??0;
+        int memberGroupId = member['memberGroupId'] ?? 0;
         String email = (member['email'] ?? '').toString().trim().toLowerCase();
         String compareMyEmail = (myEmail ?? '').trim().toLowerCase();
 
@@ -367,6 +367,17 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
 
         String finalContent = originalContent;
 
+        List<int> finalAssigneeIds = [];
+        if (originalContent.contains('@모두')) {
+          finalAssigneeIds = _memberIds.values.where((id) => id != 0).toList();
+        } else {
+          _memberIds.forEach((name, id) {
+            if (originalContent.contains('@$name') && id != 0) {
+              finalAssigneeIds.add(id);
+            }
+          });
+        }
+
         try {
           final int? newTodoId = await _groupService.createGroupTodo(
             groupId: widget.groupId ?? 0,
@@ -375,11 +386,12 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
           );
 
           if (newTodoId != null) {
-            if (_selectedAssigneeIds.isNotEmpty) {
-              await _groupService.registerAssigneeTodo(
+            if (finalAssigneeIds.isNotEmpty) {
+              bool isAssigneeSuccess = await _groupService.registerAssigneeTodo(
                 todoId: newTodoId,
-                memberGroupIdList: _selectedAssigneeIds.toList(),
+                memberGroupIdList: finalAssigneeIds,
               );
+              print("투두 담당자 배정 결과: $isAssigneeSuccess");
             }
 
             final db = LocalDatabaseSingleton.instance;

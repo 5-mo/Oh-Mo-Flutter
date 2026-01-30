@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GroupService {
-  static const String baseUrl = 'http://52.79.75.26:8080';
+  static const String baseUrl = 'http://52.79.75.26:8080/api';
 
   Future<Map<String, dynamic>> createGroup({
     required String groupName,
@@ -138,9 +138,9 @@ class GroupService {
       );
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
       if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
-        final result = decodedData['result'];
-        if (result != null && result['routineId'] != null) {
-          return result['routineId'];
+        final List<dynamic> resultList = decodedData['result'] ?? [];
+        if (resultList.isNotEmpty && resultList[0]['routineId'] != null) {
+          return resultList[0]['routineId'];
         }
       }
       return null;
@@ -248,6 +248,32 @@ class GroupService {
       return (decoded['isSuccess'] == true) ? decoded['result'] : [];
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchAssigneeRoutine(int routineId) async {
+    final url = Uri.parse(
+      '$baseUrl/group-schedule/assignee-routine?routineId=$routineId',
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('accessToken');
+      if (token == null) return null;
+
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+      );
+
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && decoded['isSuccess'] == true) {
+        return decoded['result'];
+      }
+      return null;
+    } catch (e) {
+      print("[fetchAssigneeRoutine 에러] : $e");
+      return null;
     }
   }
 
@@ -370,8 +396,6 @@ class GroupService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('userEmail');
   }
-
-  // GroupService 클래스 내부에 추가
 
   Future<bool> registerAssigneeRoutine({
     required int routineId,

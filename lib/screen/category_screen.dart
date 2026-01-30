@@ -216,13 +216,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
               ),
               SizedBox(height: 10.0),
 
-              /* Padding(
+              Padding(
                 padding: const EdgeInsets.only(left: 31),
                 child: _buildGroupAccordion(),
               ),
               SizedBox(height: 60),
-
-              */
             ],
           ),
         ),
