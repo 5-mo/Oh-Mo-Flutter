@@ -34,6 +34,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR');
 
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   final callbackHandle = PluginUtilities.getCallbackHandle(backgroundMain);
   final prefs = await SharedPreferences.getInstance();
   await prefs.setInt(
@@ -51,6 +56,36 @@ void main() async {
       providers: [ChangeNotifierProvider(create: (_) => ProfileData())],
       child: MaterialApp(
         theme: ThemeData(scaffoldBackgroundColor: Colors.white),
+        builder: (context, child) {
+          // 현재 기기의 실제 화면 크기와 비율을 가져옵니다.
+          final Size screenSize = MediaQuery.of(context).size;
+          final double deviceAspectRatio = screenSize.width / screenSize.height;
+          final bool isTablet = screenSize.shortestSide > 600;
+
+          // 아이패드일 때는 성공했던 400:844 비율을 유지하고,
+          // 폰일 때는 기기 고유의 비율을 사용하여 여백을 없앱니다.
+          double targetWidth = 400;
+          double targetHeight = isTablet ? 844 : (400 / deviceAspectRatio);
+
+          return Container(
+            color: Colors.white, // 여백 배경색
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isTablet ? 500 : double.infinity,
+                ),
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    width: targetWidth,
+                    height: targetHeight,
+                    child: child!,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
         home: Splash(),
         debugShowCheckedModeBanner: false,
       ),

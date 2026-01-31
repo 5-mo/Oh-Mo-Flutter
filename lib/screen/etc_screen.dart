@@ -6,6 +6,7 @@ import 'package:ohmo/screen/etc/opensource_license.dart';
 import 'package:ohmo/screen/etc/private_information.dart';
 import 'package:ohmo/screen/login/login_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/profile_data_provider.dart';
 import '../services/auth_service.dart';
@@ -89,6 +90,7 @@ class _EtcScreenState extends State<EtcScreen> {
       ),
     );
   }
+
 
   Widget _buildEtcHeader() {
     return Text(
@@ -253,15 +255,17 @@ class _EtcScreenState extends State<EtcScreen> {
     );
   }
 
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw Exception('Could not launch $url');
+    }
+  }
+
   Widget _buildInquire(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => InquireScreen()),
-        );
-      },
+      onTap: () => _launchURL('https://tally.so/r/vGYyMX'),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -282,12 +286,7 @@ class _EtcScreenState extends State<EtcScreen> {
   Widget _buildBug(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => BugScreen()),
-        );
-      },
+      onTap: () => _launchURL('https://tally.so/r/81xQKz'), // 딥링크 적용
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

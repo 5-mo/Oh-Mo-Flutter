@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _buildKakaoLogin(),
               SizedBox(height: 13),*/
               _buildGuestMode(context),
-              SizedBox(height: 200),
+              SizedBox(height: 100),
               Text(
                 '로그인 시 개인정보 처리방침을 읽었으며, 이용약관에 동의하신 것으로 간주합니다.',
                 style: TextStyle(
@@ -73,6 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Color(0xFFC2C2C2),
                 ),
               ),
+              SizedBox(height: 200),
             ],
           ),
         ),

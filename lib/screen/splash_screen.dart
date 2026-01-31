@@ -89,57 +89,65 @@ class _SplashState extends State<Splash> {
         children: [
           if (!_isVideoFinished)
             Center(
-              child:
-                  _controller.value.isInitialized
-                      ? AspectRatio(
-                        aspectRatio: _controller.value.aspectRatio,
-                        child: VideoPlayer(_controller),
-                      )
-                      : Container(),
+              child: _controller.value.isInitialized
+                  ? AspectRatio(
+                aspectRatio: _controller.value.aspectRatio,
+                child: VideoPlayer(_controller),
+              )
+                  : Container(),
             ),
-          if (_isVideoFinished) ...[
-            Positioned(
-              top: 150,
-              left: 50,
-              child: Image.asset(
-                'android/assets/images/splash.png',
-                width: 293,
-              ),
-            ),
-            Positioned(
-              top: 670,
-              left: 60,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                    );
-                  },
-                  child: Container(
-                    width: 272,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.rectangle,
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(7),
+          if (_isVideoFinished)
+          // 1. 전체를 SafeArea로 감싸 아이패드 홈바 등에 가려지지 않게 합니다.
+            SafeArea(
+              child: SizedBox.expand( // 전체 화면을 꽉 채웁니다.
+                child: Column(
+                  children: [
+                    const Spacer(flex: 2), // 상단 여백 (유동적)
+
+                    // 2. 로고 영역
+                    Image.asset(
+                      'android/assets/images/splash.png',
+                      width: 293,
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '시작하기',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'PretendardBold',
-                        color: Colors.white,
+
+                    const Spacer(flex: 5), // 로고와 버튼 사이 간격 (유동적)
+
+                    // 3. 시작하기 버튼 영역
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 50), // 하단에서 50만큼 띄움
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => LoginScreen()),
+                            );
+                          },
+                          child: Container(
+                            width: 272,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              '시작하기',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'PretendardBold',
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
-          ],
         ],
       ),
     );
