@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ohmo/screen/group/group_main_screen.dart';
 
 import '../../const/colors.dart';
+import '../../services/group_service.dart';
+import '../home_screen.dart';
 
 class GroupFinalEnterRoomScreen extends StatefulWidget {
   final int groupId;
@@ -15,7 +17,9 @@ class GroupFinalEnterRoomScreen extends StatefulWidget {
 }
 
 class _GroupFinalEnterRoomScreenState extends State<GroupFinalEnterRoomScreen> {
+  final GroupService _groupService = GroupService();
   final TextEditingController _nicknameController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -141,14 +145,7 @@ class _GroupFinalEnterRoomScreenState extends State<GroupFinalEnterRoomScreen> {
   Widget _buildNextButton() {
     return Center(
       child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GroupMainScreen(groupId: 1),
-            ),
-          );
-        },
+        onTap: _isLoading ? null : _handleFinalEnter,
         child: Container(
           width: 327,
           height: 56,
@@ -169,5 +166,47 @@ class _GroupFinalEnterRoomScreenState extends State<GroupFinalEnterRoomScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleFinalEnter() async {
+    final nickname = _nicknameController.text.trim();
+    if (nickname.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("닉네임을 입력해주세요.")));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await _groupService.updateGroupNickname(
+        groupId: widget.groupId,
+        nickname: nickname,
+      );
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => GroupMainScreen(groupId: widget.groupId)),
+        );
+      }else {
+        throw Exception("닉네임 설정에 실패했습니다.");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 }

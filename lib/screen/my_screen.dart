@@ -477,10 +477,11 @@ class _MyScreenState extends State<MyScreen> {
   Widget _buildCategoryManaging(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        final bool? result = await Navigator.push(
+        final bool? result = await Navigator.push<bool>(
           context,
           MaterialPageRoute(builder: (context) => CategoryScreen()),
         );
+        if(!mounted) return;
         _updateDiaryVisibility();
         if (result == true) {
           if (widget.onDataChanged != null) {

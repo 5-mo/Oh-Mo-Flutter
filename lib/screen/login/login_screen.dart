@@ -5,6 +5,7 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/screen/login/signup_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/profile_data_provider.dart';
 import '../../services/auth_service.dart';
 
@@ -241,6 +242,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (response != null) {
           print('로그인 성공');
+          print('서버 응답 데이터: $response');
+
+          final prefs = await SharedPreferences.getInstance();
+
+          String? accessToken;
+          if (response['token'] != null && response['token'] is Map) {
+            accessToken = response['token']['accessToken'];
+          }
+
+          if (accessToken != null) {
+            await prefs.setString('accessToken', accessToken);
+            await prefs.setString('userEmail', email);
+            print('토큰 저장 완료: $accessToken');
+          } else {
+            print('경고: 응답 데이터에서 accessToken을 찾을 수 없습니다.');
+          }
 
           final profile = Provider.of<ProfileData>(context, listen: false);
 

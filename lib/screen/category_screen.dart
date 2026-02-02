@@ -179,9 +179,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        Navigator.pop(context, _needsRefresh);
+      onPopInvokedWithResult: (didPop,result) async{
+        if(didPop) return;
+
+        if(context.mounted){
+          Navigator.pop(context,_needsRefresh);
+        }
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,

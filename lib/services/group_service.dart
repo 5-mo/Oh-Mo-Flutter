@@ -432,4 +432,37 @@ class GroupService {
       return false;
     }
   }
+
+  Future<bool> updateGroupNickname({
+    required int groupId,
+    required String nickname,
+  }) async {
+    final url = Uri.parse('$baseUrl/group/nickname');
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+
+    if (accessToken == null) throw Exception('로그인이 필요합니다.');
+
+    final body = {"groupId": groupId, "nickname": nickname};
+
+    try {
+      print("[닉네임 업데이트 요청] PATCH $url");
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode(body),
+      );
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      print("[닉네임 업데이트 응답] $data");
+
+      return response.statusCode == 200 && data['isSuccess'] == true;
+    } catch (e) {
+      print("[updateGroupNickname 에러]$e");
+      return false;
+    }
+  }
 }
