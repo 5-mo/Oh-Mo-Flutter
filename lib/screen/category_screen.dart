@@ -139,14 +139,21 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     final fetchedGroups = await _groupService.fetchGroups();
 
+    // _loadAllData 함수 내부 수정
     final List<Map<String, dynamic>> groupWithMembers = await Future.wait(
       fetchedGroups.map((group) async {
         final int groupId = group['groupId'];
         final memberData = await _groupService.fetchGroupMembers(groupId);
 
+        // 로그를 찍어 실제 데이터가 어디에 들어있는지 확인해보세요.
+        print("Group $groupId MemberData: $memberData");
+
         return {
           ...group,
-          'members': memberData != null ? memberData['memberDtoList'] : [],
+          // memberGroupInfos가 실제 데이터가 들어있는 키일 것입니다.
+          'members': memberData != null
+              ? (memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [])
+              : [],
           'totalCount': memberData != null ? memberData['numPeople'] : 0,
         };
       }),
@@ -179,11 +186,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop,result) async{
-        if(didPop) return;
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
 
-        if(context.mounted){
-          Navigator.pop(context,_needsRefresh);
+        if (context.mounted) {
+          Navigator.pop(context, _needsRefresh);
         }
       },
       child: Scaffold(
@@ -1243,10 +1250,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   ...members.take(6).map((member) {
+                    final memberInfo = member['memberInfo'] ?? {};
+                    final String? profileUrl = memberInfo['profileImageUrl'];
                     return Padding(
                       padding: const EdgeInsets.only(right: 4.0),
                       child: _buildMemberProfile(
-                        'android/assets/images/clear_ohmo.png',
+                        profileUrl,
                         0.2,
                         color,
                       ),
@@ -1325,7 +1334,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Widget _buildMemberProfile(
-    String imagePath,
+      String? imageUrl,
     double progress,
     Color groupColor,
   ) {
@@ -1343,7 +1352,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          CircleAvatar(radius: 8, backgroundImage: AssetImage(imagePath)),
+          CircleAvatar(
+            radius: 8,
+            backgroundColor: Colors.grey[200],
+            backgroundImage: (imageUrl != null && imageUrl.isNotEmpty && imageUrl.startsWith('http'))
+                ? NetworkImage(imageUrl)
+                : const AssetImage('android/assets/images/clear_ohmo.png') as ImageProvider,
+          ),
           SizedBox(
             width: 18,
             height: 18,

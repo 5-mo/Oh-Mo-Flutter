@@ -27,60 +27,59 @@ class _ColorPaletteBottomSheetState extends State<ColorPaletteBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = ColorType.values
-        .where((c) => c != ColorType.uncategorizedBlack)
-        .toList();
+    final colors =
+        ColorType.values
+            .where((c) => c != ColorType.uncategorizedBlack)
+            .toList();
+
+    final bool isTablet = MediaQuery.of(context).size.width > 600;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),
-      height: MediaQuery.of(context).size.height * 0.52,
+      padding: const EdgeInsets.fromLTRB(50, 30, 50, 32),
+      height: MediaQuery.of(context).size.height * (isTablet ? 0.75 : 0.52),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 12),
           Expanded(
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 6,
-                crossAxisSpacing: 3,
-                mainAxisSpacing: 3,
-                childAspectRatio: 1,
+            child: SingleChildScrollView(
+              child: Center(
+                child: Wrap(
+                  alignment: WrapAlignment.start,
+                  spacing: isTablet ? 20 : 20,
+                  runSpacing: isTablet ? 15 : 30,
+                  children:
+                      colors.map((colorType) {
+                        final color = ColorManager.getColor(colorType);
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              tempSelectedColor = colorType;
+                            });
+                          },
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color:
+                                    colorType == tempSelectedColor
+                                        ? Colors.grey
+                                        : Colors.white,
+                                width: colorType == tempSelectedColor ? 2.5 : 0,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                ),
               ),
-              itemCount: colors.length,
-              itemBuilder: (context, index) {
-                final colorType = colors[index];
-                final color = ColorManager.getColor(colorType);
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      tempSelectedColor = colorType;
-                    });
-                  },
-                  child: Center(
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color:
-                              colorType == tempSelectedColor
-                                  ? Colors.grey
-                                  : Colors.white,
-                          width: colorType == tempSelectedColor ? 2.5 : 0,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 20),
           _buildSaveButton(),
           const SizedBox(height: 12),
         ],

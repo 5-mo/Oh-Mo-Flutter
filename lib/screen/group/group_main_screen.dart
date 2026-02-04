@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:ohmo/component/group_routine_bottom_sheet.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/services/group_sse_service.dart';
 import '../../component/color_palette_bottom_sheet.dart';
 import '../../component/delete_bottom_sheet.dart';
 import '../../component/group_routine_card.dart';
@@ -50,6 +53,7 @@ class GroupMainScreen extends StatefulWidget {
 
 class _GroupMainScreenState extends State<GroupMainScreen> {
   final GroupService _groupService = GroupService();
+  final GroupSseService _sseService = GroupSseService();
   DateTime selectedDate = DateTime.now();
   late final LocalDatabase _db;
   Set<int> _completedRoutineIds = {};
@@ -62,6 +66,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   Map<int, int> _routineCompletionCounts = {};
   Map<int, int> _todoCompletionCounts = {};
   String _groupName = '...';
+  StreamSubscription<String>? _sseSubscription;
 
   Map<DateTime, List<CalendarEvent>> _eventsCache = {};
   bool _needsRefresh = false;
@@ -72,6 +77,29 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     _db = LocalDatabaseSingleton.instance;
     _fetchGroupData(selectedDate);
     _loadSchedulesForMonth(selectedDate);
+    _startSseSubscription();
+  }
+
+  @override
+  void dispose() {
+    _sseSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startSseSubscription() {
+    _sseSubscription = _sseService
+        .subscribeGroup(widget.groupId)
+        .listen(
+          (event) {
+            print("[실시간 알람 수신] : $event");
+
+            if (mounted) {
+              _refreshAllData(selectedDate);
+            }
+          },
+          onError: (err) => print("SSE 스트림 에러 : $err"),
+          cancelOnError: false,
+        );
   }
 
   Future<void> _refreshAllData(DateTime date) async {

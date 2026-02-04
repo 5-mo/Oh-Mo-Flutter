@@ -151,7 +151,8 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     final memberData = await _groupService.fetchGroupMembers(widget.groupId!);
 
     if (memberData != null && mounted) {
-      final List<dynamic> memberList = memberData['memberDtoList'] ?? [];
+      final List<dynamic> memberList =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
 
       Map<String, String> updatedMembers = {
         '모두': 'android/assets/images/clear_ohmo.png',
@@ -160,14 +161,22 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       Map<String, int> updatedIds = {};
 
       for (var member in memberList) {
-        String baseName =
-            member['groupNickname'] ?? member['nickname'] ?? '이름 없음';
-        String email = member['email'] ?? '';
-        int assigneeId = member['assigneeId'] ?? 0;
+        final memberInfo = member['memberInfo'] ?? {};
+
+        String groupNickname = member['nickname']?.toString() ?? "";
+        String globalNickname = memberInfo['nickname']?.toString() ?? "이름 없음";
+
+        String baseName = groupNickname.isNotEmpty ? groupNickname : globalNickname;
+
+        String email = memberInfo['email'] ?? '';
+        int memberGroupId = member['memberGroupId'] ?? 0;
+
+        String? profileUrl = memberInfo['profileImageUrl'];
+
         String displayName = (email == myEmail) ? '$baseName(나)' : baseName;
 
-        updatedMembers[displayName] = 'android/assets/images/clear_ohmo.png';
-        updatedIds[displayName] = assigneeId;
+        updatedMembers[displayName] = profileUrl ?? "";
+        updatedIds[displayName] = memberGroupId;
       }
       setState(() {
         _groupMembers = updatedMembers;
@@ -369,8 +378,10 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       borderRadius: BorderRadius.circular(6),
       elevation: 4.0,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 0),
-        width: 102,
+        constraints: const BoxConstraints(
+        minWidth: 102,
+        maxWidth:120,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
@@ -393,46 +404,65 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 style: TextStyle(fontSize: 9, color: Colors.grey[600]),
               ),
             ),
-            ..._filterMembers.map((member) {
-              final imagePath = _groupMembers[member];
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children:
+                    _filterMembers.map((member) {
+                      final imagePath = _groupMembers[member];
 
-              return InkWell(
-                onTapDown: (_) {
-                  _onMemberSelected(member);
-                },
-                splashColor: Colors.grey[300],
-                highlightColor: Colors.grey[200],
-                child: Container(
-                  color: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 2.0,
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 9,
-                        backgroundImage:
-                            imagePath != null &&
-                                    imagePath.startsWith('android/assets')
-                                ? AssetImage(imagePath)
-                                : null,
-                        child:
-                            imagePath == null ||
-                                    !imagePath.startsWith('android/assets')
-                                ? Icon(Icons.person, size: 11)
-                                : null,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        member,
-                        style: TextStyle(fontSize: 10, color: Colors.black),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+                      return InkWell(
+                        onTap: () => _onMemberSelected(member),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 2.0,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage: (() {
+                                  final path = _groupMembers[member];
+                                  if (path == null || path.isEmpty) return null;
+
+                                  if (path.startsWith('http')) {
+                                    return NetworkImage(path);
+                                  }
+                                  if (path.startsWith('android/assets')) {
+                                    return AssetImage(path);
+                                  }
+                                  return null;
+                                })() as ImageProvider?,
+                                child: (() {
+                                  final path = _groupMembers[member];
+                                  if (path == null || path.isEmpty) {
+                                    return Icon(Icons.person, size: 12, color: Colors.grey[400]);
+                                  }
+                                  return null;
+                                })(),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  member,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+              ),
+            ),
           ],
         ),
       ),
@@ -453,7 +483,8 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
 
         List<int> selectedAssigneeIds = [];
         if (content.contains('@모두')) {
-          selectedAssigneeIds = _memberNameToId.values.where((id)=>id!=0).toList();
+          selectedAssigneeIds =
+              _memberNameToId.values.where((id) => id != 0).toList();
         } else {
           _memberNameToId.forEach((name, id) {
             if (content.contains('@$name')) {

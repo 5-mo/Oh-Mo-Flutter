@@ -195,6 +195,7 @@ class AuthService {
     }
   }
 
+  // 회원탈퇴
   static Future<bool> withdraw() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString('accessToken');
@@ -228,6 +229,45 @@ class AuthService {
     } catch (e) {
       print('회원 탈퇴 중 오류 발생 : $e');
       return false;
+    }
+  }
+
+  //비밀번호 변경
+  static Future<String?> updatePassword(
+    String oldPassword,
+    String newPassword,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+    final url = Uri.parse('$baseUrl/api/member/password');
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({
+          'oldPassword': oldPassword,
+          'newPassword': newPassword,
+        }),
+      );
+
+      final decodeBody = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decodeBody);
+
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        print("비밀번호 변경 성공");
+        return null;
+      } else {
+        final message = data['message'] ?? '비밀번호 변경에 실패했습니다';
+        print('비밀번호 변경 실패 : $message');
+        return message;
+      }
+    } catch (e) {
+      print('비밀번호 변경 중 오류 발생 : $e');
+      return '오류가 발생했습니다. 다시 시도해주세요.';
     }
   }
 }
