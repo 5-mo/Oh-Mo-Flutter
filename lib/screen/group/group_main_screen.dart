@@ -63,6 +63,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
   ColorType _currentColor = ColorType.pinkLight;
   int _memberCount = 0;
+  int _actualMemberCount = 0;
   Map<int, int> _routineCompletionCounts = {};
   Map<int, int> _todoCompletionCounts = {};
   String _groupName = '...';
@@ -71,18 +72,21 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   Map<DateTime, List<CalendarEvent>> _eventsCache = {};
   bool _needsRefresh = false;
 
+  int? _myMemberGroupId;
+  String? _myNickname;
+
   @override
   void initState() {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
     _fetchGroupData(selectedDate);
     _loadSchedulesForMonth(selectedDate);
-    _startSseSubscription();
+    //_startSseSubscription();
   }
 
   @override
   void dispose() {
-    _sseSubscription?.cancel();
+    // _sseSubscription?.cancel();
     super.dispose();
   }
 
@@ -178,32 +182,41 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   Future<void> _fetchGroupData(DateTime date) async {
     final dateString = DateFormat('yyyy-MM-dd').format(date);
-
     final scheduleData = await _groupService.fetchGroupSchedules(
       groupId: widget.groupId,
       date: dateString,
     );
-
     final group = await _groupService.getGroupDetail(widget.groupId);
     if (group == null) {
-      if (mounted) Navigator.pop(context, true);
       return;
     }
 
-    if (mounted) {
-      setState(() {
-        _currentColor = ColorTypeExtension.fromString(
-          group['groupColor'] ?? 'pinkLight',
+    final memberData = await _groupService.fetchGroupMembers(widget.groupId);
+    int currentActualCount = 0;
+    if (memberData != null) {
+      final List<dynamic> actualMembers =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
+      currentActualCount = actualMembers.length;
+    }
+
+    int? currentMyGroupId = group['memberGroupId'];
+    if (currentMyGroupId == null && memberData != null) {
+      final myEmail = await _groupService.getMyEmail();
+      final List<dynamic> members =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
+      try {
+        final me = members.firstWhere(
+          (m) => m['memberInfo']['email'] == myEmail,
         );
-        _groupName = group['groupName'] ?? '이름 없음';
-        _memberCount = group['numPeople'] ?? 4;
-      });
+        currentMyGroupId = me['memberGroupId'];
+        _myNickname = me['nickname'];
+      } catch (e) {}
     }
 
     if (scheduleData == null) return;
 
-    final List<dynamic> apiTodos = scheduleData['todoList'] ?? [];
-    final List<dynamic> apiRoutines = scheduleData['routineList'] ?? [];
+    final List<dynamic> apiTodos = scheduleData['todos'] ?? [];
+    final List<dynamic> apiRoutines = scheduleData['routines'] ?? [];
 
     List<Todo> mappedTodos = [];
     List<Routine> mappedRoutines = [];
@@ -213,12 +226,38 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     Set<int> tempCompletedRoutineIds = {};
 
     for (var item in apiTodos) {
-      final int id = item['scheduleId'];
-      final bool isDone = item['todo']?['status'] ?? false;
+      final int scheduleId = item['scheduleId'];
+
+      final groupTodo = item['groupTodoWithAssignee'] ?? {};
+      final List<dynamic> assignees = groupTodo['memberGroupInfos'] ?? [];
+      final todoInfo = groupTodo['todo'] ?? {};
+
+      int? myAssigneeId;
+      bool myStatus = false;
+
+      if (_myMemberGroupId != null) {
+        for (var a in assignees) {
+          final mgi = a['memberGroupInfo'] ?? {};
+          if (mgi['memberGroupId'].toString() == _myMemberGroupId.toString()) {
+            myAssigneeId = a['assigneeId'];
+            myStatus = a['status'] ?? false;
+            break;
+          }
+        }
+      }
+
+      int finalId = myAssigneeId ?? 0;
+      if (finalId == 0 && (item['content'] ?? '').contains('@모두')) {
+        finalId = scheduleId;
+      }
+
+      int totalDoneCount =
+          todoInfo['doneCount'] ??
+          assignees.where((a) => a['status'] == true).length;
 
       mappedTodos.add(
         Todo(
-          id: id,
+          id: finalId,
           content: item['content'] ?? '',
           date: DateTime.parse(item['date']),
           groupId: widget.groupId,
@@ -226,51 +265,81 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               ColorTypeExtension.fromString(
                 item['category']?['color'] ?? 'pinkLight',
               ).index,
-          isDone: isDone,
+          isDone: myStatus,
           scheduleType: 'TO_DO',
           isSynced: true,
-          isDeleted: true,
+          isDeleted: false,
         ),
       );
-      if (isDone) tempCompletedTodoIds.add(id);
-      tempTodoCounts[id] = isDone ? 1 : 0;
+
+      tempTodoCounts[finalId] = totalDoneCount;
+      if (myStatus && finalId != 0) tempCompletedTodoIds.add(finalId);
     }
 
     for (var item in apiRoutines) {
-      final int id = item['scheduleId'];
-      final List<dynamic> byDateList = item['routineByDateList'] ?? [];
-      final bool isDone =
-          byDateList.isNotEmpty ? (byDateList[0]['status'] ?? false) : false;
+      final groupRoutine = item['groupRoutineWithAssignee'] ?? {};
+      final List<dynamic> assignees = groupRoutine['memberGroupInfos'] ?? [];
+      final routineInfo = groupRoutine['routine'] ?? {};
+      final String content = item['content'] ?? '내용없음';
 
-      final List<dynamic> serverWeeks = item['repeatWeek'] ?? [];
-      final String weekString = serverWeeks
-          .map((w) => _mapEngDayToNum(w))
-          .join(',');
+      int? myAssigneeId;
+      bool myStatus = false;
+
+      if (_myMemberGroupId != null) {
+        for (var a in assignees) {
+          final mgi = a['memberGroupInfo'] ?? {};
+          if (mgi['memberGroupId'].toString() == _myMemberGroupId.toString()) {
+            myAssigneeId = a['assigneeId'];
+            myStatus = a['status'] ?? false;
+            break;
+          }
+        }
+      }
+
+      int finalId = myAssigneeId ?? 0;
+
+      if (finalId == 0 &&
+          (content.contains('@모두') || content.contains('@모든'))) {
+        finalId = item['scheduleId'];
+      }
+
+      int totalDoneCount =
+          routineInfo['doneCount'] ??
+          assignees.where((a) => a['status'] == true).length;
 
       mappedRoutines.add(
         Routine(
-          id: id,
-          content: item['content'] ?? '',
+          id: finalId,
+          content: content,
           groupId: widget.groupId,
           startDate: DateTime.parse(item['date']),
           endDate: DateTime.now().add(const Duration(days: 90)),
-          weekDays: weekString.isEmpty ? '1,2,3,4,5,6,7' : weekString,
+          weekDays: _mapEngDayToNum(routineInfo['week'] ?? ''),
           colorType:
               ColorTypeExtension.fromString(
                 item['category']?['color'] ?? 'pinkLight',
               ).index,
-          isDone: isDone,
+          isDone: myStatus,
           scheduleType: 'ROUTINE',
           isSynced: true,
           isDeleted: false,
         ),
       );
-      if (isDone) tempCompletedRoutineIds.add(id);
-      tempRoutineCounts[id] = isDone ? 1 : 0;
-    }
 
+      tempRoutineCounts[finalId] = totalDoneCount;
+      if (myStatus && finalId != 0) tempCompletedRoutineIds.add(finalId);
+    }
     if (mounted) {
       setState(() {
+        _myMemberGroupId = currentMyGroupId;
+        _currentColor = ColorTypeExtension.fromString(
+          group['groupColor'] ?? 'pinkLight',
+        );
+        _groupName = group['groupName'] ?? '이름 없음';
+
+        _actualMemberCount = currentActualCount;
+        _memberCount = currentActualCount;
+
         _completedTodoIds = tempCompletedTodoIds;
         _completedRoutineIds = tempCompletedRoutineIds;
         _todoCompletionCounts = tempTodoCounts;
@@ -450,7 +519,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                   builder:
                       (_) => GroupRoutineBottomSheet(
                         groupId: widget.groupId,
-                        onRoutineAdded: () => _fetchGroupData(selectedDate),
+                        onRoutineAdded: () async {
+                          await Future.delayed(
+                            const Duration(milliseconds: 300),
+                          );
+                          await _fetchGroupData(selectedDate);
+                        },
                         selectedDate: selectedDate,
                       ),
                 );
@@ -461,7 +535,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           ValueListenableBuilder<List<Routine>>(
             valueListenable: _routinesNotifier,
             builder: (context, routines, _) {
-              if (routines.isEmpty) return const SizedBox(height: 20);
+              if (routines.isEmpty) {
+                return const SizedBox(height: 20);
+              }
               return Column(
                 children:
                     routines.map((routine) {
@@ -471,20 +547,31 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               .allMatches(routine.content)
                               .map((m) => m.group(0)!)
                               .toList();
-                      final bool isIndicatorVisible = mentions.isNotEmpty;
+
                       final bool isCheckboxVisible =
                           mentions.contains('@모두') ||
-                          mentions.any((m) => m.contains('(나)'));
-                      int totalCount =
-                          (mentions.isEmpty || mentions.contains('@모두'))
-                              ? _memberCount
+                          routine.content.contains('@모두') ||
+                          mentions.any(
+                            (m) =>
+                                _myNickname != null && m.contains(_myNickname!),
+                          );
+                      final bool isIndicatorVisible =
+                          mentions.isNotEmpty ||
+                          routine.content.contains('@모두');
+                      int finalTotalCount =
+                          (mentions.isEmpty ||
+                                  mentions.contains('@모두') ||
+                                  routine.content.contains('@모두'))
+                              ? _actualMemberCount
                               : mentions.length;
 
                       return GroupRoutineCard(
                         routine: routine,
+                        myNickname: _myNickname,
+                        memberGroupId: _myMemberGroupId,
                         isDoneForDay: _completedRoutineIds.contains(routine.id),
                         selectedDate: selectedDate,
-                        totalMemberCount: totalCount,
+                        totalMemberCount: finalTotalCount,
                         completedMemberCount:
                             _routineCompletionCounts[routine.id] ?? 0,
                         isIndicatorVisible: isIndicatorVisible,
@@ -580,6 +667,7 @@ class NoticeSection extends StatefulWidget {
 class _NoticeSectionState extends State<NoticeSection> {
   final LocalDatabase _db = LocalDatabaseSingleton.instance;
   bool _isAddingNewNotice = false;
+  bool _isLoading = false;
   final _newNoticeController = TextEditingController();
   List<Notice> _notices = [];
   DateTime? _selectedDate;
@@ -597,35 +685,48 @@ class _NoticeSectionState extends State<NoticeSection> {
   }
 
   Future<void> _fetchNotices() async {
-    final noticesFromDb = await _db.getNoticesForGroup(widget.groupId);
+    setState(() => _isLoading = true);
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final groupService = GroupService();
+      final List<dynamic> serverNotices = await groupService.fetchNotices(
+        groupId: widget.groupId,
+        date: dateStr,
+      );
+      final noticesFromDb = await _db.getNoticesForGroup(widget.groupId);
 
-    final futureNotices =
-        noticesFromDb.where((notice) {
-          final noticeDateOnly = DateTime(
-            notice.noticeDate.year,
-            notice.noticeDate.month,
-            notice.noticeDate.day,
-          );
-          return !noticeDateOnly.isBefore(today);
-        }).toList();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
 
-    futureNotices.sort((a, b) {
-      final dateComparison = a.noticeDate.compareTo(b.noticeDate);
+      final futureNotices =
+          noticesFromDb.where((notice) {
+            final noticeDateOnly = DateTime(
+              notice.noticeDate.year,
+              notice.noticeDate.month,
+              notice.noticeDate.day,
+            );
+            return !noticeDateOnly.isBefore(today);
+          }).toList();
 
-      if (dateComparison != 0) {
-        return dateComparison;
-      } else {
-        return b.createdAt.compareTo(a.createdAt);
-      }
-    });
+      futureNotices.sort((a, b) {
+        final dateComparison = a.noticeDate.compareTo(b.noticeDate);
 
-    if (mounted) {
-      setState(() {
-        _notices = noticesFromDb;
+        if (dateComparison != 0) {
+          return dateComparison;
+        } else {
+          return b.createdAt.compareTo(a.createdAt);
+        }
       });
+
+      if (mounted) {
+        setState(() {
+          _notices = noticesFromDb;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -659,44 +760,75 @@ class _NoticeSectionState extends State<NoticeSection> {
   }
 
   Future<void> _addNotice() async {
+    if (_isLoading) return;
+
     final content = _newNoticeController.text.trim();
-    if (content.isNotEmpty && _selectedDate != null) {
-      final group = await _db.getGroupById(widget.groupId);
-      final groupName = group?.name ?? "ohmo";
+    if (content.isEmpty || _selectedDate == null) return;
 
-      final noticeDateStr = DateFormat('MM/dd').format(_selectedDate!);
+    setState(() => _isLoading = true);
 
-      String line1 = "'$groupName' 그룹에 새로운 공지가 등록되었습니다.";
-      String line2 = "[공지] $content(일시 : $noticeDateStr)";
+    try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+      final groupService = GroupService();
 
-      final String multiLineContent = "$line1\n$line2";
-
-      final newNotice = NoticesCompanion.insert(
-        content: content,
-        createdAt: DateTime.now(),
-        groupId: drift.Value(widget.groupId),
-        noticeDate: _selectedDate!,
-      );
-      final int newNoticeId = await _db.insertNotice(newNotice);
-      String shortContent =
-          content.length > 20 ? "${content.substring(0, 20)}..." : content;
-      await _db.insertNotification(
-        NotificationsCompanion(
-          type: drift.Value('group'),
-          content: drift.Value(multiLineContent),
-          timestamp: drift.Value(DateTime.now()),
-          relatedId: drift.Value(newNoticeId),
-          isRead: drift.Value(true),
-        ),
+      final bool isSuccess = await groupService.createNotice(
+        groupId: widget.groupId,
+        notice: content,
+        date: dateStr,
       );
 
-      _newNoticeController.clear();
-      setState(() {
-        _isAddingNewNotice = false;
-        _selectedDate = null;
-      });
-      _fetchNotices();
-      widget.onNoticeChanged();
+      if (isSuccess) {
+        final newNotice = NoticesCompanion.insert(
+          content: content,
+          createdAt: DateTime.now(),
+          groupId: drift.Value(widget.groupId),
+          noticeDate: _selectedDate!,
+        );
+
+        final int newNoticeId = await _db.insertNotice(newNotice);
+
+        final group = await _db.getGroupById(widget.groupId);
+        final groupName = group?.name ?? "ohmo";
+
+        final noticeDateStr = DateFormat('MM/dd').format(_selectedDate!);
+
+        String line1 = "'$groupName' 그룹에 새로운 공지가 등록되었습니다.";
+        String line2 = "[공지] $content(일시 : $noticeDateStr)";
+
+        final String multiLineContent = "$line1\n$line2";
+
+        await _db.insertNotification(
+          NotificationsCompanion(
+            type: drift.Value('group'),
+            content: drift.Value(multiLineContent),
+            timestamp: drift.Value(DateTime.now()),
+            relatedId: drift.Value(newNoticeId),
+            isRead: drift.Value(true),
+          ),
+        );
+
+        _newNoticeController.clear();
+        setState(() {
+          _isAddingNewNotice = false;
+          _selectedDate = null;
+        });
+        _fetchNotices();
+        widget.onNoticeChanged();
+      } else {
+        _showErrorSnackBar('서버 등록에 실패했습니다.');
+      }
+    } catch (e) {
+      _showErrorSnackBar('네트워크 오류가 발생했습니다.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     }
   }
 

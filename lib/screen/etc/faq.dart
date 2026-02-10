@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/screen/etc/inquire.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FaqScreen extends StatefulWidget {
   const FaqScreen({super.key});
@@ -151,14 +152,7 @@ class _FaqScreenState extends State<FaqScreen> {
                       ),
                       const SizedBox(height: 8),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const InquireScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => _launchURL('https://tally.so/r/vGYyMX'),
                         child: Container(
                           width: double.infinity,
                           height: 37,
@@ -189,6 +183,13 @@ class _FaqScreenState extends State<FaqScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw Exception('Could not launch $url');
+    }
   }
 
   Widget _buildBaseCard({required List<Widget> children}) {

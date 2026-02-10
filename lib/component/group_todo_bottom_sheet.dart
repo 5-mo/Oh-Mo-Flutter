@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
 import 'package:ohmo/services/group_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_item.dart';
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:intl/intl.dart';
@@ -65,6 +66,7 @@ class GroupTodoBottomSheet extends StatefulWidget {
 
 class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   late Map<String, String> _groupMembers = {};
+  Map<String, int> _memberNameToId = {};
   List<String> _filterMembers = [];
   bool _showMentionSuggestions = false;
   List<CategoryItem> todos = [];
@@ -79,6 +81,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   TimeOfDay? selectedTime;
   bool isChecked = false;
   final GroupService _groupService = GroupService();
+  String? myNickname;
 
   @override
   void initState() {
@@ -178,7 +181,6 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
 
   Future<void> _loadMembers() async {
     if (widget.groupId == null) return;
-
     final myEmail = await _groupService.getMyEmail();
     final memberData = await _groupService.fetchGroupMembers(widget.groupId!);
 
@@ -193,24 +195,23 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
 
       for (var member in memberList) {
         final memberInfo = member['memberInfo'] ?? {};
-        String groupNickname = member['nickname']?.toString() ?? "";
-        String globalNickname = memberInfo['nickname']?.toString() ?? "이름 없음";
-        String baseName = groupNickname.isNotEmpty ? groupNickname : globalNickname;
+        final String email = memberInfo['email'] ?? '';
+        String? groupNickname = member['nickname']?.toString();
+        String? globalNickname = memberInfo['nickname']?.toString();
 
-        String profileUrl = memberInfo['profileImageUrl']?.toString() ?? "";
-        int memberGroupId = member['memberGroupId'] ?? 0;
-        String email = (memberInfo['email'] ?? '').toString().trim().toLowerCase();
-        String compareMyEmail = (myEmail ?? '').trim().toLowerCase();
+        String baseName = groupNickname ?? globalNickname ?? "이름 없음";
 
-        String displayName = (email == compareMyEmail) ? '$baseName(나)' : baseName;
+        if (email == myEmail) {
+          myNickname = baseName;
+        }
 
-        updatedMembers[displayName] = profileUrl;
-        updatedIds[displayName] = memberGroupId;
+        updatedMembers[baseName] = memberInfo['profileImageUrl'] ?? "";
+        updatedIds[baseName] = member['memberGroupId'] ?? 0;
       }
 
       setState(() {
         _groupMembers = updatedMembers;
-        _memberIds = updatedIds;
+        _memberNameToId = updatedIds;
         _filterMembers = _groupMembers.keys.toList();
       });
     }
@@ -287,10 +288,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
       borderRadius: BorderRadius.circular(6),
       elevation: 4.0,
       child: Container(
-        constraints: const BoxConstraints(
-          minWidth: 102,
-          maxWidth:120,
-        ),
+        constraints: const BoxConstraints(minWidth: 102, maxWidth: 120),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
@@ -320,14 +318,18 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                 padding: EdgeInsets.zero,
                 children:
                 _filterMembers.map((member) {
-                  final imagePath = _groupMembers[member];
+                  final bool isMe =
+                  (member != '모두' &&
+                      myNickname != null &&
+                      member == myNickname);
+                  final String showName = isMe ? '$member(나)' : member;
 
                   return InkWell(
                     onTap: () => _onMemberSelected(member),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16.0,
-                        vertical: 2.0,
+                        vertical: 6.0,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -335,22 +337,32 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                           CircleAvatar(
                             radius: 10,
                             backgroundColor: Colors.grey[200],
-                            backgroundImage: (() {
+                            backgroundImage:
+                            (() {
                               final path = _groupMembers[member];
-                              if (path == null || path.isEmpty) return null;
+                              if (path == null || path.isEmpty)
+                                return null;
 
                               if (path.startsWith('http')) {
                                 return NetworkImage(path);
                               }
-                              if (path.startsWith('android/assets')) {
+                              if (path.startsWith(
+                                'android/assets',
+                              )) {
                                 return AssetImage(path);
                               }
                               return null;
-                            })() as ImageProvider?,
-                            child: (() {
+                            })()
+                            as ImageProvider?,
+                            child:
+                            (() {
                               final path = _groupMembers[member];
                               if (path == null || path.isEmpty) {
-                                return Icon(Icons.person, size: 12, color: Colors.grey[400]);
+                                return Icon(
+                                  Icons.person,
+                                  size: 12,
+                                  color: Colors.grey[400],
+                                );
                               }
                               return null;
                             })(),
@@ -358,7 +370,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
-                              member,
+                              showName,
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.black,
@@ -381,42 +393,44 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        final String originalContent = contentController.text.trim();
-
-        if (originalContent.isEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("내용을 입력해주세요.")));
-          return;
-        }
-
-        String finalContent = originalContent;
+        final String content = contentController.text.trim();
+        if (content.isEmpty) return;
 
         List<int> finalAssigneeIds = [];
-        if (originalContent.contains('@모두')) {
-          finalAssigneeIds = _memberIds.values.where((id) => id != 0).toList();
+
+        if (content.contains('@모두')) {
+          _memberNameToId.forEach((name, id) {
+            if (name != '모두' && id != 0) {
+              finalAssigneeIds.add(id);
+            }
+          });
         } else {
-          _memberIds.forEach((name, id) {
-            if (originalContent.contains('@$name') && id != 0) {
+          _memberNameToId.forEach((name, id) {
+            if ((content.contains('@$name') || content.contains('@$name(나)')) && id != 0) {
               finalAssigneeIds.add(id);
             }
           });
         }
 
+        if (finalAssigneeIds.isEmpty) {
+          final myId = _memberNameToId[myNickname] ?? _memberNameToId['$myNickname(나)'];
+          if (myId != null) finalAssigneeIds.add(myId);
+        }
+
         try {
           final int? newTodoId = await _groupService.createGroupTodo(
             groupId: widget.groupId ?? 0,
-            content: originalContent,
+            content: content,
             date: DateFormat('yyyy-MM-dd').format(widget.selectedDate),
           );
 
           if (newTodoId != null) {
-            if (finalAssigneeIds.isNotEmpty) {
-              bool isAssigneeSuccess = await _groupService.registerAssigneeTodo(
+            // @모두 또는 여러 명일 경우, 한 명씩 서버에 등록 요청을 보냅니다.
+            for (int memberId in finalAssigneeIds) {
+              await _groupService.registerAssigneeTodo(
                 todoId: newTodoId,
-                memberGroupIdList: finalAssigneeIds,
+                memberGroupId: memberId,
               );
-              print("투두 담당자 배정 결과: $isAssigneeSuccess");
             }
 
             final db = LocalDatabaseSingleton.instance;
@@ -424,11 +438,11 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
             await db.insertTodo(
               TodosCompanion.insert(
                 groupId: drift.Value(widget.groupId),
-                content: finalContent,
+                content: content,
                 date: widget.selectedDate,
               ),
             );
-            if (finalContent.contains('(나)') || finalContent.contains('@모두')) {
+            if (content.contains('(나)') || content.contains('@모두')) {
               final group = await db.getGroupById(widget.groupId ?? 0);
               final groupName = group?.name ?? "ohmo";
               final todoDateStr = DateFormat(
@@ -436,7 +450,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
               ).format(widget.selectedDate);
 
               String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
-              String line2 = "[To-do] $finalContent ( ~$todoDateStr까지)";
+              String line2 = "[To-do] $content ( ~$todoDateStr까지)";
               final String multiLineContent = "$line1\n$line2";
 
               await db.insertNotification(

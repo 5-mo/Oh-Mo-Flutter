@@ -361,15 +361,6 @@ class _FinalLeaveScreenState extends State<FinalLeaveScreen> {
   }
 
   void _processWithdrawal() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
-    );
-
     bool isSuccess = await AuthService.withdraw();
 
     if (!mounted) return;

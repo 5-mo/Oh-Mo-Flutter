@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_item.dart';
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:intl/intl.dart' as intl;
@@ -73,6 +74,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   int? selectedCategoryId;
   List<String> selectedDays = [];
   double _mentionBoxOffsetx = 0.0;
+  String? myNickname;
 
   final TextEditingController contentController = TextEditingController();
   final FocusNode _contentFocusNode = FocusNode();
@@ -148,6 +150,19 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     if (widget.groupId == null) return;
 
     final myEmail = await _groupService.getMyEmail();
+
+    final prefs = await SharedPreferences.getInstance();
+    String? savedNickname = prefs.getString('group_nickname_${widget.groupId}');
+
+    final allGroups = await _groupService.fetchGroups();
+    String? serverGroupNickname;
+    try {
+      final currentGroup = allGroups.firstWhere(
+        (g) => g['groupId'] == widget.groupId,
+      );
+      serverGroupNickname = currentGroup['nickname'];
+    } catch (_) {}
+
     final memberData = await _groupService.fetchGroupMembers(widget.groupId!);
 
     if (memberData != null && mounted) {
@@ -157,27 +172,33 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       Map<String, String> updatedMembers = {
         '모두': 'android/assets/images/clear_ohmo.png',
       };
-
       Map<String, int> updatedIds = {};
 
       for (var member in memberList) {
         final memberInfo = member['memberInfo'] ?? {};
+        final String email = memberInfo['email'] ?? '';
 
-        String groupNickname = member['nickname']?.toString() ?? "";
-        String globalNickname = memberInfo['nickname']?.toString() ?? "이름 없음";
+        String? groupNickname = member['nickname']?.toString();
+        String? globalNickname = memberInfo['nickname']?.toString();
 
-        String baseName = groupNickname.isNotEmpty ? groupNickname : globalNickname;
+        String baseName = "이름 없음";
 
-        String email = memberInfo['email'] ?? '';
-        int memberGroupId = member['memberGroupId'] ?? 0;
+        if (email == myEmail) {
+          baseName =
+              savedNickname ??
+              serverGroupNickname ??
+              groupNickname ??
+              globalNickname ??
+              "나";
+          myNickname = baseName;
+        } else {
+          baseName = groupNickname ?? globalNickname ?? "이름 없음";
+        }
 
-        String? profileUrl = memberInfo['profileImageUrl'];
-
-        String displayName = (email == myEmail) ? '$baseName(나)' : baseName;
-
-        updatedMembers[displayName] = profileUrl ?? "";
-        updatedIds[displayName] = memberGroupId;
+        updatedMembers[baseName] = memberInfo['profileImageUrl'] ?? "";
+        updatedIds[baseName] = member['memberGroupId'] ?? 0;
       }
+
       setState(() {
         _groupMembers = updatedMembers;
         _memberNameToId = updatedIds;
@@ -196,19 +217,26 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       if (atIndex > 0 && text[atIndex - 1] != ' ') {
         prefix = " ";
       }
+
+      String insertName = name;
+      if (name != '모두' && myNickname != null && name == myNickname) {
+        insertName = '$name(나)';
+      }
+
       final newText =
           text.substring(0, atIndex) +
-          '$prefix@$name ' +
+          '$prefix@$insertName ' +
           text.substring(cursorPos);
 
       contentController.value = TextEditingValue(
         text: newText,
         selection: TextSelection.fromPosition(
-          TextPosition(offset: atIndex + prefix.length + name.length + 2),
+          TextPosition(offset: atIndex + prefix.length + insertName.length + 2),
         ),
       );
       _contentFocusNode.requestFocus();
     }
+
     Future(() {
       setState(() {
         _showMentionSuggestions = false;
@@ -378,10 +406,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       borderRadius: BorderRadius.circular(6),
       elevation: 4.0,
       child: Container(
-        constraints: const BoxConstraints(
-        minWidth: 102,
-        maxWidth:120,
-        ),
+        constraints: const BoxConstraints(minWidth: 102, maxWidth: 120),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
@@ -411,14 +436,18 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 padding: EdgeInsets.zero,
                 children:
                     _filterMembers.map((member) {
-                      final imagePath = _groupMembers[member];
+                      final bool isMe =
+                          (member != '모두' &&
+                              myNickname != null &&
+                              member == myNickname);
+                      final String showName = isMe ? '$member(나)' : member;
 
                       return InkWell(
                         onTap: () => _onMemberSelected(member),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16.0,
-                            vertical: 2.0,
+                            vertical: 6.0,
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -426,30 +455,40 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                               CircleAvatar(
                                 radius: 10,
                                 backgroundColor: Colors.grey[200],
-                                backgroundImage: (() {
-                                  final path = _groupMembers[member];
-                                  if (path == null || path.isEmpty) return null;
+                                backgroundImage:
+                                    (() {
+                                          final path = _groupMembers[member];
+                                          if (path == null || path.isEmpty)
+                                            return null;
 
-                                  if (path.startsWith('http')) {
-                                    return NetworkImage(path);
-                                  }
-                                  if (path.startsWith('android/assets')) {
-                                    return AssetImage(path);
-                                  }
-                                  return null;
-                                })() as ImageProvider?,
-                                child: (() {
-                                  final path = _groupMembers[member];
-                                  if (path == null || path.isEmpty) {
-                                    return Icon(Icons.person, size: 12, color: Colors.grey[400]);
-                                  }
-                                  return null;
-                                })(),
+                                          if (path.startsWith('http')) {
+                                            return NetworkImage(path);
+                                          }
+                                          if (path.startsWith(
+                                            'android/assets',
+                                          )) {
+                                            return AssetImage(path);
+                                          }
+                                          return null;
+                                        })()
+                                        as ImageProvider?,
+                                child:
+                                    (() {
+                                      final path = _groupMembers[member];
+                                      if (path == null || path.isEmpty) {
+                                        return Icon(
+                                          Icons.person,
+                                          size: 12,
+                                          color: Colors.grey[400],
+                                        );
+                                      }
+                                      return null;
+                                    })(),
                               ),
                               const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
-                                  member,
+                                  showName,
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Colors.black,
@@ -472,7 +511,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        final String content = contentController.text;
+        final String content = contentController.text.trim();
 
         if (content.isEmpty || selectedDays.isEmpty) {
           ScaffoldMessenger.of(
@@ -483,11 +522,12 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
 
         List<int> selectedAssigneeIds = [];
         if (content.contains('@모두')) {
-          selectedAssigneeIds =
-              _memberNameToId.values.where((id) => id != 0).toList();
+          _memberNameToId.forEach((name, id) {
+            if (name != '모두' && id != 0) selectedAssigneeIds.add(id);
+          });
         } else {
           _memberNameToId.forEach((name, id) {
-            if (content.contains('@$name')) {
+            if (content.contains('@$name') && name != '모두') {
               selectedAssigneeIds.add(id);
             }
           });
@@ -495,35 +535,52 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
 
         try {
           final englishWeek = convertToEnglishWeek(selectedDays);
-          final formattedDate = intl.DateFormat(
+          final formattedStartDate = intl.DateFormat(
             'yyyy-MM-dd',
           ).format(widget.selectedDate);
 
-          final int? serverRoutineId = await _groupService.createGroupRoutine(
+          final DateTime threeMonthsLater = widget.selectedDate.add(
+            const Duration(days: 90),
+          );
+          final String formattedEndDate = intl.DateFormat(
+            'yyyy-MM-dd',
+          ).format(threeMonthsLater);
+
+          final dynamic serverResponse = await _groupService.createGroupRoutine(
             groupId: widget.groupId ?? 0,
             content: content,
             routineWeek: englishWeek,
-            date: formattedDate,
+            date: formattedStartDate,
           );
 
-          if (serverRoutineId != null) {
-            print("성공적으로 추출된 routineId: $serverRoutineId");
-            if (selectedAssigneeIds.isNotEmpty) {
-              await _groupService.registerAssigneeRoutine(
-                routineId: serverRoutineId,
-                memberGroupIdList: selectedAssigneeIds,
-              );
+          if (serverResponse != null) {
+            List<int> routineIds = [];
+            if (serverResponse is int) {
+              routineIds.add(serverResponse);
+            } else if (serverResponse is List) {
+              routineIds =
+                  serverResponse.map((e) => e['routineId'] as int).toList();
             }
+
+            if (selectedAssigneeIds.isNotEmpty) {
+              for (int rId in routineIds) {
+                await _groupService.registerAssigneeRoutine(
+                  routineId: rId,
+                  memberGroupIdList: selectedAssigneeIds,
+                );
+              }
+            }
+
             final db = LocalDatabaseSingleton.instance;
             final weekString = getRoutineWeek().join(',');
 
             final int localRoutineId = await db.insertRoutine(
               RoutinesCompanion.insert(
                 groupId: drift.Value(widget.groupId),
-                content: contentController.text,
+                content: content,
                 weekDays: drift.Value(weekString),
                 startDate: drift.Value(widget.selectedDate),
-                endDate: drift.Value(DateTime(9999, 12, 31)),
+                endDate: drift.Value(threeMonthsLater),
                 timeMinutes: const drift.Value(0),
                 categoryId: const drift.Value(1),
                 colorType: const drift.Value(0),
@@ -535,15 +592,12 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
               final group = await db.getGroupById(widget.groupId ?? 0);
               final groupName = group?.name ?? "현재 그룹";
               final days = selectedDays.join(',');
-
-              String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
-              String line2 = "[Routine] $content (매주 $days)";
-              final String multiLineContent = "$line1\n$line2";
-
+              String line1 = "'$groupName' 그룹에 새로운 루틴이 등록되었습니다.";
+              String line2 = "[Routine] $content (매주 $days, 3개월간)";
               await db.insertNotification(
                 NotificationsCompanion(
                   type: drift.Value('group'),
-                  content: drift.Value(multiLineContent),
+                  content: drift.Value("$line1\n$line2"),
                   timestamp: drift.Value(DateTime.now()),
                   relatedId: drift.Value(localRoutineId),
                   isRead: drift.Value(true),
@@ -551,26 +605,17 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
               );
             }
 
-            if (widget.onRoutineAdded != null) {
-              await widget.onRoutineAdded!();
-            }
+            if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
 
             if (mounted) {
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("루틴이 등록되었습니다!")));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("루틴이 3개월간 등록되었습니다!")),
+              );
             }
-          } else {
-            throw Exception("서버 등록 실패");
           }
         } catch (e) {
           print('루틴 저장 실패: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('루틴 저장에 실패했습니다.')));
-          }
         }
       },
       child: Container(

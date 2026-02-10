@@ -27,9 +27,6 @@ class GroupService {
     };
 
     try {
-      print("[그룹 생성 요청] POST $url");
-      print("[그룹 생성 바디] ${jsonEncode(body)}");
-
       final response = await http.post(
         url,
         headers: {
@@ -40,7 +37,6 @@ class GroupService {
       );
 
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      print("[그룹 생성 응답] 상태코드: ${response.statusCode}, 결과: $data");
 
       if (response.statusCode == 200) {
         if (data['isSuccess'] == true) {
@@ -54,7 +50,6 @@ class GroupService {
         throw Exception('서버 에러 : ${response.statusCode}');
       }
     } catch (e) {
-      print("[createGroup 에러] $e");
       rethrow;
     }
   }
@@ -77,7 +72,6 @@ class GroupService {
       );
 
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
-      print("[그룹 목록 조회 응답] : $decodedData");
 
       if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
         return List<Map<String, dynamic>>.from(decodedData['result']);
@@ -85,7 +79,6 @@ class GroupService {
         return [];
       }
     } catch (e) {
-      print("[fetchGroups 에러] : $e");
       return [];
     }
   }
@@ -145,7 +138,6 @@ class GroupService {
       }
       return null;
     } catch (e) {
-      print("[createGroupRoutine 에러]: $e");
       return null;
     }
   }
@@ -155,80 +147,51 @@ class GroupService {
     required String content,
     required String date,
     String? time,
-    String? alarmTime,
   }) async {
     final url = Uri.parse('$baseUrl/group-schedule/todo');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('accessToken');
-      if (token == null) return null;
+    final body = {
+      "groupId": groupId,
+      "content": content,
+      "date": date,
+      "time": time ?? "00:00",
+      "routineWeek": [],
+    };
 
-      final Map<String, dynamic> body = {
-        "groupId": groupId,
-        "content": content,
-        "date": date,
-        "time": (time == null || time.isEmpty) ? "00:00" : time,
-        "routineWeek": [],
-      };
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
+    );
 
-      if (alarmTime != null && alarmTime.trim().isNotEmpty) {
-        body['alarmTime'] = alarmTime;
-      }
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
-      );
-
-      final decoded = json.decode(utf8.decode(response.bodyBytes));
-      if (response.statusCode == 200 && decoded['isSuccess'] == true) {
-        final result = decoded['result'];
-        print("서버 응답 result 내용: $result");
-        if (result != null && result['todoId'] != null) {
-          return result['todoId'];
-        } else {
-          print("[createGroupTodo] 성공했으나 todoId가 응답에 없음. 실제 데이터: $result");
-          return null;
-        }
-      }
-      return null;
-    } catch (e) {
-      print("[createGroupTodo 에러]:$e");
-      return null;
-    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    return (decoded['isSuccess'] == true) ? decoded['result']['todoId'] : null;
   }
 
   Future<bool> registerAssigneeTodo({
     required int todoId,
-    required List<int> memberGroupIdList,
+    required int memberGroupId,
   }) async {
     final url = Uri.parse('$baseUrl/group-schedule/assignee-todo');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('accessToken');
-      if (token == null) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
 
-      final body = {"todoId": todoId, "memberGroupIdList": memberGroupIdList};
+    final body = {"todoId": todoId, "memberGroupId": memberGroupId};
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
-      );
-      final decoded = json.decode(utf8.decode(response.bodyBytes));
-      return response.statusCode == 200 && decoded['isSuccess'] == true;
-    } catch (e) {
-      print("[registerAssigneeTodo 에러 : $e");
-      return false;
-    }
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
+    );
+    return response.statusCode == 200;
   }
 
   Future<List<dynamic>> fetchAssigneeTodo(int todoId) async {
@@ -272,7 +235,6 @@ class GroupService {
       }
       return null;
     } catch (e) {
-      print("[fetchAssigneeRoutine 에러] : $e");
       return null;
     }
   }
@@ -298,20 +260,14 @@ class GroupService {
         },
       );
 
-      print("[API 요청] GET $url");
-      print("[응답 상태] ${response.statusCode}");
-
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
-      print("[응답 바디] $decodedData");
 
       if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
         return decodedData['result'];
       } else {
-        print("[fetchGroupSchedules 실패]: ${decodedData['message']}");
         return null;
       }
     } catch (e) {
-      print("[fetchGroupSchedules 에러]: $e");
       return null;
     }
   }
@@ -333,7 +289,6 @@ class GroupService {
     };
 
     try {
-      print("[그룹 입장 요청] POST $url");
       final response = await http.post(
         url,
         headers: {
@@ -343,7 +298,6 @@ class GroupService {
         body: jsonEncode(body),
       );
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      print("[그룹 입장 응답] $data");
 
       if (response.statusCode == 200 && data['isSuccess'] == true) {
         return Map<String, dynamic>.from(data['result']);
@@ -351,7 +305,6 @@ class GroupService {
         throw Exception(data['message'] ?? '그룹 입장에 실패했습니다.');
       }
     } catch (e) {
-      print("[entergroup 에러]$e");
       rethrow;
     }
   }
@@ -366,8 +319,6 @@ class GroupService {
 
       if (token == null) return null;
 
-      print("[그룹 멤버 조회 요청] GET $url");
-
       final response = await http.get(
         url,
         headers: {
@@ -378,16 +329,13 @@ class GroupService {
       );
 
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
-      print("[그룹 멤버 조회 응답] 상태코드 : ${response.statusCode}, 결과 : $decodedData");
 
       if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
         return Map<String, dynamic>.from(decodedData['result']);
       } else {
-        print("[fetchGroupMembers 실패]:${decodedData['message']}");
         return null;
       }
     } catch (e) {
-      print("[fetchGroupMembers 에러]: $e");
       return null;
     }
   }
@@ -410,7 +358,8 @@ class GroupService {
 
       final Map<String, dynamic> body = {
         "routineId": routineId,
-        "memberGroupIdList": memberGroupIdList,
+        "memberGroupId":
+            memberGroupIdList.isNotEmpty ? memberGroupIdList[0] : null,
       };
 
       final response = await http.post(
@@ -424,11 +373,10 @@ class GroupService {
       );
 
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
-      print("[담당자 등록 응답] : $decodedData");
 
       return response.statusCode == 200 && decodedData['isSuccess'] == true;
     } catch (e) {
-      print("[registerAssigneeRoutine 에러]: $e");
+      print("담당자 등록 에러: $e");
       return false;
     }
   }
@@ -446,7 +394,6 @@ class GroupService {
     final body = {"groupId": groupId, "nickname": nickname};
 
     try {
-      print("[닉네임 업데이트 요청] PATCH $url");
       final response = await http.patch(
         url,
         headers: {
@@ -457,12 +404,153 @@ class GroupService {
       );
 
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      print("[닉네임 업데이트 응답] $data");
 
       return response.statusCode == 200 && data['isSuccess'] == true;
     } catch (e) {
-      print("[updateGroupNickname 에러]$e");
       return false;
+    }
+  }
+
+  Future<bool> deleteGroup({
+    required int groupId,
+    required String groupPassword,
+  }) async {
+    final url = Uri.parse('$baseUrl/group');
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+
+    if (accessToken == null) throw Exception('로그인이 필요합니다.');
+
+    final Map<String, dynamic> body = {
+      "groupId": groupId,
+      "groupPassword": groupPassword,
+    };
+
+    try {
+      print("[그룹 삭제 요청] DELETE $url");
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      print("[그룹 삭제 응답] $data");
+
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        return true;
+      } else {
+        throw Exception(data['message'] ?? '그룹 삭제에 실패했습니다.');
+      }
+    } catch (e) {
+      print("[deleteGroup 에러] $e");
+      rethrow;
+    }
+  }
+
+  Future<bool> updateAssigneeStatus(int assigneeId) async {
+    final url = Uri.parse(
+      '$baseUrl/group-schedule/assignee/status?assigneeId=$assigneeId',
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('accessToken');
+      if (token == null) return false;
+
+      final response = await http.post(
+        url,
+        headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+        body: '',
+      );
+
+      if (response.statusCode == 200) {
+        if (response.body.isEmpty) return true;
+        final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+        return decodedData['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('담당자 상태 변경 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> createNotice({
+    required int groupId,
+    required String notice,
+    required String date,
+  }) async {
+    final url = Uri.parse('$baseUrl/notice');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+
+    if (token == null) {
+      print("❌ 에러: 토큰이 없습니다.");
+      return false;
+    }
+
+    final body = {"notice": notice, "date": date, "groupId": groupId};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+
+      // 이 로그를 디버그 콘솔에서 꼭 확인하세요!
+      print("📢 공지 등록 요청 바디: $body");
+      print("📢 공지 등록 서버 응답: $decoded");
+
+      if (response.statusCode == 200 && decoded['isSuccess'] == true) {
+        return true;
+      } else {
+        print("❌ 등록 실패: ${decoded['message']}");
+        return false;
+      }
+    } catch (e) {
+      print('❌ 통신 에러: $e');
+      return false;
+    }
+  }
+
+  Future<List<dynamic>> fetchNotices({
+    required int groupId,
+    required String date,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/notice',
+    ).replace(queryParameters: {'groupId': groupId.toString(), 'date': date});
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('accessToken');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return decodedData['result'] ?? [];
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('공지 조회 에러 : $e');
+      return [];
     }
   }
 }

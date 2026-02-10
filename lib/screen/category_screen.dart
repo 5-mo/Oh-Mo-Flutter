@@ -139,21 +139,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     final fetchedGroups = await _groupService.fetchGroups();
 
-    // _loadAllData 함수 내부 수정
     final List<Map<String, dynamic>> groupWithMembers = await Future.wait(
       fetchedGroups.map((group) async {
         final int groupId = group['groupId'];
         final memberData = await _groupService.fetchGroupMembers(groupId);
 
-        // 로그를 찍어 실제 데이터가 어디에 들어있는지 확인해보세요.
-        print("Group $groupId MemberData: $memberData");
+        final List<dynamic> members =
+            memberData != null
+                ? (memberData['memberGroupInfos'] ??
+                    memberData['memberDtoList'] ??
+                    [])
+                : [];
+
+        final myEmail = await _groupService.getMyEmail();
+
+        final myInfo = members.firstWhere(
+          (m) => m['memberInfo']['email'] == myEmail,
+          orElse: () => null,
+        );
 
         return {
           ...group,
-          // memberGroupInfos가 실제 데이터가 들어있는 키일 것입니다.
-          'members': memberData != null
-              ? (memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [])
-              : [],
+          'members': members,
+          'myRole': myInfo?['role'],
           'totalCount': memberData != null ? memberData['numPeople'] : 0,
         };
       }),
@@ -230,6 +238,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 padding: const EdgeInsets.only(left: 31),
                 child: _buildGroupAccordion(),
               ),
+
               SizedBox(height: 60),
             ],
           ),
@@ -1146,6 +1155,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
       ColorTypeExtension.fromString(colorTypeString),
     );
     final List<dynamic> members = group['members'] ?? [];
+    final myInfo = members.firstWhere(
+      (m) => m['memberInfo']['email'] == "",
+      orElse: () => null,
+    );
     final int totalCount = group['totalCount'] ?? members.length;
     return InkWell(
       onTap: () async {
@@ -1211,6 +1224,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   right: 7,
                   child: GestureDetector(
                     onTap: () async {
+                      final String? currentRole = group['myRole'];
+                      print("보내기 직전 체크: $currentRole");
                       final bool? needsRefresh =
                           await showModalBottomSheet<bool>(
                             context: context,
@@ -1226,6 +1241,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               return GroupSettingsBottomSheet(
                                 groupId: groupId,
                                 groupName: name,
+                                initialRole: currentRole,
                               );
                             },
                           );
@@ -1254,11 +1270,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     final String? profileUrl = memberInfo['profileImageUrl'];
                     return Padding(
                       padding: const EdgeInsets.only(right: 4.0),
-                      child: _buildMemberProfile(
-                        profileUrl,
-                        0.2,
-                        color,
-                      ),
+                      child: _buildMemberProfile(profileUrl, 0.2, color),
                     );
                   }).toList(),
                 ],
@@ -1334,7 +1346,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Widget _buildMemberProfile(
-      String? imageUrl,
+    String? imageUrl,
     double progress,
     Color groupColor,
   ) {
@@ -1355,9 +1367,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
           CircleAvatar(
             radius: 8,
             backgroundColor: Colors.grey[200],
-            backgroundImage: (imageUrl != null && imageUrl.isNotEmpty && imageUrl.startsWith('http'))
-                ? NetworkImage(imageUrl)
-                : const AssetImage('android/assets/images/clear_ohmo.png') as ImageProvider,
+            backgroundImage:
+                (imageUrl != null &&
+                        imageUrl.isNotEmpty &&
+                        imageUrl.startsWith('http'))
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage('android/assets/images/clear_ohmo.png')
+                        as ImageProvider,
           ),
           SizedBox(
             width: 18,

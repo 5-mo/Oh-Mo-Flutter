@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/group_popup.dart';
 import 'package:ohmo/component/managing_members_bottom_sheet.dart';
+import 'package:ohmo/services/group_service.dart';
 
 import '../const/colors.dart';
 import 'color_palette_bottom_sheet.dart';
@@ -12,9 +13,14 @@ import 'package:ohmo/db/drift_database.dart';
 class GroupSettingsBottomSheet extends StatefulWidget {
   final int groupId;
   final String groupName;
+  final String? initialRole;
 
-  const GroupSettingsBottomSheet({Key? key, required this.groupId,required this.groupName})
-    : super(key: key);
+  const GroupSettingsBottomSheet({
+    Key? key,
+    required this.groupId,
+    required this.groupName,
+    this.initialRole,
+  }) : super(key: key);
 
   @override
   State<GroupSettingsBottomSheet> createState() =>
@@ -32,10 +38,38 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   void initState() {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
-    _fetchUserRole();
+
+    print("DEBUG: 시트가 받은 initialRole -> ${widget.initialRole}");
+    if (widget.initialRole != null) {
+      _userRole = widget.initialRole;
+    } else {
+      _fetchUserRole();
+    }
   }
 
   Future<void> _fetchUserRole() async {
+    try {
+      final groupData = await GroupService().fetchGroupMembers(widget.groupId);
+
+      if (groupData != null) {
+        final myEmail = await GroupService().getMyEmail();
+
+        final List members = groupData['memberGroupInfos'] ?? [];
+        final myInfo = members.firstWhere(
+          (m) => m['memberInfo']['email'] == myEmail,
+          orElse: () => null,
+        );
+
+        if (mounted && myInfo != null) {
+          setState(() {
+            _userRole = myInfo['role'];
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      print("권한 조회 실패 : $e");
+    }
     final role = await _db.getMemberRole(widget.groupId, currentUserId);
 
     if (mounted) {
@@ -47,6 +81,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isAdmin = _userRole == 'OWNER' || _userRole == 'MANAGER';
     return SafeArea(
       child: Container(
         width: double.infinity,
@@ -61,7 +96,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               _buildInvitingMember(),
               SizedBox(height: 10),
 
-              if (_userRole == 'OWNER') ...[
+              if (isAdmin) ...[
                 _buildManageMembersButton(),
                 SizedBox(height: 10),
                 _buildDelegationButton(),
@@ -69,7 +104,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 _buildPasswordButton(),
               ],
               SizedBox(height: 20),
-              if (_userRole == 'OWNER')
+              if (isAdmin)
                 _buildDeleteGroupButton()
               else
                 _buildLeaveGroupButton(),
@@ -151,7 +186,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   Widget _buildInvitingMember() {
     return GestureDetector(
       onTap: () async {
-        final bool? result=await showModalBottomSheet<bool>(
+        final bool? result = await showModalBottomSheet<bool>(
           context: context,
           isScrollControlled: true,
           isDismissible: true,
@@ -163,7 +198,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             ),
           ),
           builder: (context) {
-            return InvitingIdBottomSheet(groupId: widget.groupId,groupName: widget.groupName,);
+            return InvitingIdBottomSheet(
+              groupId: widget.groupId,
+              groupName: widget.groupName,
+            );
           },
         );
       },
@@ -420,17 +458,25 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
       builder: (BuildContext dialogContext) {
         return GroupPopup(
           messageHeader: '그룹 삭제하기',
-          message: '해당 그룹을 정말 삭제하시겠습니까?',
-          confirmButtonText: '삭제하기',
+          message: '그룹의 모든 일정이 사라지고\n복구되지 않습니다.\n해당 그룹을 정말 삭제하시겠습니까?',
+          confirmButtonText: '그룹 삭제하기',
           confirmButtonColor: Color(0xFFC41E1E),
         );
       },
     );
     if (confirmed == true) {
       try {
+        await GroupService().deleteGroup(
+          groupId: widget.groupId,
+          groupPassword: "",
+        );
+
         await _db.deleteGroup(widget.groupId);
 
         if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('그룹이 삭제되었습니다.')));
           Navigator.of(pageContext).pop(true);
         }
       } catch (e) {

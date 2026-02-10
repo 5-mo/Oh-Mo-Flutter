@@ -286,7 +286,7 @@ class _EtcScreenState extends State<EtcScreen> {
   Widget _buildBug(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => _launchURL('https://tally.so/r/81xQKz'), // 딥링크 적용
+      onTap: () => _launchURL('https://tally.so/r/81xQKz'),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

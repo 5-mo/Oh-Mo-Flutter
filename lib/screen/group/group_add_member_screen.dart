@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/group_popup.dart';
 import 'package:ohmo/component/sharing_link_bottom_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../component/inviting_id_bottom_sheet.dart';
 import '../../const/colors.dart';
 import '../../services/group_service.dart';
 import '../category_screen.dart';
+import '../home_screen.dart';
 
 class GroupAddMemberScreen extends StatefulWidget {
   final String roomName;
@@ -218,7 +220,7 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
     }
 
     try {
-      final Map<String,dynamic> groupResult = await _groupService.createGroup(
+      final Map<String, dynamic> groupResult = await _groupService.createGroup(
         groupName: widget.roomName,
         password: widget.password,
         groupColor: widget.selectedColor.name,
@@ -226,8 +228,8 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
         nickname: nickname,
       );
 
-      final int serverGroupId=groupResult['groupId'];
-      final String serverGroupCode=groupResult['groupCode'];
+      final int serverGroupId = groupResult['groupId'];
+      final String serverGroupCode = groupResult['groupCode'];
 
       if (!mounted) return;
 
@@ -248,7 +250,10 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
                       groupName: widget.roomName,
                       groupCode: serverGroupCode,
                     )
-                    : InvitingIdBottomSheet(groupId: serverGroupId,groupName: widget.roomName,),
+                    : InvitingIdBottomSheet(
+                      groupId: serverGroupId,
+                      groupName: widget.roomName,
+                    ),
       );
 
       if (result == true && mounted) {
@@ -264,10 +269,22 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
                 showCancelButton: false,
               ),
         );
+
+        final int serverGroupId = groupResult['groupId'];
+        final String serverGroupCode = groupResult['groupCode'];
+
+        await _groupService.updateGroupNickname(
+          groupId: serverGroupId,
+          nickname: nickname,
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('group_nickname_$serverGroupId', nickname);
+
         if (isConfirmed == true && mounted) {
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const CategoryScreen()),
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
             (route) => false,
           );
         }

@@ -212,6 +212,9 @@ class AuthService {
           )
           .timeout(const Duration(seconds: 5));
 
+      print('탈퇴 API 응답 코드: ${response.statusCode}');
+      print('탈퇴 API 응답 바디: ${response.body}');
+
       final decodeBody = utf8.decode(response.bodyBytes);
       final data = jsonDecode(decodeBody);
 
