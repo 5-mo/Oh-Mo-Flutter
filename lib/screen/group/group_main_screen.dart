@@ -671,6 +671,7 @@ class _NoticeSectionState extends State<NoticeSection> {
   final _newNoticeController = TextEditingController();
   List<Notice> _notices = [];
   DateTime? _selectedDate;
+  int? _editingNoticeId;
 
   @override
   void initState() {
@@ -759,68 +760,80 @@ class _NoticeSectionState extends State<NoticeSection> {
     }
   }
 
-  Future<void> _addNotice() async {
+  void _startEditing(Notice notice) {
+    setState(() {
+      _isAddingNewNotice = true;
+      _editingNoticeId = notice.id;
+      _newNoticeController.text = notice.content;
+      _selectedDate = notice.noticeDate;
+    });
+  }
+
+  Future<void> _saveNotice() async {
     if (_isLoading) return;
 
     final content = _newNoticeController.text.trim();
     if (content.isEmpty || _selectedDate == null) return;
 
     setState(() => _isLoading = true);
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
 
-    try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
-      final groupService = GroupService();
+    final groupService = GroupService();
 
-      final bool isSuccess = await groupService.createNotice(
+    final bool isSuccess;
+
+    if (_editingNoticeId != null) {
+      isSuccess = await groupService.updateNotice(
+        noticeId: _editingNoticeId!,
+        notice: content,
+        date: dateStr,
+      );
+    } else {
+      isSuccess = await groupService.createNotice(
         groupId: widget.groupId,
         notice: content,
         date: dateStr,
       );
+    }
+    if (isSuccess) {
+      final newNotice = NoticesCompanion.insert(
+        content: content,
+        createdAt: DateTime.now(),
+        groupId: drift.Value(widget.groupId),
+        noticeDate: _selectedDate!,
+      );
 
-      if (isSuccess) {
-        final newNotice = NoticesCompanion.insert(
-          content: content,
-          createdAt: DateTime.now(),
-          groupId: drift.Value(widget.groupId),
-          noticeDate: _selectedDate!,
-        );
+      final int newNoticeId = await _db.insertNotice(newNotice);
 
-        final int newNoticeId = await _db.insertNotice(newNotice);
+      final group = await _db.getGroupById(widget.groupId);
+      final groupName = group?.name ?? "ohmo";
 
-        final group = await _db.getGroupById(widget.groupId);
-        final groupName = group?.name ?? "ohmo";
+      final noticeDateStr = DateFormat('MM/dd').format(_selectedDate!);
 
-        final noticeDateStr = DateFormat('MM/dd').format(_selectedDate!);
+      String line1 = "'$groupName' 그룹에 새로운 공지가 등록되었습니다.";
+      String line2 = "[공지] $content(일시 : $noticeDateStr)";
 
-        String line1 = "'$groupName' 그룹에 새로운 공지가 등록되었습니다.";
-        String line2 = "[공지] $content(일시 : $noticeDateStr)";
+      final String multiLineContent = "$line1\n$line2";
 
-        final String multiLineContent = "$line1\n$line2";
+      await _db.insertNotification(
+        NotificationsCompanion(
+          type: drift.Value('group'),
+          content: drift.Value(multiLineContent),
+          timestamp: drift.Value(DateTime.now()),
+          relatedId: drift.Value(newNoticeId),
+          isRead: drift.Value(true),
+        ),
+      );
 
-        await _db.insertNotification(
-          NotificationsCompanion(
-            type: drift.Value('group'),
-            content: drift.Value(multiLineContent),
-            timestamp: drift.Value(DateTime.now()),
-            relatedId: drift.Value(newNoticeId),
-            isRead: drift.Value(true),
-          ),
-        );
-
-        _newNoticeController.clear();
-        setState(() {
-          _isAddingNewNotice = false;
-          _selectedDate = null;
-        });
-        _fetchNotices();
-        widget.onNoticeChanged();
-      } else {
-        _showErrorSnackBar('서버 등록에 실패했습니다.');
-      }
-    } catch (e) {
-      _showErrorSnackBar('네트워크 오류가 발생했습니다.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      _newNoticeController.clear();
+      setState(() {
+        _isAddingNewNotice = false;
+        _selectedDate = null;
+      });
+      _fetchNotices();
+      widget.onNoticeChanged();
+    } else {
+      _showErrorSnackBar('서버 등록에 실패했습니다.');
     }
   }
 
@@ -949,15 +962,18 @@ class _NoticeSectionState extends State<NoticeSection> {
           ),
           SizedBox(width: 10),
           Expanded(
-            child: Text(
-              notice.content,
-              style: TextStyle(
-                fontFamily: 'PretendardSemibold',
-                color: Colors.white,
-                fontSize: 16,
-                height: 1.3,
+            child: GestureDetector(
+              onTap: () => _startEditing(notice),
+              child: Text(
+                notice.content,
+                style: TextStyle(
+                  fontFamily: 'PretendardSemibold',
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.3,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           InkWell(
@@ -1046,7 +1062,7 @@ class _NoticeSectionState extends State<NoticeSection> {
 
           IconButton(
             icon: const Icon(Icons.check, color: Colors.white),
-            onPressed: _selectedDate != null ? _addNotice : null,
+            onPressed: _selectedDate != null ? _saveNotice : null,
           ),
         ],
       ),

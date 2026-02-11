@@ -553,4 +553,40 @@ class GroupService {
       return [];
     }
   }
+
+  Future<bool> updateNotice({
+    required int noticeId,
+    required String notice,
+    required String date,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/notice',
+    ).replace(queryParameters: {'noticeId': noticeId.toString()});
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accssToken');
+
+    if (token == null) return false;
+
+    final body = {"notice": notice, "date": date};
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      print("공지 수정 서버 응답 : $decoded");
+
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      print('공지 수정 통신 에러 : $e');
+      return false;
+    }
+  }
 }
