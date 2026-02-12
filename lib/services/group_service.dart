@@ -564,7 +564,7 @@ class GroupService {
     ).replace(queryParameters: {'noticeId': noticeId.toString()});
 
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accssToken');
+    final token = prefs.getString('accessToken');
 
     if (token == null) return false;
 
@@ -586,6 +586,32 @@ class GroupService {
       return response.statusCode == 200 && decoded['isSuccess'] == true;
     } catch (e) {
       print('공지 수정 통신 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteNotice({required int noticeId}) async {
+    final url = Uri.parse(
+      '$baseUrl/notice',
+    ).replace(queryParameters: {'noticeId': noticeId.toString()});
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('accessToken');
+
+      if (token == null) return false;
+
+      final response = await http.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      print("공지 삭제 서버 응답 : $decoded");
+
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      print('공지 삭제 통신 에러 : $e');
       return false;
     }
   }

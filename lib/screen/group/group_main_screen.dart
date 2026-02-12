@@ -991,10 +991,26 @@ class _NoticeSectionState extends State<NoticeSection> {
                 builder: (BuildContext bContext) {
                   return DeleteBottomSheet(
                     onDelete: () async {
-                      final db = LocalDatabaseSingleton.instance;
-                      await db.deleteNotice(notice.id);
-                      _fetchNotices();
-                      widget.onNoticeChanged();
+                      final groupService = GroupService();
+
+                      final bool isSuccess = await groupService.deleteNotice(
+                        noticeId: notice.id,
+                      );
+
+                      if (isSuccess) {
+                        final db = LocalDatabaseSingleton.instance;
+                        await db.deleteNotice(notice.id);
+                        _fetchNotices();
+                        widget.onNoticeChanged();
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("공지사항이 삭제되었습니다.")),
+                          );
+                        }
+                      } else {
+                        _showErrorSnackBar('서버에서 공지사항을 삭제하는 데 실패했습니다.');
+                      }
                     },
                   );
                 },
