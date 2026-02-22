@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GroupService {
@@ -488,7 +489,7 @@ class GroupService {
     final token = prefs.getString('accessToken');
 
     if (token == null) {
-      print("❌ 에러: 토큰이 없습니다.");
+      print("에러: 토큰이 없습니다.");
       return false;
     }
 
@@ -506,18 +507,14 @@ class GroupService {
 
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
-      // 이 로그를 디버그 콘솔에서 꼭 확인하세요!
-      print("📢 공지 등록 요청 바디: $body");
-      print("📢 공지 등록 서버 응답: $decoded");
-
       if (response.statusCode == 200 && decoded['isSuccess'] == true) {
         return true;
       } else {
-        print("❌ 등록 실패: ${decoded['message']}");
+        print("등록 실패: ${decoded['message']}");
         return false;
       }
     } catch (e) {
-      print('❌ 통신 에러: $e');
+      print('통신 에러: $e');
       return false;
     }
   }
@@ -613,6 +610,37 @@ class GroupService {
     } catch (e) {
       print('공지 삭제 통신 에러 : $e');
       return false;
+    }
+  }
+
+  Future<List<dynamic>> fetchNoticesByMonth({
+    required int groupId,
+    required String yearMonth,
+  }) async {
+    final url = Uri.parse('$baseUrl/notice/by-month').replace(
+      queryParameters: {'groupId': groupId.toString(), 'yearMonth': yearMonth},
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('accessToken');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return decodedData['result'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('월별 공지 조회 에러 : $e');
+      return [];
     }
   }
 }

@@ -112,72 +112,47 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Future<void> _loadSchedulesForMonth(DateTime month) async {
-    final firstDay = DateTime(month.year, month.month, 1);
-    final lastDay = DateTime(month.year, month.month + 1, 0);
+    final String yearMonth = DateFormat('yyyy-MM').format(month);
 
-    final allTodosInMonth = await _db.getTodosBetween(firstDay, lastDay);
-    final allNoticesForGroup = await _db.getNoticesForGroup(widget.groupId);
-    const int memberCount = 4;
-
-    _eventsCache.clear();
-    final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
-
-    for (
-      var day = firstDay;
-      day.isBefore(lastDay.add(const Duration(days: 1)));
-      day = day.add(const Duration(days: 1))
-    ) {
-      final dateOnly = DateTime(day.year, day.month, day.day);
-      final todosForDay = allTodosInMonth.where(
-        (todo) =>
-            todo.groupId == widget.groupId && isSameDay(todo.date, dateOnly),
+    try {
+      final List<dynamic> monthlyData = await _groupService.fetchNoticesByMonth(
+        groupId: widget.groupId,
+        yearMonth: yearMonth,
       );
-      bool isTodoCompleted = false;
 
-      if (todosForDay.isNotEmpty) {
-        final todo = todosForDay.first;
-        final mentions =
-            mentionRegex
-                .allMatches(todo.content)
-                .map((m) => m.group(0)!)
-                .toList();
-        int requiredCount =
-            (mentions.isEmpty || mentions.contains('@모두'))
-                ? memberCount
-                : mentions.length;
-        final currentCount =
-            (await _db.getTodoCompletionCount(todo.id, dateOnly)) ?? 0;
-        if (requiredCount > 0 && currentCount >= requiredCount)
-          isTodoCompleted = true;
-      }
+      Map<DateTime, List<CalendarEvent>> tempEvents = {};
 
-      if (isTodoCompleted) {
-        _eventsCache[dateOnly] = [
-          CalendarEvent(
-            id: todosForDay.first.id,
-            content: '',
-            currentCompletion: 1,
-            requiredCompletion: 1,
-          ),
-        ];
-      } else {
-        final noticesForDay = allNoticesForGroup.where(
-          (notice) => isSameDay(notice.noticeDate, dateOnly),
+      for (var dayData in monthlyData) {
+        final DateTime noticeDate = DateTime.parse(dayData['date']);
+        final dateOnly = DateTime(
+          noticeDate.year,
+          noticeDate.month,
+          noticeDate.day,
         );
-        if (noticesForDay.isNotEmpty) {
-          final notice = noticesForDay.first;
-          _eventsCache[dateOnly] = [
-            CalendarEvent(
-              id: notice.id,
-              content: notice.content,
-              currentCompletion: 0,
-              requiredCompletion: 1,
-            ),
-          ];
-        }
+
+        final List<dynamic> noticesJson = dayData['notices'] ?? [];
+
+        tempEvents[dateOnly] =
+            noticesJson
+                .map(
+                  (nj) => CalendarEvent(
+                    id: nj['noticeId'] ?? 0,
+                    content: nj['notice'] ?? '',
+                    currentCompletion: 0,
+                    requiredCompletion: 1,
+                  ),
+                )
+                .toList();
       }
+
+      if (mounted) {
+        setState(() {
+          _eventsCache = tempEvents;
+        });
+      }
+    } catch (e) {
+      print('월별 공지 로딩 에러: $e');
     }
-    if (mounted) setState(() {});
   }
 
   Future<void> _fetchGroupData(DateTime date) async {
@@ -691,42 +666,32 @@ class _NoticeSectionState extends State<NoticeSection> {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final groupService = GroupService();
+
       final List<dynamic> serverNotices = await groupService.fetchNotices(
         groupId: widget.groupId,
         date: dateStr,
       );
-      final noticesFromDb = await _db.getNoticesForGroup(widget.groupId);
 
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-
-      final futureNotices =
-          noticesFromDb.where((notice) {
-            final noticeDateOnly = DateTime(
-              notice.noticeDate.year,
-              notice.noticeDate.month,
-              notice.noticeDate.day,
+      final List<Notice> mappedNotices =
+          serverNotices.map((json) {
+            return Notice(
+              id: json['noticeId'] ?? 0,
+              content: json['notice'] ?? '',
+              noticeDate: DateTime.parse(json['date']),
+              groupId: json['groupId'] ?? widget.groupId,
+              createdAt: DateTime.now(),
+              isDeleted: false,
             );
-            return !noticeDateOnly.isBefore(today);
           }).toList();
-
-      futureNotices.sort((a, b) {
-        final dateComparison = a.noticeDate.compareTo(b.noticeDate);
-
-        if (dateComparison != 0) {
-          return dateComparison;
-        } else {
-          return b.createdAt.compareTo(a.createdAt);
-        }
-      });
 
       if (mounted) {
         setState(() {
-          _notices = noticesFromDb;
+          _notices = mappedNotices;
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('공지사항 로드 중 오류 발생: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }

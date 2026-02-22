@@ -76,13 +76,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final today = DateTime.now();
     _currentFocusedMonth = DateTime(today.year, today.month);
 
-    _loadDataForDate(today);
-    _loadDataForMonth(today);
+    _initializeData(today);
 
-    _fetchDailyDataAndRefresh(today).then((_) {
-      _fetchMonthlyDataAndRefresh(today);
-    });
     WidgetUpdater.update();
+  }
+
+  bool _isInitialLoading = true;
+
+  Future<void> _initializeData(DateTime date) async {
+    setState(() => _isInitialLoading = true);
+
+    await _fetchMonthlyDataAndRefresh(date);
+    await _fetchDailyDataAndRefresh(date);
+
+    if (mounted) {
+      setState(() => _isInitialLoading = false);
+    }
   }
 
   @override
@@ -252,51 +261,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadDataForMonth(DateTime month) async {
     _currentFocusedMonth = DateTime(month.year, month.month, 1);
-
     final firstDay = _currentFocusedMonth;
     final lastDay = DateTime(month.year, month.month + 1, 0);
 
     final database = db.LocalDatabaseSingleton.instance;
-
     final fetched = await database.getTodosBetween(firstDay, lastDay);
 
     final monthTodos =
-        fetched.map((t) {
-          return Todo(
-            id: t.id,
-            content: t.content,
-            Date: t.date,
-            colorType: ColorType.values[t.colorType],
-            isDone: t.isDone,
-            alarm: false,
-          );
-        }).toList();
+        fetched
+            .where((t) {
+              if (t.isSynced &&
+                  (t.todoServerId == null || t.todoServerId == 0)) {
+                return false;
+              }
+              return true;
+            })
+            .map((t) {
+              return Todo(
+                id: t.id,
+                content: t.content,
+                Date: t.date,
+                colorType: ColorType.values[t.colorType],
+                isDone: t.isDone,
+                alarm: false,
+              );
+            })
+            .toList();
 
     final todoMap = _groupTodosByDay(monthTodos);
-
     _calendarTodosNotifier.value = todoMap;
   }
 
   Map<DateTime, List<Todo>> _groupTodosByDay(List<Todo> todos) {
     final Map<DateTime, List<Todo>> map = {};
+
     for (final todo in todos) {
+      if (todo.todoServerId == null || todo.todoServerId == 0) {}
+
       final day = DateTime(todo.Date.year, todo.Date.month, todo.Date.day);
-      (map[day] ??= []).add(todo);
+
+      if (map[day] == null) {
+        map[day] = [];
+      }
+      map[day]!.add(todo);
     }
     return map;
   }
 
   void _onDateChanged(DateTime newDate) async {
     _selectedDateNotifier.value = newDate;
+
     await _loadDataForDate(newDate);
+
     if (newDate.month != _currentFocusedMonth.month ||
         newDate.year != _currentFocusedMonth.year) {
       _currentFocusedMonth = DateTime(newDate.year, newDate.month);
-
       await _loadDataForMonth(newDate);
       _fetchMonthlyDataAndRefresh(newDate);
+    } else {
+      _fetchDailyDataAndRefresh(newDate);
     }
-    _fetchDailyDataAndRefresh(newDate);
   }
 
   Future<void> _fetchDailyDataAndRefresh(DateTime date) async {
@@ -318,7 +342,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await _syncDailyApiDataToLocalDb(response.result!, date);
 
         await _loadDataForDate(date);
-        await _loadDataForMonth(date);
       }
     } catch (e) {
       print("일별 데이터 동기화 에러 : $e");
@@ -441,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final dateString = DateFormat('yyyy-MM-dd').format(date);
 
     await database.transaction(() async {
-      final serverTodoIds =
+      final serverScheduleIds =
           data.todoList
               .where(
                 (t) =>
@@ -450,80 +473,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               .map((t) => t.scheduleId)
               .toSet();
 
-      final serverRoutineUiIds =
-          data.routineList.map((r) => r.scheduleId).toSet();
-      final serverRoutineInstanceIds = <int>{};
-
-      for (var item in data.routineList) {
-        if (item.routineByDateList.isNotEmpty) {
-          final match = item.routineByDateList.where(
-            (x) => x.date == dateString,
-          );
-          if (match.isNotEmpty) {
-            serverRoutineInstanceIds.add(match.first.routineId);
-          } else {
-            serverRoutineInstanceIds.add(
-              item.routineByDateList.first.routineId,
-            );
-          }
-        }
-      }
+      final startOfToday = DateTime(date.year, date.month, date.day, 0, 0, 0);
+      final endOfToday = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
       final localTodos =
-          await (database.select(database.todos)..where(
-            (t) =>
-                t.date.year.equals(date.year) &
-                t.date.month.equals(date.month) &
-                t.date.day.equals(date.day),
-          )).get();
-
-      final localRoutines =
-          await (database.select(database.routines)..where(
-            (r) =>
-                r.startDate.isSmallerOrEqualValue(date) &
-                r.endDate.isBiggerOrEqualValue(date),
-          )).get();
+          await (database.select(database.todos)..where((t) {
+            return t.date.isBetweenValues(startOfToday, endOfToday);
+          })).get();
 
       for (final local in localTodos) {
-        if (local.isSynced && !serverTodoIds.contains(local.id)) {
+        if (local.isSynced && !serverScheduleIds.contains(local.id)) {
           await (database.delete(database.todos)
             ..where((t) => t.id.equals(local.id))).go();
-        }
-      }
-
-      for (final local in localRoutines) {
-        final isMatchedByUiId = serverRoutineUiIds.contains(local.id);
-        final isMatchedByInstanceId = serverRoutineInstanceIds.contains(
-          local.routineId,
-        );
-        if (local.isSynced && !isMatchedByUiId && !isMatchedByInstanceId) {
-          await (database.delete(database.routines)
-            ..where((r) => r.id.equals(local.id))).go();
         }
       }
 
       for (var item in data.todoList) {
         if (item.scheduleType.toUpperCase() != 'TO_DO' || item.todo == null)
           continue;
+        if (item.content.trim() == item.category.categoryName.trim()) continue;
 
-        int? timeMinutesValue;
-        int? alarmMinutesValue;
+        int? timeMin;
         if (item.time != null && item.time!.contains(':')) {
-          final parts = item.time!.split(':');
-          timeMinutesValue = int.parse(parts[0]) * 60 + int.parse(parts[1]);
+          try {
+            final p = item.time!.split(':');
+            timeMin = int.parse(p[0]) * 60 + int.parse(p[1]);
+          } catch (e) {}
         }
-        if (item.alarmTime != null && item.alarmTime!.contains(':')) {
-          final parts = item.alarmTime!.split(':');
-          alarmMinutesValue = int.parse(parts[0]) * 60 + int.parse(parts[1]);
-        }
-
-        DateTime fullDate = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          (timeMinutesValue ?? 0) ~/ 60,
-          (timeMinutesValue ?? 0) % 60,
-        );
 
         await database
             .into(database.todos)
@@ -533,11 +509,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 scheduleId: Value(item.scheduleId),
                 todoServerId: Value(item.todo?.todoId),
                 content: item.content,
-                date: fullDate,
+                date: DateTime(
+                  date.year,
+                  date.month,
+                  date.day,
+                  (timeMin ?? 0) ~/ 60,
+                  (timeMin ?? 0) % 60,
+                ),
                 colorType: Value(_parseColorType(item.category.color).index),
                 isDone: Value(item.todo!.status),
-                timeMinutes: Value(timeMinutesValue),
-                alarmMinutes: Value(alarmMinutesValue),
+                timeMinutes: Value(timeMin),
                 categoryId: Value(item.category.id),
                 isSynced: const Value(true),
               ),
@@ -545,49 +526,47 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
 
       for (var item in data.routineList) {
-        int uiScheduleId = item.scheduleId;
-        int apiInstanceId = uiScheduleId;
-        bool isServerDone = false;
-
+        int uiId = item.scheduleId;
+        int apiId = uiId;
+        bool isDone = false;
         if (item.routineByDateList.isNotEmpty) {
-          final matched = item.routineByDateList.where(
-            (e) => e.date == dateString,
-          );
-          if (matched.isNotEmpty) {
-            apiInstanceId = matched.first.routineId;
-            isServerDone = matched.first.status;
+          final m = item.routineByDateList.where((e) => e.date == dateString);
+          if (m.isNotEmpty) {
+            apiId = m.first.routineId;
+            isDone = m.first.status;
           }
         }
-
         final weekStr = _convertWeekDaysListToString(item.repeatWeek);
+        if (weekStr.isEmpty) continue;
 
         await database
             .into(database.routines)
             .insertOnConflictUpdate(
               db.RoutinesCompanion(
-                id: Value(uiScheduleId),
-                scheduleId: Value(uiScheduleId),
-                routineId: Value(apiInstanceId),
+                id: Value(uiId),
+                scheduleId: Value(uiId),
+                routineId: Value(apiId),
                 content: Value(item.content),
                 colorType: Value(_parseColorType(item.category.color).index),
                 weekDays: Value(weekStr),
                 categoryId: Value(item.category.id),
-                startDate: Value(date),
+                startDate: Value(DateTime(2024, 1, 1)),
+                isSynced: const Value(true),
                 endDate: Value(
                   DateTime.tryParse(item.date) ?? DateTime(3000, 12, 31),
                 ),
                 timeMinutes: Value(_parseTimeToMinutes(item.time)),
-                alarmMinutes: Value(item.alarmTime != null ? 0 : null),
-                isSynced: const Value(true),
               ),
             );
-
         final completedIds = await database.getCompletedRoutineIds(date);
-        if (isServerDone != completedIds.contains(uiScheduleId)) {
-          await database.toggleRoutineCompletion(uiScheduleId, date);
+        if (isDone != completedIds.contains(uiId)) {
+          await database.toggleRoutineCompletion(uiId, date);
         }
       }
     });
+
+    await _loadDataForMonth(date);
+    await _loadDataForDate(date);
 
     if (mounted) setState(() {});
   }
@@ -663,7 +642,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         },
       ),
     ];
-
+    if (_isInitialLoading) {
+      return Scaffold(
+        body: screens[_selectedIndex],
+        bottomNavigationBar: OhmoBottomNavigationBar(
+          selectedIndex: _selectedIndex,
+          onTabChange: _onTabChange,
+        ),
+      );
+    }
     return Scaffold(
       body: screens[_selectedIndex],
       bottomNavigationBar: OhmoBottomNavigationBar(
@@ -926,7 +913,9 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                               day.month,
                               day.day,
                             );
-                            return calendarEvents[normalizedDay] ?? [];
+                            final events = calendarEvents[normalizedDay] ?? [];
+
+                            return events;
                           },
                           onPageChanged: widget.onPageChanged,
                           hasUnread: hasUnread,
@@ -1094,9 +1083,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                               db.TodosCompanion(
                                                 id: Value(todo.id),
                                                 isDone: Value(newIsDone),
-                                                isSynced: const Value(
-                                                  false,
-                                                ),
+                                                isSynced: const Value(false),
                                               ),
                                             );
 
@@ -1145,9 +1132,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                   }
                                                 }
                                               } catch (e) {
-                                                print(
-                                                  "투두 상태 서버 동기화 실패: $e",
-                                                );
+                                                print("투두 상태 서버 동기화 실패: $e");
                                                 await localDb.updateTodo(
                                                   db.TodosCompanion(
                                                     id: Value(todo.id),
@@ -1164,8 +1149,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                     );
                                                 widget.onDataChanged?.call();
                                               }
-                                            } else {
-                                            }
+                                            } else {}
                                           },
                                           onDateChanged: (id, newDate) async {
                                             await db

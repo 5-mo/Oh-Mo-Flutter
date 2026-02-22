@@ -66,13 +66,14 @@ class SyncService {
           time: timeStr,
         );
         if (serverScheduleId != null) {
-          print('투두 동기화 성공 : ${todo.content}(서버ID : $serverScheduleId');
+          print('투두 동기화 성공 : ${todo.content} (서버ID : $serverScheduleId)');
 
-          await (_db.update(_db.todos)
-            ..where((t) => t.id.equals(todo.id))).write(
+          await (_db.update(_db.todos)..where((t) => t.id.equals(todo.id))).write(
             TodosCompanion(
-              isSynced: const Value(true),
+              id: Value(serverScheduleId),
               scheduleId: Value(serverScheduleId),
+              todoServerId: Value(serverScheduleId),
+              isSynced: const Value(true),
             ),
           );
         }
