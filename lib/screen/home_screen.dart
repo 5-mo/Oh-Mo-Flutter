@@ -32,6 +32,9 @@ import '../services/todo_service.dart';
 import 'notification_screen.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:intl/intl.dart';
+import 'package:home_widget/home_widget.dart';
+
+bool _isGlobalWidgetSheetOpen = false;
 
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -49,6 +52,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late int _selectedIndex;
+  Uri? _lastProcessedUri;
+  bool _isProcessingWidgetClick = false;
+  bool _isWidgetSheetOpen = false;
+  bool _hasShownInitialTodoSheet = false;
   final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
     DateTime.now(),
   );
@@ -78,10 +85,63 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     _initializeData(today);
 
+    HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
+      if (uri != null) {
+        _handleWidgetClick(uri);
+      }
+    });
+
+    HomeWidget.widgetClicked.listen((uri) {
+      if (uri != _lastProcessedUri) {
+        _lastProcessedUri = null;
+        _handleWidgetClick(uri);
+      }
+    });
     WidgetUpdater.update();
   }
 
   bool _isInitialLoading = true;
+
+  void _handleWidgetClick(Uri? uri) {
+    if (uri == null) return;
+
+    if (_isGlobalWidgetSheetOpen || _isProcessingWidgetClick) return;
+
+    if (uri.host == 'daylog' && uri.path == '/todo') {
+      _isProcessingWidgetClick = true;
+      _isGlobalWidgetSheetOpen = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _hasShownInitialTodoSheet = true;
+        });
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(59),
+              topLeft: Radius.circular(59),
+            ),
+          ),
+          builder:
+              (_) => TodoBottomSheet(
+                selectedDate: _selectedDateNotifier.value,
+                onTodoAdded: () async {
+                  await _loadDataForDate(_selectedDateNotifier.value);
+                  await WidgetUpdater.update();
+                },
+              ),
+        ).whenComplete(() {
+          _isGlobalWidgetSheetOpen = false;
+          _isProcessingWidgetClick = false;
+          _lastProcessedUri = null;
+        });
+      });
+    }
+  }
 
   Future<void> _initializeData(DateTime date) async {
     setState(() => _isInitialLoading = true);
@@ -628,7 +688,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       DaylogScreen(
         onTabChange: _onTabChange,
         selectedDateNotifier: _selectedDateNotifier,
-        showTodoSheet: widget.showTodoSheetForDaylog,
+        showTodoSheet:
+            widget.showTodoSheetForDaylog && !_hasShownInitialTodoSheet,
+        onTodoSheetShown: () {
+          setState(() {
+            _hasShownInitialTodoSheet = true;
+          });
+        },
         selectedDate: _selectedDateNotifier.value,
         routines: _routinesNotifier.value,
         todos: _todosNotifier.value,

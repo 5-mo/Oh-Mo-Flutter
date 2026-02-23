@@ -23,6 +23,7 @@ class DaylogScreen extends StatefulWidget {
   final Function(int) onTabChange;
   final ValueNotifier<DateTime> selectedDateNotifier;
   final bool showTodoSheet;
+  final VoidCallback? onTodoSheetShown;
   final DateTime selectedDate;
   final List<Routine> routines;
   final List<Todo> todos;
@@ -32,6 +33,7 @@ class DaylogScreen extends StatefulWidget {
     this.date,
     required this.selectedDateNotifier,
     this.showTodoSheet = false,
+    this.onTodoSheetShown,
     required this.selectedDate,
     required this.routines,
     required this.todos,
@@ -95,8 +97,30 @@ class _DaylogScreenState extends State<DaylogScreen> {
   @override
   void initState() {
     super.initState();
+
+    if (widget.showTodoSheet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onTodoSheetShown?.call();
+
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          isDismissible: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(59),
+              topLeft: Radius.circular(59),
+            ),
+          ),
+          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
+        );
+      });
+    }
+
+    // 2. 나머지 초기화 로직 (기존 코드 유지)
     _monthlyProgressFuture = _calculateMonthlyProgress();
-    _focusedDay = widget.selectedDateNotifier.value;
+    _focusedDay = widget.selectedDate; // widget.selectedDate로 초기화 권장
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logWeeklyData(_focusedDay);
@@ -109,7 +133,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
     todos = widget.todos;
 
     _filterTodosForSelectedDate();
-
     _loadRoutineDeletionStatus();
     _loadTodoDeletionStatus();
     _loadQuestionDeletionStatus();
@@ -119,29 +142,11 @@ class _DaylogScreenState extends State<DaylogScreen> {
     _repository = LocalCategoryRepository(database);
 
     _loadAndInitializeQuestions();
-
     _loadDayLogData(_focusedDay);
 
     _answerFocusNode.addListener(_onAnswerFocusChange);
     _diaryFocusNode.addListener(_onDiaryFocusChange);
 
-    if (widget.showTodoSheet) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          isDismissible: true,
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(59),
-              topLeft: Radius.circular(59),
-            ),
-          ),
-          builder: (_) => TodoBottomSheet(selectedDate: _focusedDay),
-        );
-      });
-    }
     widget.selectedDateNotifier.addListener(() {
       if (!mounted) return;
       if (_focusedDay != widget.selectedDateNotifier.value) {
@@ -170,7 +175,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
     try {
       final serverQuestions = await dayLogService.getQuestions();
       if (serverQuestions != null) {
-        final Set<String> localContents = _dbQuestions.map((q) => q.question.trim()).toSet();
+        final Set<String> localContents =
+            _dbQuestions.map((q) => q.question.trim()).toSet();
 
         for (var sq in serverQuestions) {
           final String qText = (sq['questionContent'] ?? '').trim();
@@ -237,8 +243,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
           final isCompleted = todo.isDone;
           final isOnSelectedDay =
               todo.Date.year == _focusedDay.year &&
-                  todo.Date.month == _focusedDay.month &&
-                  todo.Date.day == _focusedDay.day;
+              todo.Date.month == _focusedDay.month &&
+              todo.Date.day == _focusedDay.day;
           return isCompleted && isOnSelectedDay;
         }).toList();
   }
@@ -300,8 +306,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
       });
     }
 
-    final serverEmoji=await dayLogService.getEmoji(dateString);
-    if(serverEmoji!=null && mounted){
+    final serverEmoji = await dayLogService.getEmoji(dateString);
+    if (serverEmoji != null && mounted) {
       setState(() {
         _setSelectedEmotion(serverEmoji);
       });
@@ -338,9 +344,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
       final dailyRoutines = await fetchRoutines(currentDate);
 
       final scheduledForThisWeek =
-      dailyRoutines.where((r) {
-        return r.daysOfWeek.contains(currentDate.weekday);
-      }).toList();
+          dailyRoutines.where((r) {
+            return r.daysOfWeek.contains(currentDate.weekday);
+          }).toList();
 
       fetchedWeeklyRoutines.addAll(scheduledForThisWeek);
     }
@@ -439,13 +445,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
       return weekDaysStr
           .split(',')
           .map((e) {
-        final trimmed = e.trim();
-        final asInt = int.tryParse(trimmed);
-        if (asInt != null) {
-          return asInt;
-        }
-        return dayMap[trimmed.toUpperCase()] ?? 0;
-      })
+            final trimmed = e.trim();
+            final asInt = int.tryParse(trimmed);
+            if (asInt != null) {
+              return asInt;
+            }
+            return dayMap[trimmed.toUpperCase()] ?? 0;
+          })
           .where((e) => e != 0)
           .toList();
     } catch (e) {
@@ -684,15 +690,15 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     final Set<String> todayVisibleNames =
-    weeklyRoutines
-        .where((r) => isRoutineVisibleOnDate(r, _focusedDay))
-        .map((r) => r.content)
-        .toSet();
+        weeklyRoutines
+            .where((r) => isRoutineVisibleOnDate(r, _focusedDay))
+            .map((r) => r.content)
+            .toSet();
 
     final todaysRoutineEntries =
-    groupedRoutines.entries
-        .where((entry) => todayVisibleNames.contains(entry.key))
-        .toList();
+        groupedRoutines.entries
+            .where((entry) => todayVisibleNames.contains(entry.key))
+            .toList();
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 33.0),
@@ -719,89 +725,85 @@ class _DaylogScreenState extends State<DaylogScreen> {
                 Container(width: 320, child: Divider(color: Colors.grey)),
               ],
             ),
-          ] else
-            ...[
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children:
-                todaysRoutineEntries.map((entry) {
-                  final routineContent = entry.key;
-                  final routineInstances = entry.value;
+          ] else ...[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children:
+                  todaysRoutineEntries.map((entry) {
+                    final routineContent = entry.key;
+                    final routineInstances = entry.value;
 
-                  final totalCount = routineInstances.length;
-                  final completedCount =
-                      routineInstances
-                          .where((r) => r.isDone)
-                          .length;
+                    final totalCount = routineInstances.length;
+                    final completedCount =
+                        routineInstances.where((r) => r.isDone).length;
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          " • ",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            routineContent,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            " • ",
                             style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'PretendardRegular',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
-                        ),
-                        SizedBox(width: 3),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: List.generate(
-                            totalCount,
-                                (index) =>
-                                Container(
-                                  width: 20,
-                                  height: 4,
-                                  margin: EdgeInsets.symmetric(horizontal: 1),
-                                  decoration: BoxDecoration(
-                                    color:
-                                    index < completedCount
-                                        ? Colors.black
-                                        : Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              routineContent,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'PretendardRegular',
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 3),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              totalCount,
+                              (index) => Container(
+                                width: 20,
+                                height: 4,
+                                margin: EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                  color:
+                                      index < completedCount
+                                          ? Colors.black
+                                          : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(5),
                                 ),
-                          ),
-                        ),
-                        SizedBox(width: 20.0),
-                        Container(
-                          width: 40,
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            "$completedCount/$totalCount",
-                            style: TextStyle(
-                              fontFamily: 'RubikSprayPaint',
-                              fontSize: 14.0,
-                              color: Colors.black,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(width: 320, child: Divider(color: Colors.grey)),
-                ],
-              ),
-            ],
+                          SizedBox(width: 20.0),
+                          Container(
+                            width: 40,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              "$completedCount/$totalCount",
+                              style: TextStyle(
+                                fontFamily: 'RubikSprayPaint',
+                                fontSize: 14.0,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+            ),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(width: 320, child: Divider(color: Colors.grey)),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -881,45 +883,44 @@ class _DaylogScreenState extends State<DaylogScreen> {
             ),
             SizedBox(height: 16),
             Center(child: _buildTodoButton()),
-          ] else
-            ...[
-              GridView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: filteredTodos.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16.0,
-                  childAspectRatio: 6 / 1,
-                ),
-                itemBuilder: (context, index) {
-                  final todo = filteredTodos[index];
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        " • ",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          todo.content,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'PretendardRegular',
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  );
-                },
+          ] else ...[
+            GridView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: filteredTodos.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                childAspectRatio: 6 / 1,
               ),
-            ],
+              itemBuilder: (context, index) {
+                final todo = filteredTodos[index];
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      " • ",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        todo.content,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'PretendardRegular',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -999,18 +1000,16 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     for (int day = 1; day <= daysInMonth; day++) {
       final todosForDay =
-      allTodosFromDb.where((todo) {
-        return todo.date.year == year &&
-            todo.date.month == month &&
-            todo.date.day == day;
-      }).toList();
+          allTodosFromDb.where((todo) {
+            return todo.date.year == year &&
+                todo.date.month == month &&
+                todo.date.day == day;
+          }).toList();
 
       if (todosForDay.isEmpty) {
         progressMap[day] = -1.0;
       } else {
-        final completedCount = todosForDay
-            .where((todo) => todo.isDone)
-            .length;
+        final completedCount = todosForDay.where((todo) => todo.isDone).length;
         final totalCount = todosForDay.length;
         final percentage = (completedCount / totalCount) * 100.0;
         progressMap[day] = percentage;
@@ -1054,7 +1053,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
           if (snapshot.hasData) {
             final progressMap = snapshot.data!;
             final bool hasTodosThisMonth = progressMap.values.any(
-                  (progress) => progress >= 0,
+              (progress) => progress >= 0,
             );
 
             return Stack(
@@ -1174,12 +1173,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildQuestionButtons() {
     final allQuestionStrings =
-    _dbQuestions.map((q) {
-      if (q.emoji.isNotEmpty) {
-        return '${q.emoji} ${q.question}';
-      }
-      return q.question;
-    }).toList();
+        _dbQuestions.map((q) {
+          if (q.emoji.isNotEmpty) {
+            return '${q.emoji} ${q.question}';
+          }
+          return q.question;
+        }).toList();
     return Align(
       alignment: Alignment.centerLeft,
 
@@ -1190,12 +1189,12 @@ class _DaylogScreenState extends State<DaylogScreen> {
           clipBehavior: Clip.none,
           child: Row(
             children:
-            allQuestionStrings.map((questionText) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: _buildQuestionButton(questionText),
-              );
-            }).toList(),
+                allQuestionStrings.map((questionText) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: _buildQuestionButton(questionText),
+                  );
+                }).toList(),
           ),
         ),
       ),
@@ -1348,7 +1347,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   void _saveDaylogData({bool showSnackbar = true}) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final profile = Provider.of<ProfileData>(context, listen: false); // 👈 이거 추가됨
+    final profile = Provider.of<ProfileData>(
+      context,
+      listen: false,
+    ); // 👈 이거 추가됨
 
     final dateOnly = DateTime(
       _focusedDay.year,
@@ -1362,7 +1364,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     final String? answerMapString =
-    _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
+        _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
 
     // 1. [공통] 무조건 로컬 DB에 먼저 저장 (나중에 로그인 시 동기화하기 위함)
     await database.upsertDayLog(
@@ -1378,7 +1380,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
     if (profile.isGuest) {
       print("🛡️ 게스트 모드: 데이로그 로컬 저장 완료 (로그인 시 동기화 예정)");
       if (mounted && showSnackbar) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('게스트 모드로 저장되었습니다.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('게스트 모드로 저장되었습니다.')));
       }
       return;
     }
@@ -1406,7 +1410,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
         try {
           final targetQuestion = _dbQuestions.firstWhere((q) {
-            final fullKey = q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
+            final fullKey =
+                q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
             return fullKey == questionKey;
           });
 
@@ -1427,7 +1432,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
 
     if (mounted && showSnackbar) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('데이로그가 서버에 저장되었습니다.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('데이로그가 서버에 저장되었습니다.')));
     }
   }
 

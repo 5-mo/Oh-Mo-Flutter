@@ -27,7 +27,7 @@
 		<string>RubikSprayPaint-Regular 2.ttf</string>
 	</array>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.7</string>
+	<string>1.1.13</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleURLTypes</key>
@@ -42,7 +42,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>10</string>
+	<string>16</string>
 	<key>LSApplicationCategoryType</key>
 	<string></string>
 	<key>LSRequiresIPhoneOS</key>
