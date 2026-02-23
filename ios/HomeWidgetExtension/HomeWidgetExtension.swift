@@ -38,12 +38,9 @@ struct Provider: AppIntentTimelineProvider {
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
         let currentDate = Date()
-        let startOfToday = Calendar.current.startOfDay(for: currentDate)
-        let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: startOfToday)!
-        
         let entry = createTimeLineEntry(for: currentDate, configuration: configuration)
         
-        return Timeline(entries: [entry], policy: .after(startOfTomorrow))
+        return Timeline(entries: [entry], policy: .atEnd)
     }
     
     private func createTimeLineEntry(for date: Date, configuration: ConfigurationAppIntent) -> SimpleEntry {
@@ -215,14 +212,14 @@ struct HomeWidgetExtensionEntryView: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 
-                Link(destination: URL(string: "ohmoapp://daylog/todo")!) {
+        
                     Image("ohmo")
                         .resizable()
                         .frame(width: 70, height: 70)
-                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .offset(x:20, y: 20)
             }
+            .widgetURL(URL(string: "ohmoapp://daylog/todo"))
         }
     }
     

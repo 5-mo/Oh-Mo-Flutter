@@ -57,18 +57,15 @@ void main() async {
       child: MaterialApp(
         theme: ThemeData(scaffoldBackgroundColor: Colors.white),
         builder: (context, child) {
-          // 현재 기기의 실제 화면 크기와 비율을 가져옵니다.
           final Size screenSize = MediaQuery.of(context).size;
           final double deviceAspectRatio = screenSize.width / screenSize.height;
           final bool isTablet = screenSize.shortestSide > 600;
 
-          // 아이패드일 때는 성공했던 400:844 비율을 유지하고,
-          // 폰일 때는 기기 고유의 비율을 사용하여 여백을 없앱니다.
           double targetWidth = 400;
           double targetHeight = isTablet ? 844 : (400 / deviceAspectRatio);
 
           return Container(
-            color: Colors.white, // 여백 배경색
+            color: Colors.white,
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(
