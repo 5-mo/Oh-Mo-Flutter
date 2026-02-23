@@ -54,20 +54,28 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     private func decodeTodoList(from defaults: UserDefaults?) -> [String] {
-        guard let jsonString = defaults?.string(forKey: "today_todo"),
-              let data = jsonString.data(using: .utf8) else {
-            return ["할 일을\n 추가해보세요 :)"]
+        guard let jsonString = defaults?.string(forKey: "today_todo") else {
+            return ["AppGroup 연결 실패"]
+        }
+        
+    
+        guard let data = jsonString.data(using: .utf8) else {
+            return ["Data 변환 실패"]
         }
         
         do {
-            if let todoObjects=try JSONSerialization.jsonObject(with: data, options: [])as? [[String:Any]]{
-                let contents=todoObjects.compactMap{$0["content"]as? String}
-                return contents.isEmpty ? ["할 일을 추가해보세요 :)"] : contents
+            if let todoObjects = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                let contents = todoObjects.compactMap { $0["content"] as? String }
+                
+                if contents.isEmpty {
+                    return ["할 일 리스트 비어있음"]
+                }
+                return contents
             }
-            return["데이터 형식 오류"]
+            return ["JSON 구조 불일치"]
         } catch {
-            print("todoList decoding error:", error)
-            return ["에러 발생"]
+            print("todoList decoding error: \(error)")
+            return ["디코딩 에러: \(error.localizedDescription)"]
         }
     }
     
