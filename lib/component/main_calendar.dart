@@ -111,11 +111,11 @@ class _MainCalendarState extends State<MainCalendar> {
                         width:
                             widget.alarmIconSize ??
                             widget.formatButtonSize ??
-                            24.0,
+                            29.0,
                         height:
                             widget.alarmIconSize ??
                             widget.formatButtonSize ??
-                            24.0,
+                            29.0,
                       ),
 
                       onPressed: widget.onAlarmIconPressed,
@@ -164,8 +164,8 @@ class _MainCalendarState extends State<MainCalendar> {
     return IconButton(
       icon: SvgPicture.asset(
         assetPath,
-        width: widget.formatButtonSize ?? 19.0,
-        height: widget.formatButtonSize ?? 19.0,
+        width: widget.formatButtonSize ?? 22.0,
+        height: widget.formatButtonSize ?? 22.0,
       ),
       onPressed: () {
         setState(() {

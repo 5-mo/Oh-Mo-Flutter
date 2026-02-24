@@ -10,6 +10,7 @@ import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
 import 'package:ohmo/services/day_log_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../customize_category.dart';
 import '../models/profile_data_provider.dart';
 import '../models/todo.dart';
@@ -157,8 +158,23 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showEmojiTooltip();
+      _checkTooltipStatus();
     });
+  }
+
+  Future<void> _checkTooltipStatus()async{
+    final prefs=await SharedPreferences.getInstance();
+    bool hasSeen=prefs.getBool('has_seen_emoji_tooltip')??false;
+
+    if(!hasSeen&&mounted){
+      _showEmojiTooltip();
+    }
+  }
+
+  Future<void> _onTooltipConfirm() async{
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_emoji_tooltip',true);
+    _hideEmojiTooltip();
   }
 
   void _showEmojiTooltip() {
@@ -180,7 +196,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
             CompositedTransformFollower(
               link: _emojiLayerLink,
               showWhenUnlinked: false,
-              offset: const Offset(-170, 110),
+              offset: const Offset(-120, 110),
               child: IntrinsicWidth(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -210,7 +226,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
                           ),
                           const SizedBox(width: 12),
                           GestureDetector(
-                            onTap: _hideEmojiTooltip,
+                            onTap: _onTooltipConfirm,
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
@@ -799,7 +815,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               child: Text(
                 "이번 주 루틴 현황을 보여드립니다.",
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontFamily: 'PretendardSemiBold',
                   color: DARK_GREY_COLOR,
                 ),
@@ -917,7 +933,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       },
       child: Container(
         width: 87,
-        height: 18,
+        height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           color: Colors.white,
@@ -930,7 +946,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
           child: Center(
             child: Text(
               '루틴 만들기',
-              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+              style: TextStyle(fontSize: 12, fontFamily: 'PretendardRegular'),
             ),
           ),
         ),
@@ -964,7 +980,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               child: Text(
                 "오늘 끝낸 to-do 리스트를 보여드립니다.",
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontFamily: 'PretendardSemiBold',
                   color: DARK_GREY_COLOR,
                 ),
@@ -1041,7 +1057,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       },
       child: Container(
         width: 87,
-        height: 18,
+        height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           color: Colors.white,
@@ -1054,7 +1070,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
           child: Center(
             child: Text(
               '투두 만들기',
-              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+              style: TextStyle(fontSize: 12, fontFamily: 'PretendardRegular'),
             ),
           ),
         ),
@@ -1195,7 +1211,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
                             "이번 달 to-do 달성률을 보여드립니다.\n퍼센트에 따라 색깔을 달리 표현합니다.",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               fontFamily: 'PretendardSemiBold',
                               color: DARK_GREY_COLOR,
                             ),
@@ -1224,8 +1240,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
         );
       },
       child: Container(
-        width: 87,
-        height: 18,
+        width: 100,
+        height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           color: Colors.white,
@@ -1237,7 +1253,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         child: Center(
           child: Text(
             '캘린더 보러 가기',
-            style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 12, fontFamily: 'PretendardRegular'),
           ),
         ),
       ),

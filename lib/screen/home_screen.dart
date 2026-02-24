@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 CompositedTransformFollower(
                   link: _calendarlayerLink,
                   showWhenUnlinked: false,
-                  offset: const Offset(-115, 35),
+                  offset: const Offset(-123, 35),
                   child: IntrinsicWidth(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -230,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 CompositedTransformFollower(
                   link: _routineLayerLink,
                   showWhenUnlinked: false,
-                  offset: const Offset(-237, 35),
+                  offset: const Offset(-232, 35),
                   child: IntrinsicWidth(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,

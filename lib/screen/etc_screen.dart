@@ -113,7 +113,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '알림 설정',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -139,7 +139,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '서비스 이용약관',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -165,7 +165,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '개인정보 처리방침',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -191,7 +191,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '커뮤니티 가이드라인',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -217,7 +217,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '오픈소스 라이선스',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -243,7 +243,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '자주 묻는 질문 (FAQ)',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -271,7 +271,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '문의하기',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -292,7 +292,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '신고하기',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',
@@ -319,7 +319,7 @@ class _EtcScreenState extends State<EtcScreen> {
           Text(
             '회원 탈퇴',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontFamily: 'PretendardRegular',
               color: Color(0xFFE7000B),
             ),
@@ -345,7 +345,7 @@ class _EtcScreenState extends State<EtcScreen> {
         children: [
           Text(
             '로그아웃',
-            style: TextStyle(fontSize: 14, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 16, fontFamily: 'PretendardRegular'),
           ),
           SvgPicture.asset(
             'android/assets/images/right.svg',

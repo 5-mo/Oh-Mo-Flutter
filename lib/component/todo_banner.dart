@@ -11,7 +11,7 @@ class TodoBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
+    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 18.0);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),

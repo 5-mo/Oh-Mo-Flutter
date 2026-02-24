@@ -18,7 +18,7 @@ class RoutineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 16.0);
+    final textStyle = TextStyle(fontFamily: 'RubikSprayPaint', fontSize: 18.0);
 
     return Container(
       child: Padding(

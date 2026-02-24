@@ -55,7 +55,14 @@ void main() async {
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => ProfileData())],
       child: MaterialApp(
-        theme: ThemeData(scaffoldBackgroundColor: Colors.white),
+        theme: ThemeData(
+          scaffoldBackgroundColor: Colors.white,
+          textSelectionTheme: const TextSelectionThemeData(
+            cursorColor: Color(0xFFA8A8A8),
+            selectionColor: Color(0xFFA8A8A8),
+            selectionHandleColor: Color(0xFFA8A8A8),
+          ),
+        ),
         builder: (context, child) {
           final Size screenSize = MediaQuery.of(context).size;
           final double deviceAspectRatio = screenSize.width / screenSize.height;
