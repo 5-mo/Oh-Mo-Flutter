@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -8,6 +9,7 @@ import '../screen/group/group_main_screen.dart';
 import '../models/todo.dart';
 
 class MainCalendar extends StatefulWidget {
+  final LayerLink? layerLink;
   final OnDaySelected onDaySelected;
   final DateTime selectedDate;
   final List Function(DateTime day) eventLoader;
@@ -27,6 +29,7 @@ class MainCalendar extends StatefulWidget {
   final ColorType markerColor;
 
   MainCalendar({
+    this.layerLink,
     required this.onDaySelected,
     required this.selectedDate,
     required this.eventLoader,
@@ -119,25 +122,33 @@ class _MainCalendarState extends State<MainCalendar> {
                     );
                   },
                 ),
-
               Row(
                 children: [
-                  Transform.translate(
-                    offset: widget.monthButtonOffset ?? const Offset(20, -10),
-                    child: _buildFormatButton(
-                      _format == CalendarFormat.month
-                          ? 'android/assets/images/cal_month.svg'
-                          : 'android/assets/images/cal_month_unselected.svg',
-                      CalendarFormat.month,
-                    ),
-                  ),
-                  Transform.translate(
-                    offset: widget.weekButtonOffset ?? const Offset(0, -10),
-                    child: _buildFormatButton(
-                      _format == CalendarFormat.week
-                          ? 'android/assets/images/cal_week_selected.svg'
-                          : 'android/assets/images/cal_week.svg',
-                      CalendarFormat.week,
+                  CompositedTransformTarget(
+                    link: widget.layerLink ?? LayerLink(),
+                    child: Row(
+                      children: [
+                        Transform.translate(
+                          offset:
+                              widget.monthButtonOffset ?? const Offset(20, -10),
+                          child: _buildFormatButton(
+                            _format == CalendarFormat.month
+                                ? 'android/assets/images/cal_month.svg'
+                                : 'android/assets/images/cal_month_unselected.svg',
+                            CalendarFormat.month,
+                          ),
+                        ),
+                        Transform.translate(
+                          offset:
+                              widget.weekButtonOffset ?? const Offset(0, -10),
+                          child: _buildFormatButton(
+                            _format == CalendarFormat.week
+                                ? 'android/assets/images/cal_week_selected.svg'
+                                : 'android/assets/images/cal_week.svg',
+                            CalendarFormat.week,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

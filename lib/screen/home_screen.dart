@@ -56,6 +56,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isProcessingWidgetClick = false;
   bool _isWidgetSheetOpen = false;
   bool _hasShownInitialTodoSheet = false;
+  final LayerLink _calendarlayerLink = LayerLink();
+  final LayerLink _routineLayerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+
   final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
     DateTime.now(),
   );
@@ -72,6 +76,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showInitialTooltip();
+    });
+
     _selectedIndex = widget.initialTabIndex;
     SyncService().monitorNetwork();
     _loadRoutineDeletionStatus();
@@ -101,6 +109,208 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   bool _isInitialLoading = true;
+
+  Future<void> _showInitialTooltip() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool hasShown = prefs.getBool('hasShownCalendarTooltip') ?? false;
+
+    if (!hasShown && mounted) {
+      _showTooltipOverlay();
+      await prefs.setBool('hasShownCalendarTooltip', true);
+    }
+  }
+
+  void _showTooltipOverlay() {
+    _overlayEntry = _createOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideToolTip() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _hideFirstAndShowSecond() {
+    _hideToolTip();
+    _showSecondTooltipOverlay();
+  }
+
+  void _showSecondTooltipOverlay() {
+    _overlayEntry = _createSecondOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    return OverlayEntry(
+      builder:
+          (context) => Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                CompositedTransformFollower(
+                  link: _calendarlayerLink,
+                  showWhenUnlinked: false,
+                  offset: const Offset(-115, 35),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: CustomPaint(
+                            size: const Size(8, 10),
+                            painter: TrianglePainter(
+                              color: const Color(0xFF4E4E4E),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4E4E4E),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "한 달 / 일주일 보기로\n변경할 수 있어요",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  height: 1.2,
+                                  fontFamily: 'PretendardMedium',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: _hideFirstAndShowSecond,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2A2A2A),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: const Text(
+                                    "확인",
+                                    style: TextStyle(
+                                      color: Color(0xFFE6E6E6),
+                                      fontSize: 12,
+                                      fontFamily: 'PretendardMedium',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  OverlayEntry _createSecondOverlayEntry() {
+    return OverlayEntry(
+      builder:
+          (context) => Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                CompositedTransformFollower(
+                  link: _routineLayerLink,
+                  showWhenUnlinked: false,
+                  offset: const Offset(-237, 35),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: CustomPaint(
+                            size: const Size(8, 10),
+                            painter: TrianglePainter(
+                              color: const Color(0xFF4E4E4E),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4E4E4E),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text(
+                                    "+",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontFamily: 'RubikSprayPaint',
+                                    ),
+                                  ),
+                                  SizedBox(width: 2),
+                                  const Text(
+                                    "를 눌러 일정을 등록해보세요!",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontFamily: 'PretendardMedium',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: _hideToolTip,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2A2A2A),
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: const Text(
+                                        "확인",
+                                        style: TextStyle(
+                                          color: Color(0xFFE6E6E6),
+                                          fontSize: 12,
+                                          fontFamily: 'PretendardMedium',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
 
   void _handleWidgetClick(Uri? uri) {
     if (uri == null) return;
@@ -156,6 +366,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _hideToolTip();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -660,6 +871,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final screens = [
       HomeScreenBody(
+        calendarLayerLink: _calendarlayerLink,
+        routineLayerLink: _routineLayerLink,
         routinesNotifier: _routinesNotifier,
         todosNotifier: _todosNotifier,
         selectedDateNotifier: _selectedDateNotifier,
@@ -741,6 +954,8 @@ class HomeScreenBody extends StatefulWidget {
   final ValueChanged<DateTime>? onDateChanged;
   final bool hideRoutineUI;
   final bool hideTodoUI;
+  final LayerLink calendarLayerLink;
+  final LayerLink routineLayerLink;
 
   const HomeScreenBody({
     Key? key,
@@ -755,6 +970,8 @@ class HomeScreenBody extends StatefulWidget {
     this.onDateChanged,
     this.hideRoutineUI = false,
     this.hideTodoUI = false,
+    required this.calendarLayerLink,
+    required this.routineLayerLink,
   }) : super(key: key);
 
   @override
@@ -971,6 +1188,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                       valueListenable: widget.calendarTodosNotifier,
                       builder: (context, calendarEvents, child) {
                         return MainCalendar(
+                          layerLink: widget.calendarLayerLink,
                           selectedDate: selectedDate,
                           onDaySelected: onDaySelected,
                           eventLoader: (day) {
@@ -1005,6 +1223,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                     children: [
                       if (!widget.hideRoutineUI) ...[
                         RoutineBanner(
+                          layerLink: widget.routineLayerLink,
                           onAddPressed: () {
                             showModalBottomSheet(
                               context: context,
@@ -1278,4 +1497,24 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
       ),
     );
   }
+}
+
+class TrianglePainter extends CustomPainter {
+  final Color color;
+
+  TrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path();
+    path.moveTo(size.width / 2, 0);
+    path.lineTo(0, size.height);
+    path.lineTo(size.width, size.height);
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

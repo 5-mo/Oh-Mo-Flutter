@@ -107,6 +107,11 @@ flutter:
     - android/assets/images/cal_month_unselected.svg
     - android/assets/images/cal_week_selected.svg
     - android/assets/images/ohmo_icon.png
+    - android/assets/images/onboarding/onboarding_1.png
+    - android/assets/images/onboarding/onboarding_2.png
+    - android/assets/images/onboarding/onboarding_3.png
+    - android/assets/images/onboarding/onboarding_4.png
+    - android/assets/images/onboarding/onboarding_5.png
 
   uses-material-design: true
   fonts:

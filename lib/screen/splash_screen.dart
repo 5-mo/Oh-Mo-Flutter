@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ohmo/screen/login/login_screen.dart';
 import 'package:ohmo/screen/initial_screen_decider.dart';
 import 'package:ohmo/services/auth_service.dart';
-import 'package:video_player/video_player.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'onboarding_screen.dart';
 
 class Splash extends StatefulWidget {
   const Splash({super.key});
@@ -14,15 +15,23 @@ class Splash extends StatefulWidget {
 class _SplashState extends State<Splash> {
   bool _isLoggedIn = false;
   bool _isLoading = true;
+  double _opacity = 0.5;
 
   @override
   void initState() {
     super.initState();
     _checkToken();
+
+    Future.delayed(Duration.zero, () {
+      if (mounted) {
+        setState(() {
+          _opacity = 1.0;
+        });
+      }
+    });
   }
 
   Future<void> _checkToken() async {
-    // 1. 여기서 토큰 체크를 진행합니다.
     final token = await AuthService.refreshToken();
 
     if (!mounted) return;
@@ -32,9 +41,7 @@ class _SplashState extends State<Splash> {
     } else {
       setState(() {
         _isLoading = false;
-        _isLoggedIn = false;
       });
-      print("자동 로그인 실패: 수동 로그인 필요");
     }
   }
 
@@ -54,52 +61,73 @@ class _SplashState extends State<Splash> {
         body: Center(child: CircularProgressIndicator(color: Colors.black)),
       );
     }
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SizedBox.expand(
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
+    return AnimatedOpacity(
+      opacity: _opacity,
+      duration: const Duration(milliseconds: 2000),
+      curve: Curves.easeIn,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: SizedBox.expand(
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
 
-              // 로고 이미지
-              Image.asset('android/assets/images/splash.png', width: 293),
+                Image.asset('android/assets/images/splash.png', width: 293),
 
-              const Spacer(flex: 5),
+                const Spacer(flex: 5),
 
-              // 시작하기 버튼
-              Padding(
-                padding: const EdgeInsets.only(bottom: 50),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => LoginScreen()),
-                      );
-                    },
-                    child: Container(
-                      width: 272,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        '시작하기',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'PretendardBold',
-                          color: Colors.white,
+                // 시작하기 버튼
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 50),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        final bool isFirstTime =
+                            prefs.getBool('isFirstTime') ?? true;
+
+                        if (!mounted) return;
+
+                        if (isFirstTime) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const OnBoardingScreen(),
+                            ),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LoginScreen(),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        width: 272,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          '시작하기',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'PretendardBold',
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

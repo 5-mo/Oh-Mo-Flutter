@@ -44,6 +44,9 @@ class DaylogScreen extends StatefulWidget {
 }
 
 class _DaylogScreenState extends State<DaylogScreen> {
+  final LayerLink _emojiLayerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+
   bool isPressed = false;
   String? selectedQuestion;
   String? answer = '';
@@ -118,9 +121,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
       });
     }
 
-    // 2. 나머지 초기화 로직 (기존 코드 유지)
     _monthlyProgressFuture = _calculateMonthlyProgress();
-    _focusedDay = widget.selectedDate; // widget.selectedDate로 초기화 권장
+    _focusedDay = widget.selectedDate;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logWeeklyData(_focusedDay);
@@ -153,6 +155,89 @@ class _DaylogScreenState extends State<DaylogScreen> {
         _updateFocusedDay(widget.selectedDateNotifier.value);
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showEmojiTooltip();
+    });
+  }
+
+  void _showEmojiTooltip() {
+    _overlayEntry = _createEmojiOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideEmojiTooltip() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  OverlayEntry _createEmojiOverlayEntry() {
+    return OverlayEntry(
+      builder: (context) => Material(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            CompositedTransformFollower(
+              link: _emojiLayerLink,
+              showWhenUnlinked: false,
+              offset: const Offset(-170, 110),
+              child: IntrinsicWidth(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CustomPaint(
+                      size: const Size(8, 10),
+                      painter: TrianglePainter(color: const Color(0xFF4E4E4E)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4E4E4E),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            "오늘의 기분은 어떤가요?\n이모지를 눌러주세요!",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              height: 1.2,
+                              fontFamily: 'PretendardMedium',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: _hideEmojiTooltip,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A2A2A),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: const Text(
+                                "확인",
+                                style: TextStyle(
+                                  color: Color(0xFFE6E6E6),
+                                  fontSize: 12,
+                                  fontFamily: 'PretendardMedium',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadAndInitializeQuestions() async {
@@ -195,6 +280,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   @override
   void dispose() {
+    _hideEmojiTooltip();
     _answerController.dispose();
     _diaryController.dispose();
 
@@ -619,42 +705,45 @@ class _DaylogScreenState extends State<DaylogScreen> {
               ),
             ],
           ),
-          Column(
-            children: [
-              Transform.translate(
-                offset: Offset(-20, 0),
-                child: GestureDetector(
-                  onTap: () => _onIconPressed('happy_unselected'),
-                  child: SvgPicture.asset(
-                    'android/assets/images/happy_unselected.svg',
-                    color: _happyActive ? Colors.black : Colors.grey,
-                    height: 35.0,
+          CompositedTransformTarget(
+            link: _emojiLayerLink,
+            child: Column(
+              children: [
+                Transform.translate(
+                  offset: Offset(-20, 0),
+                  child: GestureDetector(
+                    onTap: () => _onIconPressed('happy_unselected'),
+                    child: SvgPicture.asset(
+                      'android/assets/images/happy_unselected.svg',
+                      color: _happyActive ? Colors.black : Colors.grey,
+                      height: 35.0,
+                    ),
                   ),
                 ),
-              ),
-              Transform.translate(
-                offset: Offset(-20, 0),
-                child: GestureDetector(
-                  onTap: () => _onIconPressed('soso_unselected'),
-                  child: SvgPicture.asset(
-                    'android/assets/images/soso_unselected.svg',
-                    color: _sosoActive ? Colors.black : Colors.grey,
-                    height: 35.0,
+                Transform.translate(
+                  offset: Offset(-20, 0),
+                  child: GestureDetector(
+                    onTap: () => _onIconPressed('soso_unselected'),
+                    child: SvgPicture.asset(
+                      'android/assets/images/soso_unselected.svg',
+                      color: _sosoActive ? Colors.black : Colors.grey,
+                      height: 35.0,
+                    ),
                   ),
                 ),
-              ),
-              Transform.translate(
-                offset: Offset(-20, 0),
-                child: GestureDetector(
-                  onTap: () => _onIconPressed('bad_unselected'),
-                  child: SvgPicture.asset(
-                    'android/assets/images/bad_unselected.svg',
-                    color: _badActive ? Colors.black : Colors.grey,
-                    height: 35.0,
+                Transform.translate(
+                  offset: Offset(-20, 0),
+                  child: GestureDetector(
+                    onTap: () => _onIconPressed('bad_unselected'),
+                    child: SvgPicture.asset(
+                      'android/assets/images/bad_unselected.svg',
+                      color: _badActive ? Colors.black : Colors.grey,
+                      height: 35.0,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           IconButton(
             onPressed: _onRightChevronPressed,

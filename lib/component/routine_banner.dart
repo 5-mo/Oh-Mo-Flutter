@@ -4,6 +4,7 @@ import 'package:ohmo/component/routine_bottom_sheet.dart';
 
 class RoutineBanner extends StatelessWidget {
   final VoidCallback onAddPressed;
+  final LayerLink? layerLink;
   final int? groupId;
   final Offset? addButtonOffset;
 
@@ -12,6 +13,7 @@ class RoutineBanner extends StatelessWidget {
     required this.onAddPressed,
     this.groupId,
     this.addButtonOffset,
+    this.layerLink,
   }) : super(key: key);
 
   @override
@@ -27,10 +29,13 @@ class RoutineBanner extends StatelessWidget {
             Text('Routine', style: textStyle),
             Transform.translate(
               offset: addButtonOffset ?? Offset(12, 0),
+              child:CompositedTransformTarget(
+                  link: layerLink ?? LayerLink(),
               child: IconButton(
                 icon: SvgPicture.asset('android/assets/images/plus.svg'),
                 onPressed: onAddPressed,
               ),
+            ),
             ),
           ],
         ),
