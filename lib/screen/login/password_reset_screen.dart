@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ohmo/component/group_popup.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/services/auth_service.dart';
 import 'package:ohmo/screen/home_screen.dart';
@@ -7,17 +6,19 @@ import 'package:provider/provider.dart';
 
 import 'login_screen.dart';
 
-class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+class PasswordResetScreen extends StatefulWidget {
+  const PasswordResetScreen({Key? key}) : super(key: key);
 
   @override
-  _SignupScreenState createState() => _SignupScreenState();
+  _PasswordResetScreenState createState() => _PasswordResetScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
-  final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+class _PasswordResetScreenState extends State<PasswordResetScreen> {
+  final TextEditingController _currentPasswordController =
+      TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _renewPasswordController =
+      TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +29,6 @@ class _SignupScreenState extends State<SignupScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-
           child: Text(
             '취소',
             style: TextStyle(
@@ -53,25 +53,25 @@ class _SignupScreenState extends State<SignupScreen> {
                 children: [
                   Center(
                     child: Text(
-                      '회원가입',
+                      '비밀번호 재설정',
                       style: TextStyle(
-                        fontFamily: 'PretendardMedium',
+                        fontFamily: 'PretendardSemibold',
                         fontSize: 24.0,
                       ),
                     ),
                   ),
                   SizedBox(height: 60),
-                  _buildSignupText('닉네임'),
+                  _buildSignupText('현재 비밀번호'),
                   SizedBox(height: 10),
-                  _buildTextField(_nicknameController),
+                  _buildTextField(_currentPasswordController),
                   SizedBox(height: 20),
-                  _buildSignupText('이메일'),
+                  _buildSignupText('새로운 비밀번호'),
                   SizedBox(height: 10),
-                  _buildTextField(_emailController),
+                  _buildTextField(_newPasswordController, isPassword: true),
                   SizedBox(height: 20),
-                  _buildSignupText('비밀번호'),
+                  _buildSignupText('새로운 비밀번호를 다시 입력하세요'),
                   SizedBox(height: 10),
-                  _buildTextField(_passwordController, isPassword: true),
+                  _buildTextField(_renewPasswordController, isPassword: true),
                   SizedBox(height: 40),
                   _buildSignupButton(),
                   SizedBox(height: 300),
@@ -91,12 +91,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  bool _isValidEmail(String email) {
-    return RegExp(
-      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
-    ).hasMatch(email);
-  }
-
   Widget _buildSignupText(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30.0),
@@ -104,7 +98,11 @@ class _SignupScreenState extends State<SignupScreen> {
         alignment: Alignment.centerLeft,
         child: Text(
           label,
-          style: TextStyle(fontFamily: 'PretendardBold', fontSize: 16),
+          style: TextStyle(
+            fontFamily: 'PretendardBold',
+            fontSize: 16,
+            color: Color(0xFF575757),
+          ),
         ),
       ),
     );
@@ -151,51 +149,36 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget _buildSignupButton() {
     return GestureDetector(
       onTap: () async {
-        final nickname = _nicknameController.text;
-        final email = _emailController.text;
-        final password = _passwordController.text;
+        final currentPassword = _currentPasswordController.text;
+        final newPassword = _newPasswordController.text;
+        final renewPassword = _renewPasswordController.text;
 
-        if (nickname.isEmpty || email.isEmpty || password.isEmpty) {
+        if (currentPassword.isEmpty ||
+            newPassword.isEmpty ||
+            renewPassword.isEmpty) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text("빈칸 없이 모두 입력해주세요.")));
           return;
         }
-        if (!_isValidEmail(email)) {
+
+        if (newPassword != renewPassword) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text("올바른 이메일 형식을 입력해주세요.")));
+          ).showSnackBar(const SnackBar(content: Text("새로운 비밀번호가 일치하지 않습니다.")));
           return;
         }
 
-        final result = await AuthService.signup(email, password, nickname);
+        final result = await AuthService.updatePassword(
+          currentPassword,
+          newPassword,
+        );
 
         if (result == null) {
-          print("회원가입 성공");
-
-          final profile = Provider.of<ProfileData>(context, listen: false);
-          profile.updateProfile(updateNickname: nickname, updateEmail: email);
-
-          if (!mounted) return;
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return const GroupPopup(
-                messageHeader: "회원가입 완료",
-                message: '지금 바로 오모와 함께\n일정을 기록해보세요!',
-                showCancelButton: false,
-              );
-            },
-          ).then((value) {
-            if (value == true) {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false,
-              );
-            }
-          });
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("비밀번호가 성공적으로 변경되었습니다.")));
+          Navigator.pop(context);
         } else {
           ScaffoldMessenger.of(
             context,

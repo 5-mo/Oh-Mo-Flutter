@@ -52,17 +52,35 @@ class _NotificationScreenState extends State<NotificationScreen> {
             Navigator.pop(context);
           },
         ),
-        title: Text(
-          '알림',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18.0,
-            fontFamily: 'PretendardBold',
+        titleSpacing: 0,
+        backgroundColor: Colors.white,
+        title: Padding(
+          padding: const EdgeInsets.only(right: 16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '알림',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18.0,
+                  fontFamily: 'PretendardBold',
+                ),
+              ),
+              SizedBox(width: 15),
+
+              const Text(
+                "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+                style: TextStyle(
+                  fontFamily: 'PretendardRegular',
+                  fontSize: 8.0,
+                  color: Color(0xFF565656),
+                ),
+              ),
+            ],
           ),
         ),
-        centerTitle: false,
-        titleSpacing: 3.0,
-        backgroundColor: Colors.white,
       ),
       body: StreamBuilder<List<db.Notification>>(
         stream: _notificationStream,
@@ -74,13 +92,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
           final allNotifications = snapshot.data ?? [];
           final now = DateTime.now();
 
-          final visibleNotifications = allNotifications.where((notification) {
-            return notification.timestamp.isBefore(now) ||
-                notification.timestamp.isAtSameMomentAs(now);
-          }).toList();
+          final visibleNotifications =
+              allNotifications.where((notification) {
+                return notification.timestamp.isBefore(now) ||
+                    notification.timestamp.isAtSameMomentAs(now);
+              }).toList();
 
           visibleNotifications.sort(
-                (a, b) => b.timestamp.compareTo(a.timestamp),
+            (a, b) => b.timestamp.compareTo(a.timestamp),
           );
 
           if (visibleNotifications.isEmpty) {
@@ -99,16 +118,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     "최근 알림이 없습니다.",
                     style: TextStyle(
                       fontFamily: 'PretendardRegular',
-                      fontSize: 12.0,
+                      fontSize: 14.0,
                       color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 7),
                   const Text(
-                    "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+                    "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서\n설정할 수 있습니다",
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'PretendardRegular',
-                      fontSize: 8.0,
+                      fontSize: 12.0,
+                      height: 1.2,
                       color: Color(0xFF565656),
                     ),
                   ),
@@ -121,32 +142,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
           return Column(
             children: [
               const SizedBox(height: 10.0),
-              _buildNotificationHeader(),
-              const SizedBox(height: 10.0),
-              Expanded(
-                child: _buildNotificationList(visibleNotifications),
-              ),
+              Expanded(child: _buildNotificationList(visibleNotifications)),
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildNotificationHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Text(
-          "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
-          style: TextStyle(
-            fontFamily: 'PretendardRegular',
-            fontSize: 8.0,
-            color: Color(0xFF565656),
-          ),
-        ),
       ),
     );
   }

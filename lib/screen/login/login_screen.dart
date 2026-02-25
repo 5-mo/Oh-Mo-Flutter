@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/screen/login/password_reset_screen.dart';
 import 'package:ohmo/screen/login/signup_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
@@ -53,7 +54,14 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(height: 30),
               _buildTextField('비밀번호', true, _passwordController),
               SizedBox(height: 20),
-              _buildSignup(context),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildSignup(context),
+                  SizedBox(width: 15),
+                  _buildPasswordReset(context),
+                ],
+              ),
               SizedBox(height: 40),
               _buildLoginButton(),
               SizedBox(height: 30),
@@ -216,6 +224,25 @@ class _LoginScreenState extends State<LoginScreen> {
       },
       child: Text(
         '회원가입',
+        style: TextStyle(
+          fontSize: 14,
+          fontFamily: 'PretendardRegular',
+          decoration: TextDecoration.underline,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordReset(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PasswordResetScreen()),
+        );
+      },
+      child: Text(
+        '비밀번호 재설정',
         style: TextStyle(
           fontSize: 14,
           fontFamily: 'PretendardRegular',
