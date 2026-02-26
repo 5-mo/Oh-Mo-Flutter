@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_service.dart';
 
 class CategoryService {
   static const String baseUrl = 'http://52.79.75.26:8080';
@@ -12,24 +13,20 @@ class CategoryService {
   }) async {
     final url = Uri.parse('$baseUrl/api/category');
 
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
-
-    if (accessToken == null) return null;
-
     try {
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-        body: jsonEncode({
-          "categoryName": categoryName,
-          "color": color,
-          "scheduleType": scheduleType,
-        }),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            "categoryName": categoryName,
+            "color": color,
+            "scheduleType": scheduleType,
+          }),
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -48,19 +45,15 @@ class CategoryService {
   Future<List<dynamic>> getCategories(String scheduleType) async {
     final url = Uri.parse('$baseUrl/api/category?schedule-type=$scheduleType');
 
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
-
-    if (accessToken == null) return [];
-
     try {
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ),
       );
 
       if (response.statusCode == 200) {

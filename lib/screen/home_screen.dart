@@ -596,22 +596,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _fetchDailyDataAndRefresh(DateTime date) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken') ?? '';
-
-      if (token.isEmpty) {
-        return;
-      }
       final dateString = DateFormat('yyyy-MM-dd').format(date);
 
-      final response = await _calendarService.getDailySchedule(
-        dateString,
-        token,
-      );
+      final response = await _calendarService.getDailySchedule(dateString);
 
       if (response.isSuccess && response.result != null) {
         await _syncDailyApiDataToLocalDb(response.result!, date);
-
         await _loadDataForDate(date);
       }
     } catch (e) {
@@ -844,19 +834,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _fetchMonthlyDataAndRefresh(DateTime date) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken') ?? '';
-
-      if (token.isEmpty) {
-        print("토큰이 없습니다. 로그인 필요");
-        return;
-      }
-
       final yearMonth = "${date.year}-${date.month.toString().padLeft(2, '0')}";
-      final apiResult = await _calendarService.getMonthlySchedule(
-        yearMonth,
-        token,
-      );
+      final apiResult = await _calendarService.getMonthlySchedule(yearMonth);
 
       await _syncApiDataToLocalDb(apiResult);
 

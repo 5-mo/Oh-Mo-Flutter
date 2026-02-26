@@ -11,6 +11,11 @@ class GroupSseService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken');
 
+    if (token == null) {
+      print("[SSE] 토큰이 없어 연결을 시작할 수 없습니다.");
+      return;
+    }
+
     try {
       final response = await _dio.get(
         '$baseUrl/group/$groupId/subscribe',
@@ -26,8 +31,8 @@ class GroupSseService {
 
       await for (final List<int> chunk in response.data.stream) {
         final decoded = utf8.decode(chunk);
-
         final lines = decoded.split('\n');
+
         for (var line in lines) {
           if (line.startsWith('data:')) {
             final data = line.replaceFirst('data:', '').trim();

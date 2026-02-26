@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'auth_service.dart';
 import '../models/todo.dart';
 
 class TodoService {
@@ -10,40 +10,32 @@ class TodoService {
   Future<List<Todo>> getTodos(DateTime date, String token) async {
     final formattedDate = date.toIso8601String().split('T').first;
 
-    final url = Uri.parse(
-      '$baseUrl/by-date?date=$formattedDate&type=TO_DO',
-    );
+    final url = Uri.parse('$baseUrl/by-date?date=$formattedDate&type=TO_DO');
 
-    print('투두 요청: $url');
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-    final response = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
-      if (jsonData['isSuccess'] == true) {
-        final List<Todo> todos = [];
-        final results = jsonData['result'];
-        if (results is List) {
-          for (var item in results) {
-            try {
-              todos.add(Todo.fromJson(item));
-            } catch (e) {
-              print('투두 파싱 실패: $e');
-            }
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        if (jsonData['isSuccess'] == true) {
+          final results = jsonData['result'];
+          if (results is List) {
+            return results.map((item) => Todo.fromJson(item)).toList();
           }
         }
-        return todos;
-      } else {
-        throw Exception('API 실패: ${jsonData['message']}');
       }
-    } else {
-      throw Exception('서버 응답 오류: ${response.statusCode}');
+      return [];
+    } catch (e) {
+      print('투두 조회 에러: $e');
+      return [];
     }
   }
 
@@ -54,33 +46,25 @@ class TodoService {
     required String content,
     required String date,
   }) async {
+    final url = Uri.parse('$baseUrl/todo');
+    final Map<String, dynamic> bodyMap = {
+      "categoryId": categoryId,
+      "time": (time == null || time.isEmpty) ? null : time.substring(0, 5),
+      "alarm": alarm,
+      "content": content,
+      "date": date,
+      "routineWeek": [],
+    };
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) {
-        print('[TodoService] 토큰이 없습니다.');
-        return null;
-      }
-
-      final url = Uri.parse('$baseUrl/todo');
-
-      final Map<String, dynamic> bodyMap = {
-        "categoryId": categoryId,
-        "time": (time == null || time.isEmpty) ? null : time.substring(0, 5),
-        "alarm": alarm,
-        "content": content,
-        "date": date,
-        "routineWeek": [],
-      };
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(bodyMap),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(bodyMap),
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -91,7 +75,6 @@ class TodoService {
       }
       return null;
     } catch (e) {
-      print('[TodoService] 에러 발생: $e');
       return null;
     }
   }
@@ -104,29 +87,24 @@ class TodoService {
     required String content,
     required String date,
   }) async {
+    final url = Uri.parse('$baseUrl/$scheduleId/todo');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-      if (token == null) return false;
-
-      final url = Uri.parse('$baseUrl/$scheduleId/todo');
-
-      final Map<String, dynamic> bodyMap = {
-        "categoryId": categoryId,
-        "time": time,
-        "alarmTime": alarmTime,
-        "content": content,
-        "date": date,
-        "routineWeek": [],
-      };
-
-      final response = await http.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(bodyMap),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            "categoryId": categoryId,
+            "time": time,
+            "alarmTime": alarmTime,
+            "content": content,
+            "date": date,
+            "routineWeek": [],
+          }),
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -135,27 +113,21 @@ class TodoService {
       }
       return false;
     } catch (e) {
-      print('[TodoService] 수정 에러 발생 : $e');
       return false;
     }
   }
 
   Future<bool> deleteTodo(int todoId) async {
+    final url = Uri.parse('$baseUrl/api/todo/$todoId');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-      if (token == null) return false;
-
-      final url = Uri.parse('$baseUrl/api/todo/$todoId');
-
-      print('[TodoService] 투두 삭제 요청 : $url');
-
-      final response = await http.delete(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -164,26 +136,21 @@ class TodoService {
       }
       return false;
     } catch (e) {
-      print('[TodoService] 삭제 에러 발생 : $e');
       return false;
     }
   }
 
   Future<bool?> toggleTodoStatus(int todoId) async {
+    final url = Uri.parse('$baseUrl/api/todo/$todoId');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) return null;
-
-      final url = Uri.parse('$baseUrl/api/todo/$todoId');
-
-      final response = await http.patch(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -196,106 +163,82 @@ class TodoService {
       print('서버 상태 변경 실패: ${response.body}');
       return null;
     } catch (e) {
-      print('통신 에러: $e');
       return null;
     }
   }
 
   Future<List<dynamic>> getTodosByMonth(String yearMonth, String token) async {
-    final url = Uri.parse(
-      '$baseUrl/by-month?year-month=$yearMonth',
-    );
+    final url = Uri.parse('$baseUrl/by-month?year-month=$yearMonth');
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-    final response = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      if (data['isSuccess'] == true) {
-        return data['result'] as List<dynamic>;
-      } else {
-        throw Exception('API 실패: ${data['message']}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data['isSuccess'] == true) {
+          return data['result'] as List<dynamic>;
+        }
       }
-    } else {
-      throw Exception('HTTP 에러: ${response.statusCode}');
+      return [];
+    } catch (e) {
+      return [];
     }
   }
 
   Future<bool> updateTodoDate(int scheduleId, String newDate) async {
+    final url = Uri.parse('$baseUrl/update-date');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) return false;
-
-      final url = Uri.parse('$baseUrl/update-date');
-
-      final Map<String, dynamic> body = {
-        "scheduleId": scheduleId,
-        "date": newDate,
-      };
-
-      final response = await http.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({"scheduleId": scheduleId, "date": newDate}),
+        ),
       );
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonResponse['isSuccess'] ?? false;
-      } else {
-        print("날짜 변경 실패 : ${response.body}");
-        return false;
       }
+      return false;
     } catch (e) {
-      print("통신 에러 : $e");
       return false;
     }
   }
 
   Future<bool> updateAlarmTime(int scheduleId, String? alarmTimeStr) async {
+    final url = Uri.parse('$baseUrl/alarm');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) return false;
-
-      final url = Uri.parse('$baseUrl/alarm');
-
-      final Map<String, dynamic> body = {
-        "scheduleId": scheduleId,
-        "alarmTime": alarmTimeStr,
-      };
-
-      print('알람 변경 요청 : $body');
-
-      final response = await http.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            "scheduleId": scheduleId,
+            "alarmTime": alarmTimeStr,
+          }),
+        ),
       );
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonResponse['isSuccess'] ?? false;
-      } else {
-        print("알람 변경 실패 : ${utf8.decode(response.bodyBytes)}");
-        return false;
       }
+      return false;
     } catch (e) {
-      print("통신 에러 : $e");
       return false;
     }
   }

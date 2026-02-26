@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_service.dart';
 
 class DayLogService {
   final String baseUrl = 'http://52.79.75.26:8080';
@@ -9,26 +10,19 @@ class DayLogService {
     required String date,
     required String emoji,
   }) async {
+    final url = Uri.parse('$baseUrl/api/day-log/emoji');
+    final Map<String, dynamic> bodyMap = {"date": date, "emoji": emoji};
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) {
-        print('[DayLogService] 토큰이 없습니다.');
-        return false;
-      }
-
-      final url = Uri.parse('$baseUrl/api/day-log/emoji');
-
-      final Map<String, dynamic> bodyMap = {"date": date, "emoji": emoji};
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(bodyMap),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(bodyMap),
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -38,26 +32,22 @@ class DayLogService {
         return false;
       }
     } catch (e) {
-      print('[통신 오류]$e');
+      print('[이모지 등록 오류]$e');
       return false;
     }
   }
 
   Future<String?> getEmoji(String date) async {
+    final url = Uri.parse('$baseUrl/api/day-log/emoji?date=$date');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) return null;
-
-      final url = Uri.parse('$baseUrl/api/day-log/emoji?date=$date');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -69,7 +59,7 @@ class DayLogService {
       }
       return null;
     } catch (e) {
-      print('[DaylogService] 이모지 조회 오류 : $e');
+      print('이모지 조회 오류 : $e');
       return null;
     }
   }
@@ -78,78 +68,56 @@ class DayLogService {
     required String questionContent,
     required String emoji,
   }) async {
+    final url = Uri.parse('$baseUrl/api/question');
+    final Map<String, dynamic> bodyMap = {
+      "questionContent": questionContent,
+      "emoji": emoji,
+    };
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) {
-        print('[DayLogService] 토큰이 없습니다.');
-        return false;
-      }
-      final url = Uri.parse('$baseUrl/api/question');
-
-      final Map<String, dynamic> bodyMap = {
-        "questionContent": questionContent,
-        "emoji": emoji,
-      };
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(bodyMap),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(bodyMap),
+        ),
       );
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonResponse['isSuccess'] == true;
-      } else {
-        print('[DayLogService] 서버 에러 : ${response.statusCode}');
-        return false;
       }
+      return false;
     } catch (e) {
-      print('[DayLogService] 통신 오류 : $e');
+      print('질문 등록 오류: $e');
       return false;
     }
   }
 
   Future<List<dynamic>?> getQuestions() async {
+    final url = Uri.parse('$baseUrl/api/question');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) {
-        print('[DayLogService] 토큰이 없습니다.');
-        return null;
-      }
-
-      final url = Uri.parse('$baseUrl/api/question');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-
         if (jsonResponse['isSuccess'] == true) {
           return jsonResponse['result'];
-        } else {
-          print('[DayLogService] 서버 응답 실패: ${jsonResponse['message']}');
-          return null;
         }
-      } else {
-        print('[DayLogService] 서버 에러 : ${response.statusCode}');
-        return null;
       }
+      return null;
     } catch (e) {
-      print('[DayLogService] 통신 오류 : $e');
+      print('질문 목록 조회 오류: $e');
       return null;
     }
   }
@@ -159,69 +127,56 @@ class DayLogService {
     required String answer,
     required String date,
   }) async {
+    final url = Uri.parse('$baseUrl/api/answer');
+    final Map<String, dynamic> bodyMap = {
+      "questionId": questionId,
+      "answer": answer,
+      "date": date,
+    };
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-      if (token == null) return false;
-
-      final url = Uri.parse('$baseUrl/api/answer');
-      final Map<String, dynamic> bodyMap = {
-        "questionId": questionId,
-        "answer": answer,
-        "date": date,
-      };
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(bodyMap),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(bodyMap),
+        ),
       );
-
-      print(
-        '[registerAnswer] Status: ${response.statusCode}, Body: ${response.body}',
-      );
-
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonResponse['isSuccess'] == true;
       }
       return false;
     } catch (e) {
-      print('[registerAnswer] Error: $e');
+      print('답변 등록 오류: $e');
       return false;
     }
   }
 
   Future<List<dynamic>?> getQuestionAnswers(String date) async {
+    final url = Uri.parse('$baseUrl/api/question/answer?date=$date');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) return null;
-
-      final url = Uri.parse('$baseUrl/api/question/answer?date=$date');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-
         if (jsonResponse['isSuccess'] == true) {
           return jsonResponse['result'];
         }
       }
       return null;
     } catch (e) {
-      print('[DayLogService 조회 오류 : $e');
+      print('[문답 조회 오류 : $e');
       return null;
     }
   }
@@ -230,57 +185,42 @@ class DayLogService {
     required String content,
     required String date,
   }) async {
+    final url = Uri.parse('$baseUrl/api/diary');
+    final Map<String, dynamic> bodyMap = {"content": content, "date": date};
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) {
-        print('[DayLogService] 토큰이 없습니다.');
-        return false;
-      }
-      final url = Uri.parse('$baseUrl/api/diary');
-      final Map<String, dynamic> bodyMap = {"content": content, "date": date};
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(bodyMap),
-      );
-      print(
-        '[registerDiary] Status: ${response.statusCode},Body:${response.body}',
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(bodyMap),
+        ),
       );
 
       if (response.statusCode == 200) {
-        final jsonREsponse = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonREsponse['isSuccess'] == true;
-      } else {
-        print('[DayLogService] 서버 에러 : ${response.statusCode}');
-        return false;
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] == true;
       }
+      return false;
     } catch (e) {
-      print('[DayLogService] 일기 등록 통신 오류 : $e');
+      print('일기 등록 오류: $e');
       return false;
     }
   }
 
   Future<Map<String, dynamic>?> getDiary(String date) async {
+    final url = Uri.parse('$baseUrl/api/diary?date=$date');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) return null;
-
-      final url = Uri.parse('$baseUrl/api/diary?date=$date');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
@@ -290,7 +230,7 @@ class DayLogService {
       }
       return null;
     } catch (e) {
-      print('[DayLogService] 일기 조회 오류 : $e');
+      print('일기 조회 오류 : $e');
       return null;
     }
   }

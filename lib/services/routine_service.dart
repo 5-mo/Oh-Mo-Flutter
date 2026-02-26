@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'auth_service.dart';
 import '../models/routine.dart';
 
 class RoutineService {
@@ -9,39 +9,31 @@ class RoutineService {
 
   Future<List<Routine>> getRoutines(DateTime date, String token) async {
     final formattedDate = date.toIso8601String().split('T').first;
-
     final url = Uri.parse('$baseUrl/by-date?date=$formattedDate&type=ROUTINE');
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-    print('루틴 요청: $url');
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
-      if (jsonData['isSuccess'] == true) {
-        final List<Routine> routines = [];
-        final results = jsonData['result'];
-        if (results is List) {
-          for (var item in results) {
-            try {
-              routines.add(Routine.fromJson(item));
-            } catch (e) {
-              print('루틴 파싱 실패: $e');
-            }
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        if (jsonData['isSuccess'] == true) {
+          final results = jsonData['result'];
+          if (results is List) {
+            return results.map((item) => Routine.fromJson(item)).toList();
           }
         }
-        return routines;
-      } else {
-        throw Exception('API 실패: ${jsonData['message']}');
       }
-    } else {
-      throw Exception('서버 응답 오류: ${response.statusCode}');
+      return [];
+    } catch (e) {
+      print('루틴 조회 에러: $e');
+      return [];
     }
   }
 
@@ -54,41 +46,33 @@ class RoutineService {
     required List<String> routineWeek,
     required String color,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
-
-    if (token == null) {
-      print('[RoutineService] 토큰이 없습니다.');
-      return null;
-    }
-
     final url = Uri.parse('$baseUrl/routine');
-
     String safeTime = time;
     if (time.length > 5) {
       safeTime = time.substring(0, 5);
     }
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            "categoryId": categoryId,
+            "time": safeTime,
+            "alarmTime": alarmTime,
+            "content": content,
+            "date": date,
+            "routineWeek": routineWeek,
+            "color": color,
+          }),
+        ),
+      );
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        "categoryId": categoryId,
-        "time": safeTime,
-        "alarmTime": alarmTime,
-        "content": content,
-        "date": date,
-        "routineWeek": routineWeek,
-        "color": color,
-      }),
-    );
-
-    if (response.statusCode == 200) {
       final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-      if (jsonResponse['isSuccess'] == true) {
+      if (response.statusCode == 200 && jsonResponse['isSuccess'] == true) {
         final result = jsonResponse['result'];
         if (result is List && result.isNotEmpty) {
           return {
@@ -97,8 +81,10 @@ class RoutineService {
           };
         }
       }
+      return null;
+    } catch (e) {
+      return null;
     }
-    return null;
   }
 
   Future<bool> updateRoutine({
@@ -110,116 +96,73 @@ class RoutineService {
     required String date,
     required List<String> routineWeek,
   }) async {
+    final url = Uri.parse('$baseUrl/$scheduleId/routine');
+    String safeTime = time;
+    if (time.length > 5) {
+      safeTime = time.substring(0, 5);
+    }
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) {
-        print('[RoutineService] 토큰이 없습니다.');
-        return false;
-      }
-      final url = Uri.parse('$baseUrl/$scheduleId/routine');
-      print('실제 요청 URL: $url');
-
-      String safeTime = time;
-      if (time.length > 5) {
-        safeTime = time.substring(0, 5);
-      }
-      final Map<String, dynamic> bodyMap = {
-        "categoryId": categoryId,
-        "time": safeTime,
-        "alarmTime": alarmTime,
-        "content": content,
-        "date": date,
-        "routineWeek": routineWeek,
-      };
-
-      final response = await http.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(bodyMap),
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            "categoryId": categoryId,
+            "time": safeTime,
+            "alarmTime": alarmTime,
+            "content": content,
+            "date": date,
+            "routineWeek": routineWeek,
+          }),
+        ),
       );
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonResponse['isSuccess'] == true;
-      } else {
-        final errorBody = utf8.decode(response.bodyBytes);
-        print("서버 수정 실패 상세: [${response.statusCode}] $errorBody");
-        return false;
-      }
+      final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && jsonResponse['isSuccess'] == true;
     } catch (e) {
-      print('[RoutineService] 수정 중 통신 에러 : $e');
       return false;
     }
   }
 
   Future<bool> deleteRoutine(int routineId) async {
+    final url = Uri.parse('$baseUrl/api/routine/$routineId');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-      if (token == null) return false;
-
-      final url = Uri.parse('$baseUrl/api/routine/$routineId');
-
-      final response = await http.delete(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonResponse['isSuccess'] == true;
-      } else {
-        print(
-          "서버 삭제 실패 : [${response.statusCode}] ${utf8.decode(response.bodyBytes)}",
-        );
-        return false;
-      }
+      final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && jsonResponse['isSuccess'] == true;
     } catch (e) {
-      print('[RoutineService] 삭제 중 에러 : $e');
       return false;
     }
   }
 
   Future<bool?> toggleRoutineStatus(int routineId) async {
+    final url = Uri.parse('$baseUrl/api/routine/$routineId');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken');
-
-      if (token == null) {
-        print('[RoutineService] 토큰이 없습니다.');
-        return null;
-      }
-
-      final url = Uri.parse('$baseUrl/api/routine/$routineId');
-
-      final response = await http.patch(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
-
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-
-        if (jsonResponse['isSuccess'] == true &&
-            jsonResponse['result'] != null) {
-          return jsonResponse['result']['status'];
-        }
-        return null;
-      } else {
-        print('[API 실패] 상태코드: ${response.statusCode}');
-        return null;
+      final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && jsonResponse['isSuccess'] == true) {
+        return jsonResponse['result']['status'];
       }
+      return null;
     } catch (e) {
-      print('[API 에러] 통신 오류: $e');
       return null;
     }
   }
@@ -229,24 +172,23 @@ class RoutineService {
     String token,
   ) async {
     final url = Uri.parse('$baseUrl/by-month?year-month=$yearMonth');
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      if (data['isSuccess'] == true) {
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
         return data['result'] as List<dynamic>;
-      } else {
-        throw Exception('API 실패: ${data['message']}');
       }
-    } else {
-      throw Exception('HTTP 에러: ${response.statusCode}');
+      return [];
+    } catch (e) {
+      return [];
     }
   }
 }

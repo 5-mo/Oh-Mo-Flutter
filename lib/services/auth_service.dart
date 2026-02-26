@@ -273,4 +273,25 @@ class AuthService {
       return '오류가 발생했습니다. 다시 시도해주세요.';
     }
   }
+
+  static Future<http.Response> authenticatedRequest(
+    Future<http.Response> Function(String token) requestFn,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('accessToken');
+
+    var response = await requestFn(token ?? '');
+
+    if (response.statusCode == 401) {
+      print("토큰 만료됨. 재발급 시도");
+      final newToken = await refreshToken();
+
+      if (newToken != null) {
+        print("토큰 재발급 성공, 재요청 진행");
+        response = await requestFn(newToken);
+      }
+    }
+
+    return response;
+  }
 }
