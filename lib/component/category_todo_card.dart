@@ -15,6 +15,7 @@ class CategoryTodoCard extends StatefulWidget {
   final VoidCallback? onDataChanged;
 
   final bool isColorPickerEnabled;
+  final VoidCallback onColorPickerTap;
 
   const CategoryTodoCard({
     Key? key,
@@ -25,6 +26,7 @@ class CategoryTodoCard extends StatefulWidget {
     this.deletePopupBuilder,
     this.onDataChanged,
     this.isColorPickerEnabled = true,
+    required this.onColorPickerTap,
   }) : super(key: key);
 
   @override
@@ -75,9 +77,10 @@ class _CategoryTodoCardState extends State<CategoryTodoCard> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             GestureDetector(
-              onTap: widget.isColorPickerEnabled
-                  ? () => _openColorPicker(context)
-                  : null,
+              onTap:
+                  widget.isColorPickerEnabled
+                      ? () => widget.onColorPickerTap()
+                      : null,
               child: Container(
                 width: 12,
                 height: 12,
@@ -91,30 +94,31 @@ class _CategoryTodoCardState extends State<CategoryTodoCard> {
             const SizedBox(width: 15.0),
 
             Expanded(
-              child: _isEditing
-                  ? TextField(
-                controller: _controller,
-                style: textStyle,
-                autofocus: true,
-                onSubmitted: (value) async {
-                  await _saveContent(value);
-                },
-                onTapOutside: (_) async {
-                  await _saveContent(_controller.text);
-                },
-              )
-                  : GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _isEditing = true;
-                  });
-                },
-                child: Text(
-                  widget.content,
-                  style: textStyle,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              child:
+                  _isEditing
+                      ? TextField(
+                        controller: _controller,
+                        style: textStyle,
+                        autofocus: true,
+                        onSubmitted: (value) async {
+                          await _saveContent(value);
+                        },
+                        onTapOutside: (_) async {
+                          await _saveContent(_controller.text);
+                        },
+                      )
+                      : GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isEditing = true;
+                          });
+                        },
+                        child: Text(
+                          widget.content,
+                          style: textStyle,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
             ),
 
             if (widget.deletePopupBuilder != null)
@@ -128,7 +132,7 @@ class _CategoryTodoCardState extends State<CategoryTodoCard> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10.0),
                   child: SvgPicture.asset(
-                    'android/assets/images/routine_alarm.svg',
+                    'android/assets/images/todo_alarm.svg',
                   ),
                 ),
               ),
@@ -144,10 +148,7 @@ class _CategoryTodoCardState extends State<CategoryTodoCard> {
 
     final db = LocalDatabaseSingleton.instance;
     await db.updateTodo(
-      TodosCompanion(
-        id: Value(widget.scheduleId),
-        content: Value(value),
-      ),
+      TodosCompanion(id: Value(widget.scheduleId), content: Value(value)),
     );
   }
 
@@ -162,14 +163,15 @@ class _CategoryTodoCardState extends State<CategoryTodoCard> {
           topLeft: Radius.circular(59),
         ),
       ),
-      builder: (context) => ColorPaletteBottomSheet(
-        selectedColorType: _selectedColorType,
-        onColorSelected: (colorType) {
-          setState(() {
-            _selectedColorType = colorType;
-          });
-        },
-      ),
+      builder:
+          (context) => ColorPaletteBottomSheet(
+            selectedColorType: _selectedColorType,
+            onColorSelected: (colorType) {
+              setState(() {
+                _selectedColorType = colorType;
+              });
+            },
+          ),
     ).then((selectedColor) async {
       if (selectedColor != null) {
         try {

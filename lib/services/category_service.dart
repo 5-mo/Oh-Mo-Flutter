@@ -68,4 +68,62 @@ class CategoryService {
       return [];
     }
   }
+
+  Future<bool> updateCategory({
+    required int categoryId,
+    required String categoryName,
+    required String color,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/category/$categoryId');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            "categoryName": categoryName,
+            "color": color.toUpperCase(),
+          }),
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonData['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('카테고리 수정 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteCategory(int categoryId) async {
+    final url = Uri.parse('$baseUrl/api/category/$categoryId');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonData['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('카테고리 삭제 에러 : $e');
+      return false;
+    }
+  }
 }

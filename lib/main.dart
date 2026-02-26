@@ -62,7 +62,16 @@ void main() async {
             selectionColor: Color(0xFFA8A8A8),
             selectionHandleColor: Color(0xFFA8A8A8),
           ),
+          inputDecorationTheme: const InputDecorationTheme(
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFFFFFFFF)),
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+          ),
         ),
+
         builder: (context, child) {
           final Size screenSize = MediaQuery.of(context).size;
           final double deviceAspectRatio = screenSize.width / screenSize.height;

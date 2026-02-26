@@ -181,6 +181,62 @@ class DayLogService {
     }
   }
 
+  Future<bool> updateQuestion({
+    required int questionId,
+    required String questionContent,
+    required String emoji,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/question/$questionId');
+    final Map<String, dynamic> bodyMap = {
+      "questionContent": questionContent,
+      "emoji": emoji,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('질문 수정 오류: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteQuestion(int questionId) async {
+    final url = Uri.parse('$baseUrl/api/question/$questionId');
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonResponse['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('질문 삭제 오류 : $e');
+      return false;
+    }
+  }
+
   Future<bool> registerDiary({
     required String content,
     required String date,

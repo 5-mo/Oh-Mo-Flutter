@@ -383,10 +383,31 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             ),
                             isColorPickerEnabled: true,
                             scheduleId: routine.id,
+                            onColorPickerTap: () {
+                              _openColorPicker(
+                                context,
+                                categoryId: routine.id,
+                                currentName: routine.categoryName,
+                              );
+                            },
                             deletePopupBuilder: (context) {
                               return DeletePopup(
                                 onDelete: () async {
-                                  await _repository.deleteCategory(routine.id);
+                                  final profile = Provider.of<ProfileData>(
+                                    context,
+                                    listen: false,
+                                  );
+
+                                  if (!profile.isGuest) {
+                                    await _categoryService.deleteCategory(
+                                      routine.id,
+                                    );
+                                  }
+
+                                  await _db.deleteCategoryWithChildren(
+                                    routine.id,
+                                  );
+
                                   setState(() {
                                     routines.removeWhere(
                                       (item) => item.id == routine.id,
@@ -399,6 +420,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               );
                             },
                             onEdit: (newContent) async {
+                              final profile = Provider.of<ProfileData>(
+                                context,
+                                listen: false,
+                              );
+
+                              if (!profile.isGuest) {
+                                await _categoryService.updateCategory(
+                                  categoryId: routine.id,
+                                  categoryName: newContent,
+                                  color: routine.colorType,
+                                );
+                              }
+
                               await _repository.updateCategoryName(
                                 routine.id,
                                 newContent,
@@ -650,28 +684,62 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               todo.colorType,
                             ),
                             isColorPickerEnabled: true,
+                            onColorPickerTap: () {
+                              _openColorPicker(
+                                context,
+                                categoryId: todo.id,
+                                currentName: todo.categoryName,
+                              );
+                            },
                             deletePopupBuilder: (context) {
                               return DeletePopup(
                                 onDelete: () async {
-                                  await _repository.deleteCategory(todo.id);
-                                  setState(() {
-                                    todos.removeWhere(
-                                      (item) => item.id == todo.id,
+                                  final profile = Provider.of<ProfileData>(
+                                    context,
+                                    listen: false,
+                                  );
+
+                                  if (!profile.isGuest) {
+                                    await _categoryService.deleteCategory(
+                                      todo.id,
                                     );
-                                    _needsRefresh = true;
-                                  });
+                                  }
+
+                                  await _db.deleteCategoryWithChildren(todo.id);
+
+                                  if (mounted) {
+                                    setState(() {
+                                      todos.removeWhere(
+                                        (item) => item.id == todo.id,
+                                      );
+                                      _needsRefresh = true;
+                                    });
+                                  }
                                 },
                                 messageHeader: '삭제',
                                 message: '해당 목록을 삭제할까요?',
                               );
                             },
                             onEdit: (newContent) async {
+                              final profile = Provider.of<ProfileData>(
+                                context,
+                                listen: false,
+                              );
+
+                              if (!profile.isGuest) {
+                                await _categoryService.updateCategory(
+                                  categoryId: todo.id,
+                                  categoryName: newContent,
+                                  color: todo.colorType,
+                                );
+                              }
+
                               await _repository.updateCategoryName(
                                 todo.id,
                                 newContent,
                               );
                               setState(() {
-                                todo.categoryName = newContent;
+                                todos.removeWhere((item) => item.id == todo.id);
                                 _needsRefresh = true;
                               });
                             },
@@ -1004,7 +1072,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     );
                                   },
                                   child: SvgPicture.asset(
-                                    'android/assets/images/routine_alarm.svg',
+                                    'android/assets/images/todo_alarm.svg',
                                   ),
                                 ),
                               ],
@@ -1253,7 +1321,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       color: Colors.transparent,
                       padding: const EdgeInsets.all(8.0),
                       child: SvgPicture.asset(
-                        'android/assets/images/routine_alarm.svg',
+                        'android/assets/images/todo_alarm.svg',
                       ),
                     ),
                   ),
@@ -1621,8 +1689,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  void _openColorPicker(BuildContext context) {
-    showModalBottomSheet(
+  void _openColorPicker(
+    BuildContext context, {
+    int? categoryId,
+    String? currentName,
+  }) async {
+    final ColorType? selected = await showModalBottomSheet<ColorType>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -1642,5 +1714,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
             },
           ),
     );
+
+    if (selected != null && categoryId != null && currentName != null) {
+      final profile = Provider.of<ProfileData>(context, listen: false);
+
+      if (!profile.isGuest) {
+        await _categoryService.updateCategory(
+          categoryId: categoryId,
+          categoryName: currentName,
+          color: selected.name,
+        );
+      }
+
+      await _repository.updateCategoryColor(categoryId, selected.name);
+
+      _loadAllData();
+      setState(() => _needsRefresh = true);
+    }
   }
 }

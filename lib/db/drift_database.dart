@@ -127,6 +127,16 @@ class LocalDatabase extends _$LocalDatabase {
     return (update(categories)..where((c) => c.id.equals(id))).write(CategoriesCompanion(isDeleted: Value(true)));
   }
 
+  Future<void> deleteCategoryWithChildren(int categoryId) {
+    return transaction(() async {
+      await (delete(routines)..where((tbl) => tbl.categoryId.equals(categoryId))).go();
+
+      await (delete(todos)..where((tbl) => tbl.categoryId.equals(categoryId))).go();
+
+      await (delete(categories)..where((t) => t.id.equals(categoryId))).go();
+    });
+  }
+
   Future<void> updateCategoryAndChildrenColor({
     required int categoryId,
     required ColorType newColor,
