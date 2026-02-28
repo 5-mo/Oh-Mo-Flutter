@@ -59,8 +59,8 @@ class _EtcScreenState extends State<EtcScreen> {
                 children: [
                   _buildEtcHeader(),
                   const SizedBox(height: 40.0),
-                  _buildAlarmSetting(context),
-                  const SizedBox(height: 15.0),
+                  /*_buildAlarmSetting(context),
+                  const SizedBox(height: 15.0),*/
                   _buildService(context),
                   const SizedBox(height: 15.0),
                   _buildPrivateInformation(context),

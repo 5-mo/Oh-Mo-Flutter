@@ -46,6 +46,7 @@ class Categories extends Table{
 
 class DayLogQuestions extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get serverId => integer().nullable()();
   TextColumn get question => text()();
   TextColumn get emoji => text().withDefault(const Constant('🙂'))();
 }

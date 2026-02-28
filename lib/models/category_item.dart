@@ -22,10 +22,12 @@ class DayLogQuestionItem {
   final int id;
   final String question;
   final String emoji;
+  final int? serverId;
 
   DayLogQuestionItem({
     required this.id,
     required this.question,
     required this.emoji,
+    this.serverId,
   });
 }

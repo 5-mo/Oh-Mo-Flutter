@@ -9,6 +9,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/profile_data_provider.dart';
 import '../../services/auth_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart';
+
+final _storage = FlutterSecureStorage();
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -25,65 +29,67 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(height: 100),
-              Row(
-                children: [
-                  SizedBox(width: 90),
-                  Image.asset(
-                    'android/assets/images/clear_ohmo.png',
-                    width: 53,
-                  ),
-                  SizedBox(width: 20),
-                  Center(
-                    child: Text(
-                      'OhMo',
-                      style: TextStyle(
-                        fontFamily: 'RubikSprayPaint',
-                        fontSize: 36.0,
+        child: AutofillGroup(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(height: 100),
+                Row(
+                  children: [
+                    SizedBox(width: 90),
+                    Image.asset(
+                      'android/assets/images/clear_ohmo.png',
+                      width: 53,
+                    ),
+                    SizedBox(width: 20),
+                    Center(
+                      child: Text(
+                        'OhMo',
+                        style: TextStyle(
+                          fontFamily: 'RubikSprayPaint',
+                          fontSize: 36.0,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 60),
-              _buildTextField('이메일 주소', false, _emailController),
-              SizedBox(height: 30),
-              _buildTextField('비밀번호', true, _passwordController),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildSignup(context),
-                  SizedBox(width: 15),
-                  _buildPasswordReset(context),
-                ],
-              ),
-              SizedBox(height: 40),
-              _buildLoginButton(),
-              SizedBox(height: 30),
+                  ],
+                ),
+                SizedBox(height: 60),
+                _buildTextField('이메일 주소', false, _emailController),
+                SizedBox(height: 30),
+                _buildTextField('비밀번호', true, _passwordController),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildSignup(context),
+                    SizedBox(width: 15),
+                    _buildPasswordReset(context),
+                  ],
+                ),
+                SizedBox(height: 40),
+                _buildLoginButton(),
+                SizedBox(height: 30),
 
-              /*_buildGoogleLogin(),
+                /*_buildGoogleLogin(),
               SizedBox(height: 13),
               _buildNaverLogin(),
               SizedBox(height: 13),
               _buildKakaoLogin(),
               SizedBox(height: 13),*/
-              _buildGuestMode(context),
-              SizedBox(height: 100),
-              Text(
-                '로그인 시 개인정보 처리방침을 읽었으며, 이용약관에 동의하신 것으로 간주합니다.',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontFamily: 'PretendardMedium',
-                  color: Color(0xFFC2C2C2),
+                _buildGuestMode(context),
+                SizedBox(height: 100),
+                Text(
+                  '로그인 시 개인정보 처리방침을 읽었으며, 이용약관에 동의하신 것으로 간주합니다.',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'PretendardMedium',
+                    color: Color(0xFFC2C2C2),
+                  ),
                 ),
-              ),
-              SizedBox(height: 200),
-            ],
+                SizedBox(height: 200),
+              ],
+            ),
           ),
         ),
       ),
@@ -100,6 +106,12 @@ class _LoginScreenState extends State<LoginScreen> {
       child: TextField(
         controller: controller,
         obscureText: obscure,
+        autofillHints:
+            obscure ? [AutofillHints.password] : [AutofillHints.email],
+        keyboardType:
+            obscure
+                ? TextInputType.visiblePassword
+                : TextInputType.emailAddress,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
@@ -268,8 +280,15 @@ class _LoginScreenState extends State<LoginScreen> {
         final response = await AuthService.login(email, password);
 
         if (response != null) {
+          try {
+            await _storage.write(key: 'userEmail', value: email);
+            await _storage.write(key: 'userPassword', value: password);
+
+            TextInput.finishAutofillContext();
+          } catch (e) {
+            print('Keychain 저장 에러 : $e');
+          }
           print('로그인 성공');
-          print('서버 응답 데이터: $response');
 
           final prefs = await SharedPreferences.getInstance();
 

@@ -168,7 +168,8 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   Future<int> updateDayLogQuestion(int id, String question, String emoji) {
-    return (update(dayLogQuestions)..where((d) => d.id.equals(id))).write(DayLogQuestionsCompanion(question: Value(question), emoji: Value(emoji)));
+    return (update(dayLogQuestions)..where((d) => d.id.equals(id))).write(
+        DayLogQuestionsCompanion(question: Value(question), emoji: Value(emoji)));
   }
 
   Future<int> deleteDayLogQuestion(int id) {

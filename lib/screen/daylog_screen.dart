@@ -162,18 +162,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
   }
 
-  Future<void> _checkTooltipStatus()async{
-    final prefs=await SharedPreferences.getInstance();
-    bool hasSeen=prefs.getBool('has_seen_emoji_tooltip')??false;
+  Future<void> _checkTooltipStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool hasSeen = prefs.getBool('has_seen_emoji_tooltip') ?? false;
 
-    if(!hasSeen&&mounted){
+    if (!hasSeen && mounted) {
       _showEmojiTooltip();
     }
   }
 
-  Future<void> _onTooltipConfirm() async{
-    final prefs=await SharedPreferences.getInstance();
-    await prefs.setBool('has_seen_emoji_tooltip',true);
+  Future<void> _onTooltipConfirm() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_emoji_tooltip', true);
     _hideEmojiTooltip();
   }
 
@@ -189,70 +189,79 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   OverlayEntry _createEmojiOverlayEntry() {
     return OverlayEntry(
-      builder: (context) => Material(
-        color: Colors.transparent,
-        child: Stack(
-          children: [
-            CompositedTransformFollower(
-              link: _emojiLayerLink,
-              showWhenUnlinked: false,
-              offset: const Offset(-120, 110),
-              child: IntrinsicWidth(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    CustomPaint(
-                      size: const Size(8, 10),
-                      painter: TrianglePainter(color: const Color(0xFF4E4E4E)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4E4E4E),
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            "오늘의 기분은 어떤가요?\n이모지를 눌러주세요!",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              height: 1.2,
-                              fontFamily: 'PretendardMedium',
-                            ),
+      builder:
+          (context) => Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                CompositedTransformFollower(
+                  link: _emojiLayerLink,
+                  showWhenUnlinked: false,
+                  offset: const Offset(-120, 110),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        CustomPaint(
+                          size: const Size(8, 10),
+                          painter: TrianglePainter(
+                            color: const Color(0xFF4E4E4E),
                           ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: _onTooltipConfirm,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2A2A2A),
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: const Text(
-                                "확인",
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4E4E4E),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "오늘의 기분은 어떤가요?\n이모지를 눌러주세요!",
                                 style: TextStyle(
-                                  color: Color(0xFFE6E6E6),
-                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  height: 1.2,
                                   fontFamily: 'PretendardMedium',
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: _onTooltipConfirm,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2A2A2A),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: const Text(
+                                    "확인",
+                                    style: TextStyle(
+                                      color: Color(0xFFE6E6E6),
+                                      fontSize: 12,
+                                      fontFamily: 'PretendardMedium',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -379,6 +388,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
     final serverData = await dayLogService.getQuestionAnswers(dateString);
 
+    if (!mounted) return;
+
     if (serverData == null) {
       print('[서버] 에러: 서버로부터 응답을 받지 못했거나 에러가 발생했습니다.');
     } else {
@@ -402,6 +413,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       });
     }
     final serverDiary = await dayLogService.getDiary(dateString);
+    if (!mounted) return;
     if (serverDiary != null && serverDiary['content'] != null) {
       setState(() {
         _diaryController.text = serverDiary['content'];
@@ -409,6 +421,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     final serverEmoji = await dayLogService.getEmoji(dateString);
+    if (!mounted) return;
     if (serverEmoji != null && mounted) {
       setState(() {
         _setSelectedEmotion(serverEmoji);
@@ -1320,7 +1333,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
         });
         if (selectedQuestion != null) {
           _answerController.text = _dailyAnswers[selectedQuestion!] ?? '';
-          print('버튼 클릭됨: $selectedQuestion, 불러온 답변: ${_answerController.text}');
         } else {
           _answerController.clear();
         }
@@ -1452,10 +1464,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   void _saveDaylogData({bool showSnackbar = true}) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final profile = Provider.of<ProfileData>(
-      context,
-      listen: false,
-    ); // 👈 이거 추가됨
+    final profile = Provider.of<ProfileData>(context, listen: false);
 
     final dateOnly = DateTime(
       _focusedDay.year,
@@ -1471,7 +1480,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
     final String? answerMapString =
         _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
 
-    // 1. [공통] 무조건 로컬 DB에 먼저 저장 (나중에 로그인 시 동기화하기 위함)
     await database.upsertDayLog(
       db.DayLogsCompanion(
         date: Value(dateOnly),
@@ -1481,9 +1489,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       ),
     );
 
-    // 2. [분기] 게스트 모드라면 여기서 중단
     if (profile.isGuest) {
-      print("🛡️ 게스트 모드: 데이로그 로컬 저장 완료 (로그인 시 동기화 예정)");
       if (mounted && showSnackbar) {
         ScaffoldMessenger.of(
           context,
@@ -1492,7 +1498,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
       return;
     }
 
-    // 3. [회원 전용] 서버 API 호출
     final dayLogService = DayLogService();
 
     String? emotion = _getSelectedEmotion();
@@ -1532,6 +1537,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
     }
 
     await _loadDayLogData(_focusedDay);
+
+    if (!mounted) return;
     setState(() {
       _monthlyProgressFuture = _calculateMonthlyProgress();
     });

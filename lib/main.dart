@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:ohmo/screen/etc_screen.dart';
-import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/screen/splash_screen.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'package:provider/provider.dart';
@@ -14,13 +12,18 @@ import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/notification_service.dart';
 import 'db/drift_database.dart' as db;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../services/auth_service.dart';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'firebase_options.dart';
 
 const platform = MethodChannel('com.example.ohmo/todo_events');
 
 @pragma('vm:entry-point')
 void backgroundMain() {
   WidgetsFlutterBinding.ensureInitialized();
-
   platform.setMethodCallHandler(_handleWidgetMethodCalls);
 }
 
@@ -32,6 +35,9 @@ Future<void> clearTokens() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   await initializeDateFormatting('ko_KR');
 
   await SystemChrome.setPreferredOrientations([
@@ -40,7 +46,28 @@ void main() async {
   ]);
 
   final callbackHandle = PluginUtilities.getCallbackHandle(backgroundMain);
+
   final prefs = await SharedPreferences.getInstance();
+  final storage = await FlutterSecureStorage();
+
+  String? savedEmail = await storage.read(key: 'userEmail');
+  String? savedPassword = await storage.read(key: 'userPassword');
+
+  final profileData = ProfileData();
+
+  if (savedEmail != null && savedPassword != null) {
+    final response = await AuthService.login(savedEmail, savedPassword);
+
+    if (response != null) {
+      profileData.setGeustMode(false);
+      profileData.updateProfile(
+        updateEmail: savedEmail,
+        updateNickname: response['nickname'],
+      );
+    } else {
+      profileData.setGeustMode(true);
+    }
+  }
   await prefs.setInt(
     'background_callback_handle',
     callbackHandle!.toRawHandle(),
@@ -53,8 +80,13 @@ void main() async {
   //await clearTokens();
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => ProfileData())],
+      providers: [
+        ChangeNotifierProvider<ProfileData>.value(value: profileData),
+      ],
       child: MaterialApp(
+        navigatorObservers: [
+          FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+        ],
         theme: ThemeData(
           scaffoldBackgroundColor: Colors.white,
           textSelectionTheme: const TextSelectionThemeData(

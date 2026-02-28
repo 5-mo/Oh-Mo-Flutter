@@ -64,7 +64,7 @@ class DayLogService {
     }
   }
 
-  Future<bool> registerQuestion({
+  Future<dynamic> registerQuestion({
     required String questionContent,
     required String emoji,
   }) async {
@@ -75,7 +75,7 @@ class DayLogService {
     };
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
+            (token) => http.post(
           url,
           headers: {
             'Authorization': 'Bearer $token',
@@ -87,12 +87,16 @@ class DayLogService {
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonResponse['isSuccess'] == true;
+        print('Register Question Response Body: $jsonResponse');
+
+        if (jsonResponse['isSuccess'] == true) {
+          return jsonResponse['result'] ?? jsonResponse;
+        }
       }
-      return false;
+      return null;
     } catch (e) {
       print('질문 등록 오류: $e');
-      return false;
+      return null;
     }
   }
 
@@ -180,8 +184,7 @@ class DayLogService {
       return null;
     }
   }
-
-  Future<bool> updateQuestion({
+  Future<dynamic> updateQuestion({
     required int questionId,
     required String questionContent,
     required String emoji,
@@ -194,22 +197,25 @@ class DayLogService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.patch(
+            (token) => http.patch(
           url,
           headers: {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
           },
+          body: jsonEncode(bodyMap),
         ),
       );
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonResponse['isSuccess'] == true;
+        if (jsonResponse['isSuccess'] == true) {
+          return jsonResponse['result'] ?? jsonResponse;
+        }
       }
-      return false;
+      return null;
     } catch (e) {
       print('질문 수정 오류: $e');
-      return false;
+      return null;
     }
   }
 

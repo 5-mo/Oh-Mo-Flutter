@@ -539,6 +539,16 @@ class $DayLogQuestionsTable extends DayLogQuestions
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const drift.VerificationMeta _serverIdMeta =
+      const drift.VerificationMeta('serverId');
+  @override
+  late final drift.GeneratedColumn<int> serverId = drift.GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const drift.VerificationMeta _questionMeta =
       const drift.VerificationMeta('question');
   @override
@@ -564,7 +574,7 @@ class $DayLogQuestionsTable extends DayLogQuestions
         defaultValue: const drift.Constant('🙂'),
       );
   @override
-  List<drift.GeneratedColumn> get $columns => [id, question, emoji];
+  List<drift.GeneratedColumn> get $columns => [id, serverId, question, emoji];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -579,6 +589,12 @@ class $DayLogQuestionsTable extends DayLogQuestions
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
     }
     if (data.containsKey('question')) {
       context.handle(
@@ -608,6 +624,10 @@ class $DayLogQuestionsTable extends DayLogQuestions
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
       question:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -630,10 +650,12 @@ class $DayLogQuestionsTable extends DayLogQuestions
 class DayLogQuestion extends drift.DataClass
     implements drift.Insertable<DayLogQuestion> {
   final int id;
+  final int? serverId;
   final String question;
   final String emoji;
   const DayLogQuestion({
     required this.id,
+    this.serverId,
     required this.question,
     required this.emoji,
   });
@@ -641,6 +663,9 @@ class DayLogQuestion extends drift.DataClass
   Map<String, drift.Expression> toColumns(bool nullToAbsent) {
     final map = <String, drift.Expression>{};
     map['id'] = drift.Variable<int>(id);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = drift.Variable<int>(serverId);
+    }
     map['question'] = drift.Variable<String>(question);
     map['emoji'] = drift.Variable<String>(emoji);
     return map;
@@ -649,6 +674,10 @@ class DayLogQuestion extends drift.DataClass
   DayLogQuestionsCompanion toCompanion(bool nullToAbsent) {
     return DayLogQuestionsCompanion(
       id: drift.Value(id),
+      serverId:
+          serverId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(serverId),
       question: drift.Value(question),
       emoji: drift.Value(emoji),
     );
@@ -661,6 +690,7 @@ class DayLogQuestion extends drift.DataClass
     serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return DayLogQuestion(
       id: serializer.fromJson<int>(json['id']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
       question: serializer.fromJson<String>(json['question']),
       emoji: serializer.fromJson<String>(json['emoji']),
     );
@@ -670,20 +700,27 @@ class DayLogQuestion extends drift.DataClass
     serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'serverId': serializer.toJson<int?>(serverId),
       'question': serializer.toJson<String>(question),
       'emoji': serializer.toJson<String>(emoji),
     };
   }
 
-  DayLogQuestion copyWith({int? id, String? question, String? emoji}) =>
-      DayLogQuestion(
-        id: id ?? this.id,
-        question: question ?? this.question,
-        emoji: emoji ?? this.emoji,
-      );
+  DayLogQuestion copyWith({
+    int? id,
+    drift.Value<int?> serverId = const drift.Value.absent(),
+    String? question,
+    String? emoji,
+  }) => DayLogQuestion(
+    id: id ?? this.id,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    question: question ?? this.question,
+    emoji: emoji ?? this.emoji,
+  );
   DayLogQuestion copyWithCompanion(DayLogQuestionsCompanion data) {
     return DayLogQuestion(
       id: data.id.present ? data.id.value : this.id,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
       question: data.question.present ? data.question.value : this.question,
       emoji: data.emoji.present ? data.emoji.value : this.emoji,
     );
@@ -693,6 +730,7 @@ class DayLogQuestion extends drift.DataClass
   String toString() {
     return (StringBuffer('DayLogQuestion(')
           ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
           ..write('question: $question, ')
           ..write('emoji: $emoji')
           ..write(')'))
@@ -700,37 +738,43 @@ class DayLogQuestion extends drift.DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, question, emoji);
+  int get hashCode => Object.hash(id, serverId, question, emoji);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DayLogQuestion &&
           other.id == this.id &&
+          other.serverId == this.serverId &&
           other.question == this.question &&
           other.emoji == this.emoji);
 }
 
 class DayLogQuestionsCompanion extends drift.UpdateCompanion<DayLogQuestion> {
   final drift.Value<int> id;
+  final drift.Value<int?> serverId;
   final drift.Value<String> question;
   final drift.Value<String> emoji;
   const DayLogQuestionsCompanion({
     this.id = const drift.Value.absent(),
+    this.serverId = const drift.Value.absent(),
     this.question = const drift.Value.absent(),
     this.emoji = const drift.Value.absent(),
   });
   DayLogQuestionsCompanion.insert({
     this.id = const drift.Value.absent(),
+    this.serverId = const drift.Value.absent(),
     required String question,
     this.emoji = const drift.Value.absent(),
   }) : question = drift.Value(question);
   static drift.Insertable<DayLogQuestion> custom({
     drift.Expression<int>? id,
+    drift.Expression<int>? serverId,
     drift.Expression<String>? question,
     drift.Expression<String>? emoji,
   }) {
     return drift.RawValuesInsertable({
       if (id != null) 'id': id,
+      if (serverId != null) 'server_id': serverId,
       if (question != null) 'question': question,
       if (emoji != null) 'emoji': emoji,
     });
@@ -738,11 +782,13 @@ class DayLogQuestionsCompanion extends drift.UpdateCompanion<DayLogQuestion> {
 
   DayLogQuestionsCompanion copyWith({
     drift.Value<int>? id,
+    drift.Value<int?>? serverId,
     drift.Value<String>? question,
     drift.Value<String>? emoji,
   }) {
     return DayLogQuestionsCompanion(
       id: id ?? this.id,
+      serverId: serverId ?? this.serverId,
       question: question ?? this.question,
       emoji: emoji ?? this.emoji,
     );
@@ -753,6 +799,9 @@ class DayLogQuestionsCompanion extends drift.UpdateCompanion<DayLogQuestion> {
     final map = <String, drift.Expression>{};
     if (id.present) {
       map['id'] = drift.Variable<int>(id.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = drift.Variable<int>(serverId.value);
     }
     if (question.present) {
       map['question'] = drift.Variable<String>(question.value);
@@ -767,6 +816,7 @@ class DayLogQuestionsCompanion extends drift.UpdateCompanion<DayLogQuestion> {
   String toString() {
     return (StringBuffer('DayLogQuestionsCompanion(')
           ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
           ..write('question: $question, ')
           ..write('emoji: $emoji')
           ..write(')'))
@@ -5444,12 +5494,14 @@ typedef $$CategoriesTableProcessedTableManager =
 typedef $$DayLogQuestionsTableCreateCompanionBuilder =
     DayLogQuestionsCompanion Function({
       drift.Value<int> id,
+      drift.Value<int?> serverId,
       required String question,
       drift.Value<String> emoji,
     });
 typedef $$DayLogQuestionsTableUpdateCompanionBuilder =
     DayLogQuestionsCompanion Function({
       drift.Value<int> id,
+      drift.Value<int?> serverId,
       drift.Value<String> question,
       drift.Value<String> emoji,
     });
@@ -5465,6 +5517,11 @@ class $$DayLogQuestionsTableFilterComposer
   });
   drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
     builder: (column) => drift.ColumnFilters(column),
   );
 
@@ -5493,6 +5550,11 @@ class $$DayLogQuestionsTableOrderingComposer
     builder: (column) => drift.ColumnOrderings(column),
   );
 
+  drift.ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
   drift.ColumnOrderings<String> get question => $composableBuilder(
     column: $table.question,
     builder: (column) => drift.ColumnOrderings(column),
@@ -5515,6 +5577,9 @@ class $$DayLogQuestionsTableAnnotationComposer
   });
   drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  drift.GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
 
   drift.GeneratedColumn<String> get question =>
       $composableBuilder(column: $table.question, builder: (column) => column);
@@ -5568,20 +5633,24 @@ class $$DayLogQuestionsTableTableManager
           updateCompanionCallback:
               ({
                 drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> serverId = const drift.Value.absent(),
                 drift.Value<String> question = const drift.Value.absent(),
                 drift.Value<String> emoji = const drift.Value.absent(),
               }) => DayLogQuestionsCompanion(
                 id: id,
+                serverId: serverId,
                 question: question,
                 emoji: emoji,
               ),
           createCompanionCallback:
               ({
                 drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> serverId = const drift.Value.absent(),
                 required String question,
                 drift.Value<String> emoji = const drift.Value.absent(),
               }) => DayLogQuestionsCompanion.insert(
                 id: id,
+                serverId: serverId,
                 question: question,
                 emoji: emoji,
               ),

@@ -59,6 +59,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
   bool _isDiaryDeleted = false;
   bool _isGroupDeleted = false;
 
+  int? _editingQuestionIndex;
+
   ColorType _selectedColorType = ColorType.pinkLight;
 
   late LocalCategoryRepository _repository;
@@ -77,66 +79,57 @@ class _CategoryScreenState extends State<CategoryScreen> {
     _loadAllData();
   }
 
-  void _loadAllData() async {
+  Future<void> _loadAllData() async {
     final currentLocalQuestions = await _repository.fetchDayLogQuestions();
-    final Set<String> existingContents =
-        currentLocalQuestions.map((q) => q.question.trim()).toSet();
-
-    final List<Map<String, String>> defaultQuestions = [
-      {'emoji': '💰', 'text': '오늘의 소비는?'},
-      {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
-    ];
-
-    for (var defaultQ in defaultQuestions) {
-      final String content = defaultQ['text']!.trim();
-      final String emoji = defaultQ['emoji']!;
-
-      if (!existingContents.contains(content)) {
-        await _repository.insertDayLogQuestion(content, emoji);
-        existingContents.add(content);
-      }
-    }
-
     final dayLogService = DayLogService();
     final serverQuestions = await dayLogService.getQuestions();
 
     if (serverQuestions != null && serverQuestions.isNotEmpty) {
+      final Set<int> existingServerIds =
+          currentLocalQuestions.map((q) => q.serverId).whereType<int>().toSet();
+
       for (var serverQ in serverQuestions) {
+        final int sId = serverQ['id'] ?? serverQ['questionId'];
         final String content = serverQ['questionContent'] ?? '';
-        final String emoji = serverQ['emoji'] ?? '';
+        final String emoji = serverQ['emoji'] ?? '🙂';
 
-        if (!existingContents.contains(content)) {
-          await _repository.insertDayLogQuestion(content, emoji);
+        if (existingServerIds.contains(sId)) continue;
 
-          existingContents.add(content);
+        final localMatch = currentLocalQuestions.firstWhere(
+          (q) => q.serverId == null && q.question.trim() == content.trim(),
+          orElse: () => DayLogQuestionItem(id: -1, question: '', emoji: ''),
+        );
+
+        if (localMatch.id != -1) {
+          await _repository.updateDayLogQuestion(
+            localMatch.id,
+            content,
+            emoji,
+            serverId: sId,
+          );
+        } else {
+          await _repository.insertDayLogQuestion(content, emoji, serverId: sId);
         }
       }
     }
 
+    final List<DayLogQuestionItem> uniqueDaylogs =
+        await _repository.fetchDayLogQuestions();
+
+    // ------------------ 루틴 & 투두 로직 ------------------
     final fetchedRoutines = await _repository.fetchCategories(
       scheduleType: 'ROUTINE',
     );
     final filteredRoutines =
         fetchedRoutines.where((c) => c.categoryName != 'default').toList();
+
     final fetchedTodos = await _repository.fetchCategories(
       scheduleType: 'TO_DO',
     );
     final filteredTodos =
         fetchedTodos.where((c) => c.categoryName != 'default').toList();
-    List<DayLogQuestionItem> allFetchedDaylogs =
-        await _repository.fetchDayLogQuestions();
 
-    final Set<String> seenQuestions = {};
-    final List<DayLogQuestionItem> uniqueDaylogs = [];
-
-    for (var question in allFetchedDaylogs) {
-      final trimmedText = question.question.trim();
-      if (!seenQuestions.contains(trimmedText)) {
-        seenQuestions.add(trimmedText);
-        uniqueDaylogs.add(question);
-      }
-    }
-
+    // ------------------ 그룹 로직 ------------------
     final fetchedGroups = await _groupService.fetchGroups();
 
     final List<Map<String, dynamic>> groupWithMembers = await Future.wait(
@@ -179,7 +172,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
         todos = filteredTodos;
         daylogQuestions = uniqueDaylogs;
         _groups = groupWithMembers;
-        if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
+
+        if (routines.isNotEmpty) {
+          selectedCategoryId = routines.first.id;
+        }
 
         _isRoutineDeleted = !isRoutineVisible;
         _isTodoDeleted = !isTodoVisible;
@@ -202,7 +198,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         }
       },
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           surfaceTintColor: Colors.white,
           leading: IconButton(
@@ -232,13 +228,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 10.0),
+              /* SizedBox(height: 10.0),
 
               Padding(
                 padding: const EdgeInsets.only(left: 31),
                 child: _buildGroupAccordion(),
               ),
-
+*/
               SizedBox(height: 60),
             ],
           ),
@@ -1014,7 +1010,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ...daylogQuestions.map((question) {
+                        ...daylogQuestions.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          var question = entry.value;
+                          bool isEditing = _editingQuestionIndex == index;
                           return Padding(
                             padding: const EdgeInsets.only(
                               bottom: 8.0,
@@ -1023,56 +1022,170 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Container(
-                                  width: 260,
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        question.emoji,
-                                        style: TextStyle(fontSize: 20),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          question.question,
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontFamily: 'PretendardRegular',
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(width: 10),
                                 GestureDetector(
                                   onTap: () {
-                                    showDialog(
+                                    showModalBottomSheet(
                                       context: context,
-                                      builder: (context) {
-                                        return DeletePopup(
-                                          onDelete: () async {
-                                            await _repository
-                                                .deleteDayLogQuestion(
-                                                  question.id,
-                                                );
-                                            setState(() {
-                                              daylogQuestions.removeWhere(
-                                                (item) =>
-                                                    item.id == question.id,
+                                      backgroundColor: Colors.white,
+                                      builder: (BuildContext bContext) {
+                                        return SizedBox(
+                                          height: 300,
+                                          child: EmojiPicker(
+                                            onEmojiSelected: (
+                                              category,
+                                              emoji,
+                                            ) async {
+                                              Navigator.pop(bContext);
+                                              await _handleEmojiEdit(
+                                                question,
+                                                emoji.emoji,
                                               );
-                                              _needsRefresh = true;
-                                            });
-                                          },
-                                          messageHeader: '삭제',
-                                          message: '해당 목록을 삭제할까요?',
+                                            },
+                                            config: Config(
+                                              categoryViewConfig:
+                                                  CategoryViewConfig(
+                                                    indicatorColor:
+                                                        Colors.black,
+                                                    iconColorSelected:
+                                                        Colors.black,
+                                                    backspaceColor:
+                                                        Colors.black,
+                                                  ),
+                                              bottomActionBarConfig:
+                                                  BottomActionBarConfig(
+                                                    backgroundColor:
+                                                        Colors.white,
+                                                    buttonColor: Colors.white,
+                                                    buttonIconColor:
+                                                        Colors.grey,
+                                                  ),
+                                            ),
+                                          ),
                                         );
                                       },
                                     );
                                   },
-                                  child: SvgPicture.asset(
-                                    'android/assets/images/todo_alarm.svg',
+                                  child: Text(
+                                    question.emoji,
+                                    style: TextStyle(fontSize: 20),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child:
+                                      isEditing
+                                          ? TextField(
+                                            autofocus: true,
+                                            controller: TextEditingController(
+                                              text: question.question,
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontFamily: 'PretendardRegular',
+                                            ),
+                                            onSubmitted: (value) async {
+                                              await _handleQuestionEdit(
+                                                question,
+                                                value,
+                                              );
+                                              setState(
+                                                () =>
+                                                    _editingQuestionIndex =
+                                                        null,
+                                              );
+                                            },
+                                            onTapOutside:
+                                                (_) => setState(
+                                                  () =>
+                                                      _editingQuestionIndex =
+                                                          null,
+                                                ),
+                                          )
+                                          : GestureDetector(
+                                            onTap:
+                                                () => setState(
+                                                  () =>
+                                                      _editingQuestionIndex =
+                                                          index,
+                                                ),
+                                            child: Text(
+                                              question.question,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontFamily: 'PretendardRegular',
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder:
+                                          (context) => DeletePopup(
+                                            onDelete: () async {
+                                              final profile =
+                                                  Provider.of<ProfileData>(
+                                                    context,
+                                                    listen: false,
+                                                  );
+                                              final dayLogService =
+                                                  DayLogService();
+
+                                              try {
+                                                if (!profile.isGuest &&
+                                                    question.serverId != null) {
+                                                  final bool serverDeleted =
+                                                      await dayLogService
+                                                          .deleteQuestion(
+                                                            question.serverId!,
+                                                          );
+                                                  if (!serverDeleted) {
+                                                    print(
+                                                      '서버 삭제 실패: 데이터가 동기화 시 다시 살아날 수 있습니다.',
+                                                    );
+                                                  }
+                                                }
+
+                                                await _repository
+                                                    .deleteDayLogQuestion(
+                                                      question.id,
+                                                    );
+
+                                                setState(() {
+                                                  daylogQuestions.removeWhere(
+                                                    (item) =>
+                                                        item.id == question.id,
+                                                  );
+                                                  _needsRefresh = true;
+                                                });
+
+                                                await _loadAllData();
+
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "질문이 삭제되었습니다.",
+                                                    ),
+                                                  ),
+                                                );
+                                              } catch (e) {
+                                                print('삭제 처리 중 오류 발생: $e');
+                                              }
+                                            },
+                                            messageHeader: '질문 삭제',
+                                            message: '해당 질문과 답변이 모두 삭제됩니다.',
+                                          ),
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 67.0),
+                                    child: SvgPicture.asset(
+                                      'android/assets/images/todo_alarm.svg',
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1112,6 +1225,25 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                                 });
                                                 Navigator.pop(context);
                                               },
+                                              config: Config(
+                                                categoryViewConfig:
+                                                    CategoryViewConfig(
+                                                      indicatorColor:
+                                                          Colors.black,
+                                                      iconColorSelected:
+                                                          Colors.black,
+                                                      backspaceColor:
+                                                          Colors.black,
+                                                    ),
+                                                bottomActionBarConfig:
+                                                    BottomActionBarConfig(
+                                                      backgroundColor:
+                                                          Colors.white,
+                                                      buttonColor: Colors.white,
+                                                      buttonIconColor:
+                                                          Colors.grey,
+                                                    ),
+                                              ),
                                             ),
                                           ),
                                         );
@@ -1152,51 +1284,47 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     );
                                     final dayLogService = DayLogService();
 
-                                    bool canSaveLocal = false;
-
                                     if (!profile.isGuest) {
-                                      final bool isApiSuccess =
+                                      final dynamic response =
                                           await dayLogService.registerQuestion(
                                             questionContent: newText,
                                             emoji: _newEmoji,
                                           );
 
-                                      if (isApiSuccess) {
-                                        canSaveLocal = true;
-                                      } else {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text("서버 저장에 실패했습니다."),
-                                          ),
+                                      if (response != null) {
+                                        await _repository.insertDayLogQuestion(
+                                          newText,
+                                          _newEmoji,
+                                          serverId: null,
                                         );
+
+                                        if (mounted) {
+                                          setState(() {
+                                            _isAddingNewQuestion = false;
+                                            _newQuestionController.clear();
+                                          });
+
+                                          await _loadAllData();
+
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text("질문이 추가되었습니다."),
+                                            ),
+                                          );
+                                        }
                                       }
                                     } else {
-                                      canSaveLocal = true;
-                                    }
-
-                                    if (canSaveLocal) {
-                                      final newItem = await _repository
-                                          .insertDayLogQuestion(
-                                            newText,
-                                            _newEmoji,
-                                          );
-                                      if (mounted) {
-                                        setState(() {
-                                          daylogQuestions.add(newItem);
-                                          _isAddingNewQuestion = false;
-                                          _newQuestionController.clear();
-                                          _needsRefresh = true;
-                                        });
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text("질문이 추가되었습니다."),
-                                          ),
-                                        );
-                                      }
+                                      await _repository.insertDayLogQuestion(
+                                        newText,
+                                        _newEmoji,
+                                      );
+                                      setState(() {
+                                        _isAddingNewQuestion = false;
+                                        _newQuestionController.clear();
+                                      });
+                                      await _loadAllData();
                                     }
                                   },
                                 ),
@@ -1517,7 +1645,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ],
         ),
         child: Container(
-          width: 320,
+          width: 326,
           height: 50,
           decoration: BoxDecoration(
             shape: BoxShape.rectangle,
@@ -1687,6 +1815,87 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleQuestionEdit(
+    DayLogQuestionItem question,
+    String newContent,
+  ) async {
+    final trimmedContent = newContent.trim();
+    if (trimmedContent.isEmpty || trimmedContent == question.question) return;
+
+    final profile = Provider.of<ProfileData>(context, listen: false);
+    final dayLogService = DayLogService();
+
+    try {
+      int? sId = question.serverId;
+
+      if (!profile.isGuest) {
+        final dynamic response = await dayLogService.updateQuestion(
+          questionId: question.serverId ?? 0,
+          questionContent: trimmedContent,
+          emoji: question.emoji,
+        );
+
+        if (response != null && response is Map) {
+          sId = response['id'] ?? response['questionId'];
+          print('Extracted Server ID: $sId');
+        } else if (response == true && question.serverId != null) {
+          sId = question.serverId;
+        }
+      }
+
+      await _repository.updateDayLogQuestion(
+        question.id,
+        trimmedContent,
+        question.emoji,
+        serverId: sId,
+      );
+
+      _loadAllData();
+
+      setState(() {
+        _editingQuestionIndex = null;
+        _needsRefresh = true;
+      });
+    } catch (e) {
+      print("수정 중 오류 발생: $e");
+    }
+  }
+
+  Future<void> _handleEmojiEdit(
+    DayLogQuestionItem question,
+    String newEmoji,
+  ) async {
+    if (question.emoji == newEmoji) return;
+
+    final profile = Provider.of<ProfileData>(context, listen: false);
+    final dayLogService = DayLogService();
+
+    try {
+      if (!profile.isGuest && question.serverId != null) {
+        await dayLogService.updateQuestion(
+          questionId: question.serverId!,
+          questionContent: question.question,
+          emoji: newEmoji,
+        );
+      }
+
+      await _repository.updateDayLogQuestion(
+        question.id,
+        question.question,
+        newEmoji,
+        serverId: question.serverId,
+      );
+
+      await _loadAllData();
+
+      setState(() {
+        _needsRefresh = true;
+      });
+    } catch (e) {
+      print("이모지 수정 중 오류 발생: $e");
+    }
   }
 
   void _openColorPicker(

@@ -80,28 +80,44 @@ class LocalCategoryRepository {
     return rows
         .map(
           (r) => DayLogQuestionItem(
-            id: r.id,
-            question: r.question,
-            emoji: r.emoji,
-          ),
-        )
+        id: r.id,
+        question: r.question,
+        emoji: r.emoji,
+        serverId: r.serverId,
+      ),
+    )
         .toList();
   }
 
-  Future<DayLogQuestionItem> insertDayLogQuestion(
-    String question,
-    String emoji,
-  ) async {
-    final id = await _db.insertDayLogQuestion(question, emoji);
-    return DayLogQuestionItem(id: id, question: question, emoji: emoji);
+  Future<DayLogQuestionItem> insertDayLogQuestion(String question, String emoji, {int? serverId}) async {
+    final id = await _db.into(_db.dayLogQuestions).insert(
+      db.DayLogQuestionsCompanion(
+        question: drift.Value(question),
+        emoji: drift.Value(emoji),
+        serverId: drift.Value(serverId),
+      ),
+    );
+
+    return DayLogQuestionItem(
+        id: id,
+        question: question,
+        emoji: emoji,
+        serverId: serverId
+    );
   }
 
   Future<void> updateDayLogQuestion(
-    int id,
-    String question,
-    String emoji,
-  ) async {
-    await _db.updateDayLogQuestion(id, question, emoji);
+      int id,
+      String question,
+      String emoji, {
+        int? serverId,
+      }) async {
+    await (_db.update(_db.dayLogQuestions)..where((t) => t.id.equals(id)))
+        .write(db.DayLogQuestionsCompanion(
+      question: drift.Value(question),
+      emoji: drift.Value(emoji),
+      serverId: serverId != null ? drift.Value(serverId) : const drift.Value.absent(), // ID가 있을 때만 업데이트
+    ));
   }
 
   Future<void> deleteDayLogQuestion(int id) async {
