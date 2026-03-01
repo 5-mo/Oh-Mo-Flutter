@@ -294,4 +294,66 @@ class AuthService {
 
     return response;
   }
+
+  static Future<String?> sendResetCode(String email) async {
+    final url = Uri.parse('$baseUrl/api/member/password/find');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      final decodeBody = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decodeBody);
+
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        print('인증 코드 발송 성공');
+        return null;
+      } else {
+        final message = data['message'] ?? '인증 코드 발송에 실패했습니다.';
+        print('인증 코드 발송 실패 : $message');
+        return message;
+      }
+    } catch (e) {
+      print('인증 코드 발송 중 오류 발생 : $e');
+      return '오류가 발생했습니다. 다시 시도해주세요.';
+    }
+  }
+
+  static Future<String?> resetPassword(
+    String email,
+    String code,
+    String newPassword,
+  ) async {
+    final url = Uri.parse('$baseUrl/api/member/password/reset');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'code': code,
+          'newPassword': newPassword,
+        }),
+      );
+
+      final decodeBody = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decodeBody);
+
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        print('비밀번호 재설정 성공');
+        return null;
+      } else {
+        final message = data['message'] ?? '비밀번호 재설정에 실패했습니다.';
+        print('비밀번호 재설정 실패 : $message');
+        return message;
+      }
+    } catch (e) {
+      print('비밀번호 재설정 중 오류 발생 : $e');
+      return '오류가 발생했습니다. 다시 시도해주세요.';
+    }
+  }
 }

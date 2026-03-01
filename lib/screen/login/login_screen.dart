@@ -12,6 +12,8 @@ import '../../services/auth_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/services.dart';
 
+import '../password/password_email_screen.dart';
+
 final _storage = FlutterSecureStorage();
 
 class LoginScreen extends StatefulWidget {
@@ -250,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => PasswordResetScreen()),
+          MaterialPageRoute(builder: (context) => PasswordEmailScreen()),
         );
       },
       child: Text(

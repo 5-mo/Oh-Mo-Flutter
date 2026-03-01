@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:ohmo/screen/password_screen.dart';
+import 'package:ohmo/screen/password/password_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 

@@ -464,7 +464,7 @@ class _EtcScreenState extends State<EtcScreen> {
 
   Widget _buildVersion() {
     return Text(
-      '버전 1.0.0',
+      '버전 1.0.1',
       style: TextStyle(
         fontFamily: 'PretendardRegular',
         fontSize: 10.5,
