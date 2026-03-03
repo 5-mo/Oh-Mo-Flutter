@@ -6,7 +6,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart' as p;
 
 class MemberService {
-  final String baseUrl = "http://52.79.75.26:8080";
+  final String baseUrl = "http://3.36.161.109:8080";
 
   Future<Map<String, dynamic>?> fetchUserInfo() async {
     try {

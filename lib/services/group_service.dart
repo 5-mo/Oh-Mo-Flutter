@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 
 class GroupService {
-  static const String baseUrl = 'http://52.79.75.26:8080/api';
+  static const String baseUrl = 'http://3.36.161.109:8080/api';
 
   Future<Map<String, dynamic>> createGroup({
     required String groupName,
@@ -292,32 +292,35 @@ class GroupService {
     required List<int> memberGroupIdList,
   }) async {
     final url = Uri.parse('$baseUrl/group-schedule/assignee-routine');
-    final Map<String, dynamic> body = {
-      "routineId": routineId,
-      "memberGroupId":
-          memberGroupIdList.isNotEmpty ? memberGroupIdList[0] : null,
-    };
 
-    try {
-      final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode(body),
-        ),
-      );
+    bool allSuccess = true;
 
-      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+    for (int mId in memberGroupIdList) {
+      try {
+        final response = await AuthService.authenticatedRequest(
+          (token) => http.post(
+            url,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({"routineId": routineId, "memberGroupId": mId}),
+          ),
+        );
 
-      return response.statusCode == 200 && decodedData['isSuccess'] == true;
-    } catch (e) {
-      print("담당자 등록 에러: $e");
-      return false;
+        final decodedData = json.decode(utf8.decode(response.bodyBytes));
+        if (response.statusCode != 200 || decodedData['isSuccess'] != true) {
+          allSuccess = false;
+          print("담당자 $mId 등록 실패 : ${decodedData['message']}");
+        }
+      } catch (e) {
+        allSuccess = false;
+        print("담당자 등록 에러: $e");
+        return false;
+      }
     }
+    return allSuccess;
   }
 
   Future<bool> updateGroupNickname({

@@ -6,7 +6,7 @@ import '../models/daily_schedule_response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CalendarService {
-  static const String baseUrl = 'http://52.79.75.26:8080';
+  static const String baseUrl = 'http://3.36.161.109:8080';
 
   Future<DailyScheduleResponse> getDailySchedule(String date) async {
     final uri = Uri.parse(

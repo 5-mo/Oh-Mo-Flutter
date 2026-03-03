@@ -5,7 +5,7 @@ import 'auth_service.dart';
 import '../models/todo.dart';
 
 class TodoService {
-  final String baseUrl = 'http://52.79.75.26:8080';
+  final String baseUrl = 'http://3.36.161.109:8080';
 
   Future<List<Todo>> getTodos(DateTime date, String token) async {
     final formattedDate = date.toIso8601String().split('T').first;

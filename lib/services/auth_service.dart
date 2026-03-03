@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http_parser/http_parser.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://52.79.75.26:8080';
+  static const String baseUrl = 'http://3.36.161.109:8080';
 
   // 회원가입
   static Future<String?> signup(
@@ -123,7 +123,7 @@ class AuthService {
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),
-      );
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final decodeBody = utf8.decode(response.bodyBytes);

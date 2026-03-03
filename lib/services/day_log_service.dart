@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 
 class DayLogService {
-  final String baseUrl = 'http://52.79.75.26:8080';
+  final String baseUrl = 'http://3.36.161.109:8080';
 
   Future<bool> registerEmoji({
     required String date,

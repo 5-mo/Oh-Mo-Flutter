@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class GroupSseService {
   final Dio _dio = Dio();
-  final String baseUrl = 'http://52.79.75.26:8080/api';
+  final String baseUrl = 'http://3.36.161.109:8080/api';
 
   Stream<String> subscribeGroup(int groupId) async* {
     final prefs = await SharedPreferences.getInstance();
