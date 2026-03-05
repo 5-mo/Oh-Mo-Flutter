@@ -4,6 +4,7 @@ import 'package:ohmo/component/delete_bottom_sheet.dart';
 import 'package:ohmo/db/drift_database.dart';
 
 import '../const/colors.dart';
+import '../services/group_service.dart';
 
 class GroupTodoCard extends StatefulWidget {
   final Todo todo;
@@ -14,6 +15,8 @@ class GroupTodoCard extends StatefulWidget {
   final int completedMemberCount;
   final bool isIndicatorVisible;
   final bool isCheckboxVisible;
+  final int? memberGroupId;
+  final String? myNickname;
 
   const GroupTodoCard({
     Key? key,
@@ -25,6 +28,8 @@ class GroupTodoCard extends StatefulWidget {
     required this.completedMemberCount,
     required this.isIndicatorVisible,
     required this.isCheckboxVisible,
+    this.memberGroupId,
+    this.myNickname,
   }) : super(key: key);
 
   @override
@@ -61,13 +66,9 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
   Widget build(BuildContext context) {
     final String originalContent = widget.todo.content;
     final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
-    final allMentions =
-        mentionRegex
-            .allMatches(originalContent)
-            .map((m) => m.group(0)!)
-            .toList();
+
     final mainContent = originalContent.replaceAll(mentionRegex, '').trim();
-    final mentionsText = allMentions.join(' ');
+    final matches = mentionRegex.allMatches(originalContent);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -102,16 +103,25 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                 ),
                 children: [
                   TextSpan(text: mainContent),
-                  TextSpan(
-                    text: ' $mentionsText',
-                    style: TextStyle(
-                      color:
-                          widget.isDoneForDay
-                              ? Middle_GREY_COLOR
-                              : Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  ...matches.map((m) {
+                    String mention = m.group(0)!;
+                    String nameOnly = mention.substring(1).trim();
+
+                    if (widget.myNickname != null &&
+                        nameOnly == widget.myNickname &&
+                        !mention.contains('(나)')) {
+                      mention = '$mention(나)';
+                    }
+
+                    return TextSpan(
+                      text: ' $mention',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[600],
+                        fontFamily: 'PretendardBold',
+                      ),
+                    );
+                  }).toList(),
                 ],
               ),
             ),
@@ -135,14 +145,35 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                       widget.isCheckboxVisible
                           ? Checkbox(
                             value: widget.isDoneForDay,
-                            onChanged: (value) async {
-                              final db = LocalDatabaseSingleton.instance;
-                              await db.toggleTodoCompletion(
-                                widget.todo.id,
-                                widget.selectedDate,
-                              );
-                              widget.onDataChanged?.call();
-                            },
+                            onChanged:
+                                (widget.todo.id == 0)
+                                    ? null
+                                    : (value) async {
+                                      final int targetId = widget.todo.id;
+                                      final groupService = GroupService();
+                                      bool isSuccess = await groupService
+                                          .updateAssigneeStatus(targetId);
+
+                                      if (isSuccess) {
+                                        final db =
+                                            LocalDatabaseSingleton.instance;
+                                        await db.toggleRoutineCompletion(
+                                          widget.todo.id,
+                                          widget.selectedDate,
+                                        );
+                                        widget.onDataChanged?.call();
+                                      } else {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              '서버 상태 업데이트에 실패했습니다.',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
                             activeColor: Colors.black,
                             checkColor: Colors.white,
                             fillColor: MaterialStateProperty.all(Colors.black),

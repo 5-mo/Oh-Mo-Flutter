@@ -86,7 +86,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     if (serverQuestions != null && serverQuestions.isNotEmpty) {
       final Set<int> existingServerIds =
-          currentLocalQuestions.map((q) => q.serverId).whereType<int>().toSet();
+      currentLocalQuestions.map((q) => q.serverId).whereType<int>().toSet();
 
       for (var serverQ in serverQuestions) {
         final int sId = serverQ['id'] ?? serverQ['questionId'];
@@ -96,7 +96,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         if (existingServerIds.contains(sId)) continue;
 
         final localMatch = currentLocalQuestions.firstWhere(
-          (q) => q.serverId == null && q.question.trim() == content.trim(),
+              (q) => q.serverId == null && q.question.trim() == content.trim(),
           orElse: () => DayLogQuestionItem(id: -1, question: '', emoji: ''),
         );
 
@@ -114,20 +114,20 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
 
     final List<DayLogQuestionItem> uniqueDaylogs =
-        await _repository.fetchDayLogQuestions();
+    await _repository.fetchDayLogQuestions();
 
     // ------------------ 루틴 & 투두 로직 ------------------
     final fetchedRoutines = await _repository.fetchCategories(
       scheduleType: 'ROUTINE',
     );
     final filteredRoutines =
-        fetchedRoutines.where((c) => c.categoryName != 'default').toList();
+    fetchedRoutines.where((c) => c.categoryName != 'default').toList();
 
     final fetchedTodos = await _repository.fetchCategories(
       scheduleType: 'TO_DO',
     );
     final filteredTodos =
-        fetchedTodos.where((c) => c.categoryName != 'default').toList();
+    fetchedTodos.where((c) => c.categoryName != 'default').toList();
 
     // ------------------ 그룹 로직 ------------------
     final fetchedGroups = await _groupService.fetchGroups();
@@ -138,16 +138,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
         final memberData = await _groupService.fetchGroupMembers(groupId);
 
         final List<dynamic> members =
-            memberData != null
-                ? (memberData['memberGroupInfos'] ??
-                    memberData['memberDtoList'] ??
-                    [])
-                : [];
+        memberData != null
+            ? (memberData['memberGroupInfos'] ??
+            memberData['memberDtoList'] ??
+            [])
+            : [];
 
         final myEmail = await _groupService.getMyEmail();
 
         final myInfo = members.firstWhere(
-          (m) => m['memberInfo']['email'] == myEmail,
+              (m) => m['memberInfo']['email'] == myEmail,
           orElse: () => null,
         );
 
@@ -226,16 +226,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     SizedBox(height: 10.0),
                     _buildDiaryIndex(),
                   ],
-                ),
+                ), 
               ),
               SizedBox(height: 10.0),
 
-              /*Padding(
+              Padding(
                 padding: const EdgeInsets.only(left: 31),
                 child: _buildGroupAccordion(),
               ),
 
-               */
+
               SizedBox(height: 60),
             ],
           ),
@@ -265,7 +265,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 showDialog(
                   context: context,
                   builder:
-                      (context) => DeletePopup(
+                      (context) =>
+                      DeletePopup(
                         onDelete: () async {
                           await RoutineVisibilityHelper.setVisibility(false);
                           if (mounted) {
@@ -407,7 +408,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
                                   setState(() {
                                     routines.removeWhere(
-                                      (item) => item.id == routine.id,
+                                          (item) => item.id == routine.id,
                                     );
                                     _needsRefresh = true;
                                   });
@@ -492,7 +493,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   icon: Icon(Icons.check),
                                   onPressed: () async {
                                     final newText =
-                                        _newRoutineController.text.trim();
+                                    _newRoutineController.text.trim();
                                     if (newText.isEmpty) return;
 
                                     final profile = Provider.of<ProfileData>(
@@ -507,12 +508,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                       try {
                                         serverId = await _categoryService
                                             .createCategory(
-                                              categoryName: newText,
-                                              color:
-                                                  _selectedColorType.name
-                                                      .toUpperCase(),
-                                              scheduleType: 'ROUTINE',
-                                            );
+                                          categoryName: newText,
+                                          color:
+                                          _selectedColorType.name
+                                              .toUpperCase(),
+                                          scheduleType: 'ROUTINE',
+                                        );
 
                                         if (serverId == null) isSynced = true;
                                       } catch (e) {
@@ -522,12 +523,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
                                     final newItem = await _repository
                                         .insertCategory(
-                                          name: newText,
-                                          type: 'ROUTINE',
-                                          color: _selectedColorType.name,
-                                          serverCategoryId: serverId,
-                                          isSynced: isSynced,
-                                        );
+                                      name: newText,
+                                      type: 'ROUTINE',
+                                      color: _selectedColorType.name,
+                                      serverCategoryId: serverId,
+                                      isSynced: isSynced,
+                                    );
                                     setState(() {
                                       routines.add(newItem);
                                       _isAddingNewRoutine = false;
@@ -565,7 +566,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 showDialog(
                   context: context,
                   builder:
-                      (context) => DeletePopup(
+                      (context) =>
+                      DeletePopup(
                         onDelete: () async {
                           await TodoVisibilityHelper.setVisibility(false);
                           if (mounted) {
@@ -707,7 +709,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   if (mounted) {
                                     setState(() {
                                       todos.removeWhere(
-                                        (item) => item.id == todo.id,
+                                            (item) => item.id == todo.id,
                                       );
                                       _needsRefresh = true;
                                     });
@@ -786,7 +788,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   icon: Icon(Icons.check),
                                   onPressed: () async {
                                     final newText =
-                                        _newTodoController.text.trim();
+                                    _newTodoController.text.trim();
                                     if (newText.isEmpty) return;
 
                                     final profile = Provider.of<ProfileData>(
@@ -800,12 +802,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                       try {
                                         serverId = await _categoryService
                                             .createCategory(
-                                              categoryName: newText,
-                                              color:
-                                                  _selectedColorType.name
-                                                      .toUpperCase(),
-                                              scheduleType: "TO_DO",
-                                            );
+                                          categoryName: newText,
+                                          color:
+                                          _selectedColorType.name
+                                              .toUpperCase(),
+                                          scheduleType: "TO_DO",
+                                        );
 
                                         if (serverId != null) {
                                           isSynced = true;
@@ -827,12 +829,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
                                     final newItem = await _repository
                                         .insertCategory(
-                                          name: newText,
-                                          type: 'TO_DO',
-                                          color: _selectedColorType.name,
-                                          serverCategoryId: serverId,
-                                          isSynced: isSynced,
-                                        );
+                                      name: newText,
+                                      type: 'TO_DO',
+                                      color: _selectedColorType.name,
+                                      serverCategoryId: serverId,
+                                      isSynced: isSynced,
+                                    );
 
                                     setState(() {
                                       todos.add(newItem);
@@ -871,7 +873,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 showDialog(
                   context: context,
                   builder:
-                      (context) => DeletePopup(
+                      (context) =>
+                      DeletePopup(
                         onDelete: () async {
                           await QuestionVisibilityHelper.setVisibility(false);
 
@@ -1011,7 +1014,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ...daylogQuestions.asMap().entries.map((entry) {
+                        ...daylogQuestions
+                            .asMap()
+                            .entries
+                            .map((entry) {
                           int index = entry.key;
                           var question = entry.value;
                           bool isEditing = _editingQuestionIndex == index;
@@ -1032,10 +1038,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         return SizedBox(
                                           height: 300,
                                           child: EmojiPicker(
-                                            onEmojiSelected: (
-                                              category,
-                                              emoji,
-                                            ) async {
+                                            onEmojiSelected: (category,
+                                                emoji,) async {
                                               Navigator.pop(bContext);
                                               await _handleEmojiEdit(
                                                 question,
@@ -1044,22 +1048,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                             },
                                             config: Config(
                                               categoryViewConfig:
-                                                  CategoryViewConfig(
-                                                    indicatorColor:
-                                                        Colors.black,
-                                                    iconColorSelected:
-                                                        Colors.black,
-                                                    backspaceColor:
-                                                        Colors.black,
-                                                  ),
+                                              CategoryViewConfig(
+                                                indicatorColor:
+                                                Colors.black,
+                                                iconColorSelected:
+                                                Colors.black,
+                                                backspaceColor:
+                                                Colors.black,
+                                              ),
                                               bottomActionBarConfig:
-                                                  BottomActionBarConfig(
-                                                    backgroundColor:
-                                                        Colors.white,
-                                                    buttonColor: Colors.white,
-                                                    buttonIconColor:
-                                                        Colors.grey,
-                                                  ),
+                                              BottomActionBarConfig(
+                                                backgroundColor:
+                                                Colors.white,
+                                                buttonColor: Colors.white,
+                                                buttonIconColor:
+                                                Colors.grey,
+                                              ),
                                             ),
                                           ),
                                         );
@@ -1074,74 +1078,77 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child:
-                                      isEditing
-                                          ? TextField(
-                                            autofocus: true,
-                                            controller: TextEditingController(
-                                              text: question.question,
-                                            ),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontFamily: 'PretendardRegular',
-                                            ),
-                                            onSubmitted: (value) async {
-                                              await _handleQuestionEdit(
-                                                question,
-                                                value,
-                                              );
-                                              setState(
-                                                () =>
-                                                    _editingQuestionIndex =
-                                                        null,
-                                              );
-                                            },
-                                            onTapOutside:
-                                                (_) => setState(
-                                                  () =>
-                                                      _editingQuestionIndex =
-                                                          null,
-                                                ),
-                                          )
-                                          : GestureDetector(
-                                            onTap:
-                                                () => setState(
-                                                  () =>
-                                                      _editingQuestionIndex =
-                                                          index,
-                                                ),
-                                            child: Text(
-                                              question.question,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontFamily: 'PretendardRegular',
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
+                                  isEditing
+                                      ? TextField(
+                                    autofocus: true,
+                                    controller: TextEditingController(
+                                      text: question.question,
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontFamily: 'PretendardRegular',
+                                    ),
+                                    onSubmitted: (value) async {
+                                      await _handleQuestionEdit(
+                                        question,
+                                        value,
+                                      );
+                                      setState(
+                                            () =>
+                                        _editingQuestionIndex =
+                                        null,
+                                      );
+                                    },
+                                    onTapOutside:
+                                        (_) =>
+                                        setState(
+                                              () =>
+                                          _editingQuestionIndex =
+                                          null,
+                                        ),
+                                  )
+                                      : GestureDetector(
+                                    onTap:
+                                        () =>
+                                        setState(
+                                              () =>
+                                          _editingQuestionIndex =
+                                              index,
+                                        ),
+                                    child: Text(
+                                      question.question,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontFamily: 'PretendardRegular',
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ),
                                 GestureDetector(
                                   onTap: () {
                                     showDialog(
                                       context: context,
                                       builder:
-                                          (context) => DeletePopup(
+                                          (context) =>
+                                          DeletePopup(
                                             onDelete: () async {
                                               final profile =
-                                                  Provider.of<ProfileData>(
-                                                    context,
-                                                    listen: false,
-                                                  );
+                                              Provider.of<ProfileData>(
+                                                context,
+                                                listen: false,
+                                              );
                                               final dayLogService =
-                                                  DayLogService();
+                                              DayLogService();
 
                                               try {
                                                 if (!profile.isGuest &&
                                                     question.serverId != null) {
                                                   final bool serverDeleted =
-                                                      await dayLogService
-                                                          .deleteQuestion(
-                                                            question.serverId!,
-                                                          );
+                                                  await dayLogService
+                                                      .deleteQuestion(
+                                                    question.serverId!,
+                                                  );
                                                   if (!serverDeleted) {
                                                     print(
                                                       '서버 삭제 실패: 데이터가 동기화 시 다시 살아날 수 있습니다.',
@@ -1151,13 +1158,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
                                                 await _repository
                                                     .deleteDayLogQuestion(
-                                                      question.id,
-                                                    );
+                                                  question.id,
+                                                );
 
                                                 setState(() {
                                                   daylogQuestions.removeWhere(
-                                                    (item) =>
-                                                        item.id == question.id,
+                                                        (item) =>
+                                                    item.id == question.id,
                                                   );
                                                   _needsRefresh = true;
                                                 });
@@ -1217,10 +1224,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                           child: SizedBox(
                                             height: 300,
                                             child: EmojiPicker(
-                                              onEmojiSelected: (
-                                                category,
-                                                emoji,
-                                              ) {
+                                              onEmojiSelected: (category,
+                                                  emoji,) {
                                                 setState(() {
                                                   _newEmoji = emoji.emoji;
                                                 });
@@ -1228,22 +1233,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                               },
                                               config: Config(
                                                 categoryViewConfig:
-                                                    CategoryViewConfig(
-                                                      indicatorColor:
-                                                          Colors.black,
-                                                      iconColorSelected:
-                                                          Colors.black,
-                                                      backspaceColor:
-                                                          Colors.black,
-                                                    ),
+                                                CategoryViewConfig(
+                                                  indicatorColor:
+                                                  Colors.black,
+                                                  iconColorSelected:
+                                                  Colors.black,
+                                                  backspaceColor:
+                                                  Colors.black,
+                                                ),
                                                 bottomActionBarConfig:
-                                                    BottomActionBarConfig(
-                                                      backgroundColor:
-                                                          Colors.white,
-                                                      buttonColor: Colors.white,
-                                                      buttonIconColor:
-                                                          Colors.grey,
-                                                    ),
+                                                BottomActionBarConfig(
+                                                  backgroundColor:
+                                                  Colors.white,
+                                                  buttonColor: Colors.white,
+                                                  buttonIconColor:
+                                                  Colors.grey,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1276,7 +1281,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   icon: Icon(Icons.check),
                                   onPressed: () async {
                                     final newText =
-                                        _newQuestionController.text.trim();
+                                    _newQuestionController.text.trim();
                                     if (newText.isEmpty) return;
 
                                     final profile = Provider.of<ProfileData>(
@@ -1287,10 +1292,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
                                     if (!profile.isGuest) {
                                       final dynamic response =
-                                          await dayLogService.registerQuestion(
-                                            questionContent: newText,
-                                            emoji: _newEmoji,
-                                          );
+                                      await dayLogService.registerQuestion(
+                                        questionContent: newText,
+                                        emoji: _newEmoji,
+                                      );
 
                                       if (response != null) {
                                         await _repository.insertDayLogQuestion(
@@ -1353,7 +1358,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
     final List<dynamic> members = group['members'] ?? [];
     final myInfo = members.firstWhere(
-      (m) => m['memberInfo']['email'] == "",
+          (m) => m['memberInfo']['email'] == "",
       orElse: () => null,
     );
     final int totalCount = group['totalCount'] ?? members.length;
@@ -1424,24 +1429,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       final String? currentRole = group['myRole'];
                       print("보내기 직전 체크: $currentRole");
                       final bool? needsRefresh =
-                          await showModalBottomSheet<bool>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(59),
-                                topLeft: Radius.circular(59),
-                              ),
-                            ),
-                            builder: (BuildContext bContext) {
-                              return GroupSettingsBottomSheet(
-                                groupId: groupId,
-                                groupName: name,
-                                initialRole: currentRole,
-                              );
-                            },
+                      await showModalBottomSheet<bool>(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.only(
+                            topRight: Radius.circular(59),
+                            topLeft: Radius.circular(59),
+                          ),
+                        ),
+                        builder: (BuildContext bContext) {
+                          return GroupSettingsBottomSheet(
+                            groupId: groupId,
+                            groupName: name,
+                            initialRole: currentRole,
                           );
+                        },
+                      );
                       if (needsRefresh == true) {
                         _loadAllData();
                       }
@@ -1542,11 +1547,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Widget _buildMemberProfile(
-    String? imageUrl,
-    double progress,
-    Color groupColor,
-  ) {
+  Widget _buildMemberProfile(String? imageUrl,
+      double progress,
+      Color groupColor,) {
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -1565,12 +1568,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
             radius: 8,
             backgroundColor: Colors.grey[200],
             backgroundImage:
-                (imageUrl != null &&
-                        imageUrl.isNotEmpty &&
-                        imageUrl.startsWith('http'))
-                    ? NetworkImage(imageUrl)
-                    : const AssetImage('android/assets/images/clear_ohmo.png')
-                        as ImageProvider,
+            (imageUrl != null &&
+                imageUrl.isNotEmpty &&
+                imageUrl.startsWith('http'))
+                ? NetworkImage(imageUrl)
+                : const AssetImage('android/assets/images/clear_ohmo.png')
+            as ImageProvider,
           ),
           SizedBox(
             width: 18,
@@ -1601,7 +1604,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 showDialog(
                   context: context,
                   builder:
-                      (context) => DeletePopup(
+                      (context) =>
+                      DeletePopup(
                         onDelete: () async {
                           await DiaryVisibilityHelper.setVisibility(false);
                           if (mounted) {
@@ -1686,7 +1690,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 showDialog(
                   context: context,
                   builder:
-                      (context) => DeletePopup(
+                      (context) =>
+                      DeletePopup(
                         onDelete: () async {
                           await GroupVisibilityHelper.setVisibility(false);
                           if (mounted) {
@@ -1818,10 +1823,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Future<void> _handleQuestionEdit(
-    DayLogQuestionItem question,
-    String newContent,
-  ) async {
+  Future<void> _handleQuestionEdit(DayLogQuestionItem question,
+      String newContent,) async {
     final trimmedContent = newContent.trim();
     if (trimmedContent.isEmpty || trimmedContent == question.question) return;
 
@@ -1864,10 +1867,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
   }
 
-  Future<void> _handleEmojiEdit(
-    DayLogQuestionItem question,
-    String newEmoji,
-  ) async {
+  Future<void> _handleEmojiEdit(DayLogQuestionItem question,
+      String newEmoji,) async {
     if (question.emoji == newEmoji) return;
 
     final profile = Provider.of<ProfileData>(context, listen: false);
@@ -1899,8 +1900,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
   }
 
-  void _openColorPicker(
-    BuildContext context, {
+  void _openColorPicker(BuildContext context, {
     int? categoryId,
     String? currentName,
   }) async {
@@ -1915,7 +1915,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
       ),
       builder:
-          (context) => ColorPaletteBottomSheet(
+          (context) =>
+          ColorPaletteBottomSheet(
             selectedColorType: _selectedColorType,
             onColorSelected: (colorType) {
               setState(() {

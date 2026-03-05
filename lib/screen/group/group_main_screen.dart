@@ -161,10 +161,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       groupId: widget.groupId,
       date: dateString,
     );
+
     final group = await _groupService.getGroupDetail(widget.groupId);
-    if (group == null) {
-      return;
-    }
+    if (group == null) return;
 
     final memberData = await _groupService.fetchGroupMembers(widget.groupId);
     int currentActualCount = 0;
@@ -221,10 +220,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         }
       }
 
-      int finalId = myAssigneeId ?? 0;
-      if (finalId == 0 && (item['content'] ?? '').contains('@모두')) {
-        finalId = scheduleId;
-      }
+      int finalId = myAssigneeId ?? scheduleId;
 
       int totalDoneCount =
           todoInfo['doneCount'] ??
@@ -598,7 +594,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                       final bool isIndicatorVisible = mentions.isNotEmpty;
                       final bool isCheckboxVisible =
                           mentions.contains('@모두') ||
-                          mentions.any((m) => m.contains('(나)'));
+                          mentions.any((m) => m.contains(_myNickname ?? ""));
                       int totalCount =
                           (mentions.isEmpty || mentions.contains('@모두'))
                               ? _memberCount

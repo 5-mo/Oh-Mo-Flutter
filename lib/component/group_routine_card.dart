@@ -103,12 +103,9 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                 children: [
                   TextSpan(text: mainContent),
                   ...matches.map((m) {
-                    String mention = m.group(0)!; // 예: "@닝닝"
-                    // @를 떼고 순수 이름만 추출 (공백 제거)
+                    String mention = m.group(0)!;
                     String nameOnly = mention.substring(1).trim();
 
-                    // [보정] 내 닉네임과 일치하면 (나)를 붙여줌
-                    // 이미 (나)가 붙어있는 경우를 대비해 한 번 더 체크
                     if (widget.myNickname != null &&
                         nameOnly == widget.myNickname &&
                         !mention.contains('(나)')) {
@@ -120,7 +117,7 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.grey[600],
-                        fontFamily: 'PretendardBold', // 가독성을 위해 볼드체 적용
+                        fontFamily: 'PretendardBold',
                       ),
                     );
                   }).toList(),

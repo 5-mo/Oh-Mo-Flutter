@@ -29,7 +29,8 @@ class MentionText extends SpecialText {
 
   @override
   InlineSpan finishText() {
-    final String text = '$startFlag${getContent()}';
+    final String content = getContent();
+    String displayEx = content;
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
@@ -39,7 +40,10 @@ class MentionText extends SpecialText {
           color: Colors.grey[200],
           borderRadius: BorderRadius.circular(3.0),
         ),
-        child: Text(text, style: textStyle?.copyWith(color: Colors.grey[700])),
+        child: Text(
+          '@$displayEx',
+          style: textStyle?.copyWith(color: Colors.grey[700]),
+        ),
       ),
     );
   }
@@ -213,16 +217,9 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     final int atIndex = text.substring(0, cursorPos).lastIndexOf('@');
 
     if (atIndex != -1) {
-      String prefix = "";
-      if (atIndex > 0 && text[atIndex - 1] != ' ') {
-        prefix = " ";
-      }
+      String prefix = (atIndex > 0 && text[atIndex - 1] != ' ') ? " " : "";
 
       String insertName = name;
-      if (name != '모두' && myNickname != null && name == myNickname) {
-        insertName = '$name(나)';
-      }
-
       final newText =
           text.substring(0, atIndex) +
           '$prefix@$insertName ' +
@@ -237,10 +234,8 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       _contentFocusNode.requestFocus();
     }
 
-    Future(() {
-      setState(() {
-        _showMentionSuggestions = false;
-      });
+    setState(() {
+      _showMentionSuggestions = false;
     });
   }
 
@@ -511,7 +506,8 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        final String content = contentController.text.trim();
+        final String content =
+            contentController.text.replaceAll('(나)', '').trim();
 
         if (content.isEmpty || selectedDays.isEmpty) {
           ScaffoldMessenger.of(
