@@ -24,7 +24,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     _markAllAsRead();
 
     _notificationStream = _db.watchAllNotifications();
-    _timer = Timer.periodic(Duration(minutes: 1), (timer) {
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
       if (mounted) {
         setState(() {});
       }
@@ -43,110 +43,113 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        surfaceTintColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.chevron_left),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        titleSpacing: 0,
-        backgroundColor: Colors.white,
-        title: Padding(
-          padding: const EdgeInsets.only(right: 16.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '알림',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 18.0,
-                  fontFamily: 'PretendardBold',
-                ),
-              ),
-              SizedBox(width: 15),
+    return StreamBuilder<List<db.Notification>>(
+      stream: _notificationStream,
+      builder: (context, snapshot) {
+        // 데이터 로딩 및 필터링 로직
+        final allNotifications = snapshot.data ?? [];
+        final now = DateTime.now();
+        final visibleNotifications = allNotifications.where((notification) {
+          return notification.timestamp.isBefore(now) ||
+              notification.timestamp.isAtSameMomentAs(now);
+        }).toList();
 
-              const Text(
-                "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
-                style: TextStyle(
-                  fontFamily: 'PretendardRegular',
-                  fontSize: 8.0,
-                  color: Color(0xFF565656),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: StreamBuilder<List<db.Notification>>(
-        stream: _notificationStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        final bool hasNotifications = visibleNotifications.isNotEmpty;
 
-          final allNotifications = snapshot.data ?? [];
-          final now = DateTime.now();
-
-          final visibleNotifications =
-              allNotifications.where((notification) {
-                return notification.timestamp.isBefore(now) ||
-                    notification.timestamp.isAtSameMomentAs(now);
-              }).toList();
-
-          visibleNotifications.sort(
-            (a, b) => b.timestamp.compareTo(a.timestamp),
-          );
-
-          if (visibleNotifications.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
+        return Scaffold(
+          appBar: AppBar(
+            surfaceTintColor: Colors.white,
+            leading: IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: () => Navigator.pop(context),
+            ),
+            titleSpacing: 0,
+            backgroundColor: Colors.white,
+            title: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  SvgPicture.asset(
-                    'android/assets/images/notification_off.svg',
-                    width: 24,
-                    height: 24,
-                  ),
-                  const SizedBox(height: 7),
                   const Text(
-                    "최근 알림이 없습니다.",
+                    '알림',
                     style: TextStyle(
-                      fontFamily: 'PretendardRegular',
-                      fontSize: 14.0,
                       color: Colors.black,
+                      fontSize: 18.0,
+                      fontFamily: 'PretendardBold',
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  const Text(
-                    "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서\n설정할 수 있습니다",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'PretendardRegular',
-                      fontSize: 12.0,
-                      height: 1.2,
-                      color: Color(0xFF565656),
+                  // 알림 리스트가 있을 때만 상단 안내 문구 노출
+                  if (hasNotifications) ...[
+                    const SizedBox(width: 15),
+                    const Text(
+                      "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+                      style: TextStyle(
+                        fontFamily: 'PretendardRegular',
+                        fontSize: 8.0,
+                        color: Color(0xFF565656),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 200),
+                  ],
                 ],
               ),
-            );
-          }
+            ),
+          ),
+          body: _buildBody(snapshot, visibleNotifications),
+        );
+      },
+    );
+  }
 
-          return Column(
-            children: [
-              const SizedBox(height: 10.0),
-              Expanded(child: _buildNotificationList(visibleNotifications)),
-            ],
-          );
-        },
-      ),
+  // Body 영역을 처리하는 위젯
+  Widget _buildBody(AsyncSnapshot<List<db.Notification>> snapshot, List<db.Notification> visibleNotifications) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (visibleNotifications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              'android/assets/images/notification_off.svg',
+              width: 24,
+              height: 24,
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              "최근 알림이 없습니다.",
+              style: TextStyle(
+                fontFamily: 'PretendardRegular',
+                fontSize: 14.0,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서\n설정할 수 있습니다",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'PretendardRegular',
+                fontSize: 12.0,
+                height: 1.2,
+                color: Color(0xFF565656),
+              ),
+            ),
+            const SizedBox(height: 200),
+          ],
+        ),
+      );
+    }
+
+    visibleNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    return Column(
+      children: [
+        const SizedBox(height: 10.0),
+        Expanded(child: _buildNotificationList(visibleNotifications)),
+      ],
     );
   }
 
@@ -167,19 +170,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
           }
         }
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 11),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (showHeader) ...[
                 if (index != 0) ...[
-                  SizedBox(height: 15),
-                  Divider(color: Color(0xFFE2E2E2), height: 1, thickness: 1),
+                  const SizedBox(height: 15),
+                  const Divider(color: Color(0xFFE2E2E2), height: 1, thickness: 1),
                 ],
-
                 _buildDateHeaderWidget(item.timestamp),
               ],
-
               _buildNotificationItem(item),
             ],
           ),
@@ -190,7 +191,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Widget _buildNotificationItem(db.Notification item) {
     final type = NotificationType.values.firstWhere(
-      (e) => e.name == item.type,
+          (e) => e.name == item.type,
       orElse: () => NotificationType.group,
     );
     String displayContent = item.content;
@@ -218,7 +219,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       final String part3 = displayContent.substring(tagIndex + tag.length);
       contentWidget = RichText(
         text: TextSpan(
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'PretendardRegular',
             fontSize: 12.0,
             color: Colors.black,
@@ -228,7 +229,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             TextSpan(text: part1),
             TextSpan(
               text: part2,
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: 'PretendardBold',
                 fontSize: 12.0,
                 color: Color(0xFF808080),
@@ -244,7 +245,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     } else {
       contentWidget = Text(
         displayContent,
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: 'PretendardRegular',
           fontSize: 12.0,
           color: Colors.black,
@@ -256,10 +257,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return ListTile(
       leading: _getIconForType(type),
       title: Transform.translate(
-        offset: Offset(-5, 5),
+        offset: const Offset(-5, 5),
         child: Text(
           _getTitleForType(type),
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'RubikSprayPaint',
             fontSize: 13.0,
             color: Colors.black,
@@ -267,15 +268,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
         ),
       ),
       subtitle: Transform.translate(
-        offset: Offset(-5, 5),
+        offset: const Offset(-5, 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             contentWidget,
-            SizedBox(height: 1.0),
+            const SizedBox(height: 1.0),
             Text(
               _formatTimestamp(item.timestamp),
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: 'PretendardRegular',
                 fontSize: 10.0,
                 color: Color(0xFFB3B3B3),
@@ -284,7 +285,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ],
         ),
       ),
-      trailing: null,
       onTap: () {},
     );
   }
@@ -292,34 +292,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget _getIconForType(NotificationType type) {
     switch (type) {
       case NotificationType.group:
-        return Image.asset(
-          'android/assets/images/notification_group.png',
-          width: 40,
-          height: 40,
-        );
+        return Image.asset('android/assets/images/notification_group.png', width: 40, height: 40);
       case NotificationType.calender:
-        return Image.asset(
-          'android/assets/images/notification_calender.png',
-          width: 40,
-          height: 40,
-        );
+        return Image.asset('android/assets/images/notification_calender.png', width: 40, height: 40);
       case NotificationType.invitation:
-        return Image.asset(
-          'android/assets/images/notification_invitation.png',
-          width: 40,
-          height: 40,
-        );
+        return Image.asset('android/assets/images/notification_invitation.png', width: 40, height: 40);
     }
   }
 
   String _getTitleForType(NotificationType type) {
     switch (type) {
       case NotificationType.group:
+      case NotificationType.invitation:
         return 'Group';
       case NotificationType.calender:
         return 'Calender';
-      case NotificationType.invitation:
-        return 'Group';
     }
   }
 
@@ -333,7 +320,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       width: double.infinity,
       child: Text(
         _formatDateHeaderText(timestamp),
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: 'PretendardBold',
           fontSize: 14.0,
           color: Colors.black,
@@ -344,15 +331,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   String _formatDateHeaderText(DateTime date) {
     final now = DateTime.now();
-
-    if (_isSameDay(date, now)) {
-      return '  오늘';
-    }
-
+    if (_isSameDay(date, now)) return '  오늘';
     final yesterday = now.subtract(const Duration(days: 1));
-    if (_isSameDay(date, yesterday)) {
-      return '  어제';
-    }
+    if (_isSameDay(date, yesterday)) return '  어제';
     return DateFormat('  MM월 dd일').format(date);
   }
 
