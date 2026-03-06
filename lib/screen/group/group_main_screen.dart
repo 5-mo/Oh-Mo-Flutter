@@ -602,6 +602,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
                       return GroupTodoCard(
                         todo: todo,
+                        myNickname: _myNickname,
                         isDoneForDay: _completedTodoIds.contains(todo.id),
                         selectedDate: selectedDate,
                         totalMemberCount: totalCount,

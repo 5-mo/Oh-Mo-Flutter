@@ -393,7 +393,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        final String content = contentController.text.trim();
+        final String content = contentController.text.replaceFirst('(나)', '').trim();
         if (content.isEmpty) return;
 
         List<int> finalAssigneeIds = [];
