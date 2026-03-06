@@ -86,6 +86,7 @@ class TodoService {
     String? alarmTime,
     required String content,
     required String date,
+    List<String>? routineWeek,
   }) async {
     final url = Uri.parse('$baseUrl/$scheduleId/todo');
     try {
@@ -102,7 +103,7 @@ class TodoService {
             "alarmTime": alarmTime,
             "content": content,
             "date": date,
-            "routineWeek": [],
+            "routineWeek": routineWeek ?? [],
           }),
         ),
       );

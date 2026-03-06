@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:ohmo/component/alarm_setting.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
@@ -74,7 +73,9 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
           } else {
             bool isServerSuccess = true;
             if (serverRoutineId != null && serverRoutineId != 0) {
-              isServerSuccess = await routineService.deleteRoutine(serverRoutineId);
+              isServerSuccess = await routineService.deleteRoutine(
+                serverRoutineId,
+              );
             }
 
             if (isServerSuccess) {
@@ -90,7 +91,9 @@ class _RoutineAlarmState extends State<RoutineAlarm> {
           }
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("루틴이 삭제되었습니다.")));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("루틴이 삭제되었습니다.")));
             widget.onDataChanged?.call();
             if (Navigator.canPop(context)) Navigator.pop(context);
           }
@@ -233,11 +236,16 @@ class _TodoAlarmState extends State<TodoAlarm> {
         try {
           final database = db.LocalDatabaseSingleton.instance;
           final todoService = TodoService();
+          if (!mounted) return;
           final profile = Provider.of<ProfileData>(context, listen: false);
 
           if (profile.isGuest) {
-            await (database.update(database.todos)..where((t) => t.id.equals(widget.todoId))).write(
-                const db.TodosCompanion(isDeleted: drift.Value(true), isSynced: drift.Value(false))
+            await (database.update(database.todos)
+              ..where((t) => t.id.equals(widget.todoId))).write(
+              const db.TodosCompanion(
+                isDeleted: drift.Value(true),
+                isSynced: drift.Value(false),
+              ),
             );
           } else {
             final todo = await database.getTodoById(widget.todoId);
@@ -250,12 +258,15 @@ class _TodoAlarmState extends State<TodoAlarm> {
             await database.deleteTodo(widget.todoId);
           }
 
-          widget.onDataChanged?.call();
           if (mounted) {
+            widget.onDataChanged?.call();
             Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("투두가 삭제되었습니다.")));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("투두가 삭제되었습니다.")));
           }
         } catch (e) {
+          print("삭제 중 에러 발생: $e");
         }
       },
       child: Container(
@@ -282,40 +293,68 @@ class _TodoAlarmState extends State<TodoAlarm> {
     );
   }
 
+  String? convertMinutesToTime(int? minutes) {
+    if (minutes == null) return null;
+    final h = (minutes ~/ 60).toString().padLeft(2, '0');
+    final m = (minutes % 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
   Widget _buildSettingNextDay(DateTime currentTodoDate) {
     return GestureDetector(
       onTap: () async {
         final profile = Provider.of<ProfileData>(context, listen: false);
         final nextDay = currentTodoDate.add(const Duration(days: 1));
         final nextDayString = DateFormat('yyyy-MM-dd').format(nextDay);
+        final String weekdayName =
+            DateFormat('EEEE').format(nextDay).toUpperCase();
         final database = db.LocalDatabaseSingleton.instance;
 
         try {
           var isSuccess = true;
+
           if (!profile.isGuest) {
-            isSuccess = await TodoService().updateTodoDate(
-              widget.todoId,
-              nextDayString,
-            );
+            final todo = await database.getTodoById(widget.todoId);
+
+            if (todo != null && todo.scheduleId != null) {
+              isSuccess = await TodoService().updateTodo(
+                scheduleId: todo.scheduleId!,
+                categoryId: todo.categoryId ?? 3,
+                content: todo.content,
+                date: nextDayString,
+                routineWeek: [weekdayName],
+                time:
+                    todo.timeMinutes != null
+                        ? convertMinutesToTime(todo.timeMinutes)
+                        : null,
+              );
+            } else {
+              isSuccess = false;
+              print("에러: scheduleId를 찾을 수 없습니다.");
+            }
           }
 
           if (isSuccess) {
             await database.updateTodoDate(widget.todoId, nextDay);
-
             widget.onDataChanged?.call();
 
             if (mounted) {
               Navigator.pop(context);
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text("날짜가 변경되었습니다.")));
+              ).showSnackBar(const SnackBar(content: Text("날짜가 변경되었습니다.")));
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("서버 업데이트에 실패했습니다.")));
             }
           }
         } catch (e) {
-          print("에러 발생:$e");
+          print("내일하기 실행 중 에러 발생: $e");
         }
       },
-
       child: Container(
         width: 318,
         height: 43,

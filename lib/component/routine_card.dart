@@ -193,9 +193,7 @@ class _RoutineCardState extends State<RoutineCard> {
                   );
                 }
               },
-              child: SvgPicture.asset(
-                'android/assets/images/routine_alarm.svg',
-              ),
+              child: SvgPicture.asset('android/assets/images/todo_alarm.svg'),
             ),
             const SizedBox(width: 8.0),
 
