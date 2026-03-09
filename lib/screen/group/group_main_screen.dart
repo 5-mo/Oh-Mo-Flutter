@@ -123,8 +123,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       Map<DateTime, List<CalendarEvent>> tempEvents = {};
 
       for (var dayData in monthlyData) {
+        final String? dateStr = dayData['date'];
+        if (dateStr == null) continue;
+
         final DateTime noticeDate = DateTime.parse(dayData['date']);
-        final dateOnly = DateTime(
+        final dateOnly = DateTime.utc(
           noticeDate.year,
           noticeDate.month,
           noticeDate.day,
@@ -136,7 +139,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             noticesJson
                 .map(
                   (nj) => CalendarEvent(
-                    id: nj['noticeId'] ?? 0,
+                    id: nj['id'] ?? nj['noticeId'] ?? 0,
                     content: nj['notice'] ?? '',
                     currentCompletion: 0,
                     requiredCompletion: 1,
@@ -321,7 +324,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         _todoCompletionCounts = tempTodoCounts;
         _routineCompletionCounts = tempRoutineCounts;
 
-        final dateOnly = DateTime(date.year, date.month, date.day);
+        final dateOnly = DateTime.utc(date.year, date.month, date.day);
         Map<DateTime, List<CalendarEvent>> updatedCache = Map.from(
           _eventsCache,
         );
@@ -339,7 +342,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                   );
                 }).toList();
           } else {
-            // 공지가 없어도 오모를 띄우기 위해 가짜 이벤트 생성
             updatedCache[dateOnly] = [
               CalendarEvent(
                 id: -999,
@@ -350,12 +352,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             ];
           }
         } else {
-          // 완료되지 않은 경우 (오모를 제거하거나 일반 공지 상태로)
           if (updatedCache.containsKey(dateOnly)) {
-            // 가짜 오모 이벤트(-999)는 제거
             updatedCache[dateOnly]!.removeWhere((e) => e.id == -999);
 
-            // 기존 공지들은 미완료(0/1) 상태로 변경
             updatedCache[dateOnly] =
                 updatedCache[dateOnly]!.map((event) {
                   return CalendarEvent(
@@ -501,8 +500,18 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             selectedDate: selectedDate,
             onDaySelected: onDaySelected,
             eventLoader: (day) {
-              final dateOnly = DateTime(day.year, day.month, day.day);
-              return _eventsCache[dateOnly] ?? [];
+              final dateOnly = DateTime.utc(day.year, day.month, day.day);
+
+              if (day.day == 1) {
+                // 한 번만 출력하기 위해
+                print("현재 캐시 전체 키: ${_eventsCache.keys.toList()}");
+              }
+
+              final events = _eventsCache[dateOnly] ?? [];
+              if (events.isNotEmpty) {
+                print("🎯 [매칭 성공] 날짜: $dateOnly, 개수: ${events.length}");
+              }
+              return events;
             },
             onPageChanged: (focusedDay) => _loadSchedulesForMonth(focusedDay),
             headerPadding: const EdgeInsets.symmetric(
@@ -714,25 +723,31 @@ class _NoticeSectionState extends State<NoticeSection> {
     setState(() => _isLoading = true);
 
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final String yearMonth = DateFormat('yyyy-MM').format(DateTime.now());
       final groupService = GroupService();
 
-      final List<dynamic> serverNotices = await groupService.fetchNotices(
+      final List<dynamic> serverMonthlyData = await groupService.fetchNoticesByMonth(
         groupId: widget.groupId,
-        date: dateStr,
+        yearMonth: yearMonth,
       );
 
-      final List<Notice> mappedNotices =
-          serverNotices.map((json) {
-            return Notice(
-              id: json['noticeId'] ?? 0,
-              content: json['notice'] ?? '',
-              noticeDate: DateTime.parse(json['date']),
-              groupId: json['groupId'] ?? widget.groupId,
-              createdAt: DateTime.now(),
-              isDeleted: false,
-            );
-          }).toList();
+      List<Notice> mappedNotices = [];
+
+      for (var dayData in serverMonthlyData) {
+        final List<dynamic> noticesJson = dayData['notices'] ?? [];
+        for (var json in noticesJson) {
+          mappedNotices.add(Notice(
+            id: json['id'] ?? json['noticeId'] ?? 0,
+            content: json['notice'] ?? '',
+            noticeDate: DateTime.parse(json['date']),
+            groupId: json['groupId'] ?? widget.groupId,
+            createdAt: DateTime.now(),
+            isDeleted: false,
+          ));
+        }
+      }
+
+      mappedNotices.sort((a, b) => b.noticeDate.compareTo(a.noticeDate));
 
       if (mounted) {
         setState(() {
@@ -1005,6 +1020,8 @@ class _NoticeSectionState extends State<NoticeSection> {
                 ),
                 builder: (BuildContext bContext) {
                   return DeleteBottomSheet(
+                    title: '공지 삭제',
+                    message: '해당 공지사항을 삭제하시겠어요?\n삭제된 공지는 복구할 수 없습니다.',
                     onDelete: () async {
                       final groupService = GroupService();
 
@@ -1034,7 +1051,7 @@ class _NoticeSectionState extends State<NoticeSection> {
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: SvgPicture.asset(
-                'android/assets/images/routine_alarm.svg',
+                'android/assets/images/todo_alarm.svg',
                 colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
               ),
             ),

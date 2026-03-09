@@ -261,6 +261,7 @@ class _MainCalendarState extends State<MainCalendar> {
                               height: 20,
                             )
                             : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
                               width: 40.0,
                               decoration: BoxDecoration(
                                 color: ColorManager.getColor(

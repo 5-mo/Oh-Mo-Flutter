@@ -511,6 +511,26 @@ class GroupService {
     }
   }
 
+  Future<List<dynamic>> fetchNoticesByMonth({
+    required int groupId,
+    required String yearMonth,
+  }) async {
+    final url = Uri.parse('$baseUrl/notice/by-month').replace(
+      queryParameters: {'groupId': groupId.toString(), 'year-month': yearMonth},
+    );
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(url, headers: {'Authorization': 'Bearer $token'}),
+      );
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+      return (response.statusCode == 200 && decodedData['isSuccess'] == true)
+          ? decodedData['result'] ?? []
+          : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
   Future<bool> updateNotice({
     required int noticeId,
     required String notice,
@@ -560,34 +580,6 @@ class GroupService {
     } catch (e) {
       print('공지 삭제 통신 에러 : $e');
       return false;
-    }
-  }
-
-  Future<List<dynamic>> fetchNoticesByMonth({
-    required int groupId,
-    required String yearMonth,
-  }) async {
-    final url = Uri.parse('$baseUrl/notice/by-month').replace(
-      queryParameters: {'groupId': groupId.toString(), 'yearMonth': yearMonth},
-    );
-
-    try {
-      final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
-          url,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-        ),
-      );
-
-      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
-      return (response.statusCode == 200 && decodedData['isSuccess'] == true)
-          ? decodedData['result'] ?? []
-          : [];
-    } catch (e) {
-      return [];
     }
   }
 }
