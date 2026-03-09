@@ -157,6 +157,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   Future<void> _fetchGroupData(DateTime date) async {
     final dateString = DateFormat('yyyy-MM-dd').format(date);
+
     final scheduleData = await _groupService.fetchGroupSchedules(
       groupId: widget.groupId,
       date: dateString,
@@ -300,6 +301,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       tempRoutineCounts[finalId] = totalDoneCount;
       if (myStatus && finalId != 0) tempCompletedRoutineIds.add(finalId);
     }
+
+    bool hasItems = mappedTodos.isNotEmpty || mappedRoutines.isNotEmpty;
+    bool allTodosDone = mappedTodos.every((t) => t.isDone);
+    bool allRoutinesDone = mappedRoutines.every((r) => r.isDone);
+    bool isDayFullyCleared = hasItems && allTodosDone && allRoutinesDone;
+
     if (mounted) {
       setState(() {
         _myMemberGroupId = currentMyGroupId;
@@ -307,14 +314,60 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           group['groupColor'] ?? 'pinkLight',
         );
         _groupName = group['groupName'] ?? '이름 없음';
-
         _actualMemberCount = currentActualCount;
         _memberCount = currentActualCount;
-
         _completedTodoIds = tempCompletedTodoIds;
         _completedRoutineIds = tempCompletedRoutineIds;
         _todoCompletionCounts = tempTodoCounts;
         _routineCompletionCounts = tempRoutineCounts;
+
+        final dateOnly = DateTime(date.year, date.month, date.day);
+        Map<DateTime, List<CalendarEvent>> updatedCache = Map.from(
+          _eventsCache,
+        );
+
+        if (isDayFullyCleared) {
+          if (updatedCache.containsKey(dateOnly) &&
+              updatedCache[dateOnly]!.isNotEmpty) {
+            updatedCache[dateOnly] =
+                updatedCache[dateOnly]!.map((event) {
+                  return CalendarEvent(
+                    id: event.id,
+                    content: event.content,
+                    currentCompletion: 1,
+                    requiredCompletion: 1,
+                  );
+                }).toList();
+          } else {
+            // 공지가 없어도 오모를 띄우기 위해 가짜 이벤트 생성
+            updatedCache[dateOnly] = [
+              CalendarEvent(
+                id: -999,
+                content: '',
+                currentCompletion: 1,
+                requiredCompletion: 1,
+              ),
+            ];
+          }
+        } else {
+          // 완료되지 않은 경우 (오모를 제거하거나 일반 공지 상태로)
+          if (updatedCache.containsKey(dateOnly)) {
+            // 가짜 오모 이벤트(-999)는 제거
+            updatedCache[dateOnly]!.removeWhere((e) => e.id == -999);
+
+            // 기존 공지들은 미완료(0/1) 상태로 변경
+            updatedCache[dateOnly] =
+                updatedCache[dateOnly]!.map((event) {
+                  return CalendarEvent(
+                    id: event.id,
+                    content: event.content,
+                    currentCompletion: 0,
+                    requiredCompletion: 1,
+                  );
+                }).toList();
+          }
+        }
+        _eventsCache = updatedCache;
       });
       _todosNotifier.value = mappedTodos;
       _routinesNotifier.value = mappedRoutines;

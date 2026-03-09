@@ -546,73 +546,75 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
             groupId: widget.groupId ?? 0,
             content: content,
             routineWeek: englishWeek,
-            date: formattedStartDate,
+            date: formattedEndDate,
           );
 
           if (serverResponse != null) {
             List<int> routineIds = [];
-            if (serverResponse is int) {
-              routineIds.add(serverResponse);
-            } else if (serverResponse is List) {
-              routineIds =
-                  serverResponse.map((e) => e['routineId'] as int).toList();
+            if (serverResponse is List) {
+              routineIds = List<int>.from(serverResponse);
+            } else if (serverResponse is int) {
+              routineIds = [serverResponse];
             }
 
-            if (selectedAssigneeIds.isNotEmpty) {
+            if (routineIds.isNotEmpty) {
               for (int rId in routineIds) {
-                await _groupService.registerAssigneeRoutine(
-                  routineId: rId,
-                  memberGroupIdList: selectedAssigneeIds,
-                );
+                if (selectedAssigneeIds.isNotEmpty) {
+                  await _groupService.registerAssigneeRoutine(
+                    routineId: rId,
+                    memberGroupIdList: selectedAssigneeIds,
+                  );
+                }
               }
-            }
 
-            final db = LocalDatabaseSingleton.instance;
-            final weekString = getRoutineWeek().join(',');
+              final db = LocalDatabaseSingleton.instance;
+              final weekString = getRoutineWeek().join(',');
 
-            final int localRoutineId = await db.insertRoutine(
-              RoutinesCompanion.insert(
-                groupId: drift.Value(widget.groupId),
-                content: content,
-                weekDays: drift.Value(weekString),
-                startDate: drift.Value(widget.selectedDate),
-                endDate: drift.Value(threeMonthsLater),
-                timeMinutes: const drift.Value(0),
-                categoryId: const drift.Value(1),
-                colorType: const drift.Value(0),
-                isDone: const drift.Value(false),
-              ),
-            );
-
-            if (content.contains('(나)') || content.contains('@모두')) {
-              final group = await db.getGroupById(widget.groupId ?? 0);
-              final groupName = group?.name ?? "현재 그룹";
-              final days = selectedDays.join(',');
-              String line1 = "'$groupName' 그룹에 새로운 루틴이 등록되었습니다.";
-              String line2 = "[Routine] $content (매주 $days, 3개월간)";
-              await db.insertNotification(
-                NotificationsCompanion(
-                  type: drift.Value('group'),
-                  content: drift.Value("$line1\n$line2"),
-                  timestamp: drift.Value(DateTime.now()),
-                  relatedId: drift.Value(localRoutineId),
-                  isRead: drift.Value(true),
+              final int localRoutineId = await db.insertRoutine(
+                RoutinesCompanion.insert(
+                  groupId: drift.Value(widget.groupId),
+                  content: content,
+                  weekDays: drift.Value(weekString),
+                  startDate: drift.Value(widget.selectedDate),
+                  endDate: drift.Value(threeMonthsLater),
+                  timeMinutes: const drift.Value(0),
+                  categoryId: const drift.Value(1),
+                  colorType: const drift.Value(0),
+                  isDone: const drift.Value(false),
                 ),
               );
-            }
 
-            if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+              if (content.contains('(나)') || content.contains('@모두')) {
+                final group = await db.getGroupById(widget.groupId ?? 0);
+                final groupName = group?.name ?? "현재 그룹";
+                final days = selectedDays.join(',');
+                String line1 = "'$groupName' 그룹에 새로운 루틴이 등록되었습니다.";
+                String line2 = "[Routine] $content (매주 $days, 3개월간)";
+                await db.insertNotification(
+                  NotificationsCompanion(
+                    type: drift.Value('group'),
+                    content: drift.Value("$line1\n$line2"),
+                    timestamp: drift.Value(DateTime.now()),
+                    relatedId: drift.Value(localRoutineId),
+                    isRead: drift.Value(true),
+                  ),
+                );
+              }
 
-            if (mounted) {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("루틴이 3개월간 등록되었습니다!")),
-              );
+              if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+
+              if (mounted) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("루틴이 3개월간 등록되었습니다!")),
+                );
+              }
             }
           }
         } catch (e) {
           print('루틴 저장 실패: $e');
         }
+        ;
       },
       child: Container(
         width: double.infinity,

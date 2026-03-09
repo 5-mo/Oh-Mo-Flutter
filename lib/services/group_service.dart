@@ -82,7 +82,7 @@ class GroupService {
     }
   }
 
-  Future<int?> createGroupRoutine({
+  Future<List?> createGroupRoutine({
     required int? groupId,
     required String content,
     required List<String> routineWeek,
@@ -91,12 +91,16 @@ class GroupService {
     String? alarmTime,
   }) async {
     final url = Uri.parse('$baseUrl/group-schedule/routine');
+
+    String formattedTime =
+        (time == null || time.isEmpty) ? "00:00" : time.trim().substring(0, 5);
+
     final Map<String, dynamic> body = {
       "groupId": groupId,
       "content": content,
       "date": date,
       "routineWeek": routineWeek,
-      "time": (time == null || time.isEmpty) ? "00:00" : time.substring(0, 5),
+      "time": formattedTime,
     };
 
     if (alarmTime != null && alarmTime.trim().isNotEmpty) {
@@ -115,12 +119,13 @@ class GroupService {
           body: jsonEncode(body),
         ),
       );
+
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
       if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
         final List<dynamic> resultList = decodedData['result'] ?? [];
-        if (resultList.isNotEmpty) return resultList[0]['routineId'];
+        return resultList.map<int>((item) => item['routineId'] as int).toList();
       }
-      return null;
+      return [];
     } catch (e) {
       return null;
     }
