@@ -1546,7 +1546,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
     if (mounted && showSnackbar) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('데이로그가 서버에 저장되었습니다.')));
+      ).showSnackBar(const SnackBar(content: Text('오늘 하루 기록 완료!')));
     }
   }
 

@@ -503,13 +503,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               final dateOnly = DateTime.utc(day.year, day.month, day.day);
 
               if (day.day == 1) {
-                // 한 번만 출력하기 위해
-                print("현재 캐시 전체 키: ${_eventsCache.keys.toList()}");
               }
 
               final events = _eventsCache[dateOnly] ?? [];
               if (events.isNotEmpty) {
-                print("🎯 [매칭 성공] 날짜: $dateOnly, 개수: ${events.length}");
               }
               return events;
             },

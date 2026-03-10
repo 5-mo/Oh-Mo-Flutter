@@ -201,11 +201,14 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 50.0),
       child: Container(
         width: double.infinity,
-        height: 248,
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 25.0),
         alignment: isPlaceholder ? Alignment.center : Alignment.topLeft,
         decoration: BoxDecoration(color: Colors.grey[100]),
+        constraints: BoxConstraints(
+          minHeight: 248,
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment:
               isPlaceholder
                   ? MainAxisAlignment.center
