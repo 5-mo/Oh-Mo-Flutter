@@ -898,6 +898,17 @@ class $GroupsTable extends Groups with drift.TableInfo<$GroupsTable, Group> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const drift.VerificationMeta _localColorMeta =
+      const drift.VerificationMeta('localColor');
+  @override
+  late final drift.GeneratedColumn<String> localColor =
+      drift.GeneratedColumn<String>(
+        'local_color',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
   @override
   List<drift.GeneratedColumn> get $columns => [
     id,
@@ -906,6 +917,7 @@ class $GroupsTable extends Groups with drift.TableInfo<$GroupsTable, Group> {
     colorType,
     maxMembers,
     password,
+    localColor,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -957,6 +969,14 @@ class $GroupsTable extends Groups with drift.TableInfo<$GroupsTable, Group> {
         password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
       );
     }
+    if (data.containsKey('local_color')) {
+      context.handle(
+        _localColorMeta,
+        localColor.isAcceptableOrUnknown(data['local_color']!, _localColorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localColorMeta);
+    }
     return context;
   }
 
@@ -993,6 +1013,11 @@ class $GroupsTable extends Groups with drift.TableInfo<$GroupsTable, Group> {
         DriftSqlType.string,
         data['${effectivePrefix}password'],
       ),
+      localColor:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}local_color'],
+          )!,
     );
   }
 
@@ -1009,6 +1034,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
   final int colorType;
   final int? maxMembers;
   final String? password;
+  final String localColor;
   const Group({
     required this.id,
     required this.name,
@@ -1016,6 +1042,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
     required this.colorType,
     this.maxMembers,
     this.password,
+    required this.localColor,
   });
   @override
   Map<String, drift.Expression> toColumns(bool nullToAbsent) {
@@ -1032,6 +1059,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
     if (!nullToAbsent || password != null) {
       map['password'] = drift.Variable<String>(password);
     }
+    map['local_color'] = drift.Variable<String>(localColor);
     return map;
   }
 
@@ -1052,6 +1080,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
           password == null && nullToAbsent
               ? const drift.Value.absent()
               : drift.Value(password),
+      localColor: drift.Value(localColor),
     );
   }
 
@@ -1067,6 +1096,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
       colorType: serializer.fromJson<int>(json['colorType']),
       maxMembers: serializer.fromJson<int?>(json['maxMembers']),
       password: serializer.fromJson<String?>(json['password']),
+      localColor: serializer.fromJson<String>(json['localColor']),
     );
   }
   @override
@@ -1079,6 +1109,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
       'colorType': serializer.toJson<int>(colorType),
       'maxMembers': serializer.toJson<int?>(maxMembers),
       'password': serializer.toJson<String?>(password),
+      'localColor': serializer.toJson<String>(localColor),
     };
   }
 
@@ -1089,6 +1120,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
     int? colorType,
     drift.Value<int?> maxMembers = const drift.Value.absent(),
     drift.Value<String?> password = const drift.Value.absent(),
+    String? localColor,
   }) => Group(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -1096,6 +1128,7 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
     colorType: colorType ?? this.colorType,
     maxMembers: maxMembers.present ? maxMembers.value : this.maxMembers,
     password: password.present ? password.value : this.password,
+    localColor: localColor ?? this.localColor,
   );
   Group copyWithCompanion(GroupsCompanion data) {
     return Group(
@@ -1107,6 +1140,8 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
       maxMembers:
           data.maxMembers.present ? data.maxMembers.value : this.maxMembers,
       password: data.password.present ? data.password.value : this.password,
+      localColor:
+          data.localColor.present ? data.localColor.value : this.localColor,
     );
   }
 
@@ -1118,14 +1153,22 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
           ..write('description: $description, ')
           ..write('colorType: $colorType, ')
           ..write('maxMembers: $maxMembers, ')
-          ..write('password: $password')
+          ..write('password: $password, ')
+          ..write('localColor: $localColor')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, description, colorType, maxMembers, password);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    description,
+    colorType,
+    maxMembers,
+    password,
+    localColor,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1135,7 +1178,8 @@ class Group extends drift.DataClass implements drift.Insertable<Group> {
           other.description == this.description &&
           other.colorType == this.colorType &&
           other.maxMembers == this.maxMembers &&
-          other.password == this.password);
+          other.password == this.password &&
+          other.localColor == this.localColor);
 }
 
 class GroupsCompanion extends drift.UpdateCompanion<Group> {
@@ -1145,6 +1189,7 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
   final drift.Value<int> colorType;
   final drift.Value<int?> maxMembers;
   final drift.Value<String?> password;
+  final drift.Value<String> localColor;
   const GroupsCompanion({
     this.id = const drift.Value.absent(),
     this.name = const drift.Value.absent(),
@@ -1152,6 +1197,7 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
     this.colorType = const drift.Value.absent(),
     this.maxMembers = const drift.Value.absent(),
     this.password = const drift.Value.absent(),
+    this.localColor = const drift.Value.absent(),
   });
   GroupsCompanion.insert({
     this.id = const drift.Value.absent(),
@@ -1160,7 +1206,9 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
     this.colorType = const drift.Value.absent(),
     this.maxMembers = const drift.Value.absent(),
     this.password = const drift.Value.absent(),
-  }) : name = drift.Value(name);
+    required String localColor,
+  }) : name = drift.Value(name),
+       localColor = drift.Value(localColor);
   static drift.Insertable<Group> custom({
     drift.Expression<int>? id,
     drift.Expression<String>? name,
@@ -1168,6 +1216,7 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
     drift.Expression<int>? colorType,
     drift.Expression<int>? maxMembers,
     drift.Expression<String>? password,
+    drift.Expression<String>? localColor,
   }) {
     return drift.RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1176,6 +1225,7 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
       if (colorType != null) 'color_type': colorType,
       if (maxMembers != null) 'max_members': maxMembers,
       if (password != null) 'password': password,
+      if (localColor != null) 'local_color': localColor,
     });
   }
 
@@ -1186,6 +1236,7 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
     drift.Value<int>? colorType,
     drift.Value<int?>? maxMembers,
     drift.Value<String?>? password,
+    drift.Value<String>? localColor,
   }) {
     return GroupsCompanion(
       id: id ?? this.id,
@@ -1194,6 +1245,7 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
       colorType: colorType ?? this.colorType,
       maxMembers: maxMembers ?? this.maxMembers,
       password: password ?? this.password,
+      localColor: localColor ?? this.localColor,
     );
   }
 
@@ -1218,6 +1270,9 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
     if (password.present) {
       map['password'] = drift.Variable<String>(password.value);
     }
+    if (localColor.present) {
+      map['local_color'] = drift.Variable<String>(localColor.value);
+    }
     return map;
   }
 
@@ -1229,7 +1284,8 @@ class GroupsCompanion extends drift.UpdateCompanion<Group> {
           ..write('description: $description, ')
           ..write('colorType: $colorType, ')
           ..write('maxMembers: $maxMembers, ')
-          ..write('password: $password')
+          ..write('password: $password, ')
+          ..write('localColor: $localColor')
           ..write(')'))
         .toString();
   }
@@ -5698,6 +5754,7 @@ typedef $$GroupsTableCreateCompanionBuilder =
       drift.Value<int> colorType,
       drift.Value<int?> maxMembers,
       drift.Value<String?> password,
+      required String localColor,
     });
 typedef $$GroupsTableUpdateCompanionBuilder =
     GroupsCompanion Function({
@@ -5707,6 +5764,7 @@ typedef $$GroupsTableUpdateCompanionBuilder =
       drift.Value<int> colorType,
       drift.Value<int?> maxMembers,
       drift.Value<String?> password,
+      drift.Value<String> localColor,
     });
 
 final class $$GroupsTableReferences
@@ -5827,6 +5885,11 @@ class $$GroupsTableFilterComposer
 
   drift.ColumnFilters<String> get password => $composableBuilder(
     column: $table.password,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<String> get localColor => $composableBuilder(
+    column: $table.localColor,
     builder: (column) => drift.ColumnFilters(column),
   );
 
@@ -5969,6 +6032,11 @@ class $$GroupsTableOrderingComposer
     column: $table.password,
     builder: (column) => drift.ColumnOrderings(column),
   );
+
+  drift.ColumnOrderings<String> get localColor => $composableBuilder(
+    column: $table.localColor,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
 }
 
 class $$GroupsTableAnnotationComposer
@@ -6001,6 +6069,11 @@ class $$GroupsTableAnnotationComposer
 
   drift.GeneratedColumn<String> get password =>
       $composableBuilder(column: $table.password, builder: (column) => column);
+
+  drift.GeneratedColumn<String> get localColor => $composableBuilder(
+    column: $table.localColor,
+    builder: (column) => column,
+  );
 
   drift.Expression<T> routinesRefs<T extends Object>(
     drift.Expression<T> Function($$RoutinesTableAnnotationComposer a) f,
@@ -6142,6 +6215,7 @@ class $$GroupsTableTableManager
                 drift.Value<int> colorType = const drift.Value.absent(),
                 drift.Value<int?> maxMembers = const drift.Value.absent(),
                 drift.Value<String?> password = const drift.Value.absent(),
+                drift.Value<String> localColor = const drift.Value.absent(),
               }) => GroupsCompanion(
                 id: id,
                 name: name,
@@ -6149,6 +6223,7 @@ class $$GroupsTableTableManager
                 colorType: colorType,
                 maxMembers: maxMembers,
                 password: password,
+                localColor: localColor,
               ),
           createCompanionCallback:
               ({
@@ -6158,6 +6233,7 @@ class $$GroupsTableTableManager
                 drift.Value<int> colorType = const drift.Value.absent(),
                 drift.Value<int?> maxMembers = const drift.Value.absent(),
                 drift.Value<String?> password = const drift.Value.absent(),
+                required String localColor,
               }) => GroupsCompanion.insert(
                 id: id,
                 name: name,
@@ -6165,6 +6241,7 @@ class $$GroupsTableTableManager
                 colorType: colorType,
                 maxMembers: maxMembers,
                 password: password,
+                localColor: localColor,
               ),
           withReferenceMapper:
               (p0) =>

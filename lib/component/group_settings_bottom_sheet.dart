@@ -13,12 +13,14 @@ import 'package:ohmo/db/drift_database.dart';
 class GroupSettingsBottomSheet extends StatefulWidget {
   final int groupId;
   final String groupName;
+  final Function(ColorType) onColorChanged;
   final String? initialRole;
 
   const GroupSettingsBottomSheet({
     Key? key,
     required this.groupId,
     required this.groupName,
+    required this.onColorChanged,
     this.initialRole,
   }) : super(key: key);
 
@@ -39,7 +41,6 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
 
-    print("DEBUG: 시트가 받은 initialRole -> ${widget.initialRole}");
     if (widget.initialRole != null) {
       _userRole = widget.initialRole;
     } else {
@@ -118,7 +119,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   Widget _buildChangingColor() {
     return GestureDetector(
       onTap: () async {
-        final ColorType? result = await showModalBottomSheet<ColorType>(
+        final result = await showModalBottomSheet<ColorType>(
           context: context,
           isScrollControlled: true,
           isDismissible: true,
@@ -132,28 +133,22 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           builder:
               (paletteContext) => ColorPaletteBottomSheet(
                 selectedColorType: _selectedColorType,
-                onColorSelected: (colorType) {
-                  setState(() {
-                    _selectedColorType = colorType;
-                  });
+                onColorSelected: (colorType) async {
+                  try {
+                    await _db.updateLocalColor(widget.groupId, colorType, widget.groupName);
+
+                    final check = await _db.getGroupById(widget.groupId);
+
+                    widget.onColorChanged(colorType);
+                    if (mounted) {
+                      Navigator.of(paletteContext).pop();
+                    }
+                  } catch (e) {
+                    print("로컬 색상 저장 에러: $e");
+                  }
                 },
               ),
         );
-        if (result != null) {
-          try {
-            await _db.updateGroupColor(widget.groupId, result);
-
-            if (mounted) {
-              Navigator.of(context).pop(true);
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('색상 변경 실패: $e')));
-            }
-          }
-        }
       },
       child: Container(
         width: 318,

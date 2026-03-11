@@ -12,6 +12,7 @@ class Groups extends Table{
   IntColumn get colorType=>integer().withDefault(const Constant(0))();
   IntColumn get maxMembers=>integer().nullable()();
   TextColumn get password=>text().nullable()();
+  TextColumn get localColor=>text()();
 }
 
 class GroupMembers extends Table {

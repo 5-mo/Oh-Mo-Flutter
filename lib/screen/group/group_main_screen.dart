@@ -169,6 +169,15 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     final group = await _groupService.getGroupDetail(widget.groupId);
     if (group == null) return;
 
+    final localGroup = await _db.getGroupById(widget.groupId);
+
+    ColorType colorToApply;
+    if (localGroup?.localColor != null) {
+      colorToApply = ColorTypeExtension.fromString(localGroup!.localColor!);
+    } else {
+      colorToApply = ColorTypeExtension.fromString(group['groupColor'] ?? 'pinkLight');
+    }
+
     final memberData = await _groupService.fetchGroupMembers(widget.groupId);
     int currentActualCount = 0;
     if (memberData != null) {
@@ -313,9 +322,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     if (mounted) {
       setState(() {
         _myMemberGroupId = currentMyGroupId;
-        _currentColor = ColorTypeExtension.fromString(
-          group['groupColor'] ?? 'pinkLight',
-        );
+        _currentColor = colorToApply;
         _groupName = group['groupName'] ?? '이름 없음';
         _actualMemberCount = currentActualCount;
         _memberCount = currentActualCount;
@@ -460,14 +467,19 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               (_) => GroupSettingsBottomSheet(
                 groupId: widget.groupId,
                 groupName: _groupName,
+                onColorChanged: (newColor) {
+                  setState(() {
+                    _currentColor = newColor;
+                  });
+                },
               ),
         );
-        if (result == 'leave') {
-          _needsRefresh = true;
-          if (mounted) Navigator.pop(context, _needsRefresh);
-        } else if (result == true) {
+        if (result == true || result is ColorType) {
           _needsRefresh = true;
           await _fetchGroupData(selectedDate);
+        } else if (result == 'leave') {
+          _needsRefresh = true;
+          if (mounted) Navigator.pop(context, _needsRefresh);
         }
       },
       padding: const EdgeInsets.symmetric(horizontal: 22.0),
@@ -502,12 +514,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             eventLoader: (day) {
               final dateOnly = DateTime.utc(day.year, day.month, day.day);
 
-              if (day.day == 1) {
-              }
+              if (day.day == 1) {}
 
               final events = _eventsCache[dateOnly] ?? [];
-              if (events.isNotEmpty) {
-              }
+              if (events.isNotEmpty) {}
               return events;
             },
             onPageChanged: (focusedDay) => _loadSchedulesForMonth(focusedDay),
@@ -723,24 +733,24 @@ class _NoticeSectionState extends State<NoticeSection> {
       final String yearMonth = DateFormat('yyyy-MM').format(DateTime.now());
       final groupService = GroupService();
 
-      final List<dynamic> serverMonthlyData = await groupService.fetchNoticesByMonth(
-        groupId: widget.groupId,
-        yearMonth: yearMonth,
-      );
+      final List<dynamic> serverMonthlyData = await groupService
+          .fetchNoticesByMonth(groupId: widget.groupId, yearMonth: yearMonth);
 
       List<Notice> mappedNotices = [];
 
       for (var dayData in serverMonthlyData) {
         final List<dynamic> noticesJson = dayData['notices'] ?? [];
         for (var json in noticesJson) {
-          mappedNotices.add(Notice(
-            id: json['id'] ?? json['noticeId'] ?? 0,
-            content: json['notice'] ?? '',
-            noticeDate: DateTime.parse(json['date']),
-            groupId: json['groupId'] ?? widget.groupId,
-            createdAt: DateTime.now(),
-            isDeleted: false,
-          ));
+          mappedNotices.add(
+            Notice(
+              id: json['id'] ?? json['noticeId'] ?? 0,
+              content: json['notice'] ?? '',
+              noticeDate: DateTime.parse(json['date']),
+              groupId: json['groupId'] ?? widget.groupId,
+              createdAt: DateTime.now(),
+              isDeleted: false,
+            ),
+          );
         }
       }
 
