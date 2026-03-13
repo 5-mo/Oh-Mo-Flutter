@@ -17,6 +17,7 @@ class GroupRoutineCard extends StatefulWidget {
   final bool isCheckboxVisible;
   final int? memberGroupId;
   final String? myNickname;
+  final VoidCallback? onEditPressed;
 
   const GroupRoutineCard({
     Key? key,
@@ -30,6 +31,7 @@ class GroupRoutineCard extends StatefulWidget {
     required this.isCheckboxVisible,
     this.memberGroupId,
     this.myNickname,
+    this.onEditPressed,
   }) : super(key: key);
 
   @override
@@ -89,39 +91,45 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
           const SizedBox(width: 12.0),
 
           Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: 14.0,
-                  fontFamily: 'PretendardRegular',
-                  decoration: widget.isDoneForDay
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                  color: widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
-                  decorationColor: Middle_GREY_COLOR,
+            child: GestureDetector(
+              onTap: widget.onEditPressed,
+              behavior: HitTestBehavior.opaque,
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 14.0,
+                    fontFamily: 'PretendardRegular',
+                    decoration:
+                        widget.isDoneForDay
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                    color:
+                        widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
+                    decorationColor: Middle_GREY_COLOR,
+                  ),
+                  children: [
+                    TextSpan(text: mainContent),
+                    ...matches.map((m) {
+                      String mention = m.group(0)!;
+                      String nameOnly = mention.substring(1).trim();
+
+                      if (widget.myNickname != null &&
+                          nameOnly == widget.myNickname &&
+                          !mention.contains('(나)')) {
+                        mention = '$mention(나)';
+                      }
+
+                      return TextSpan(
+                        text: ' $mention',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[600],
+                          fontFamily: 'PretendardBold',
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 ),
-                children: [
-                  TextSpan(text: mainContent),
-                  ...matches.map((m) {
-                    String mention = m.group(0)!;
-                    String nameOnly = mention.substring(1).trim();
-
-                    if (widget.myNickname != null &&
-                        nameOnly == widget.myNickname &&
-                        !mention.contains('(나)')) {
-                      mention = '$mention(나)';
-                    }
-
-                    return TextSpan(
-                      text: ' $mention',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[600],
-                        fontFamily: 'PretendardBold',
-                      ),
-                    );
-                  }).toList(),
-                ],
               ),
             ),
           ),
@@ -200,13 +208,29 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                       builder: (BuildContext bContext) {
                         return DeleteBottomSheet(
                           onDelete: () async {
-                            final db = LocalDatabaseSingleton.instance;
-                            await db.deactivateRoutine(
-                              widget.routine.id,
-                              widget.selectedDate,
-                            );
+                            final groupService = GroupService();
 
-                            widget.onDataChanged?.call();
+                            bool isSuccess = await groupService
+                                .deleteGroupRoutine(widget.routine.id);
+
+                            if (isSuccess) {
+                              final db = LocalDatabaseSingleton.instance;
+                              await db.deactivateRoutine(
+                                widget.routine.id,
+                                widget.selectedDate,
+                              );
+
+                              widget.onDataChanged?.call();
+
+                              if (Navigator.canPop(context))
+                                Navigator.pop(context);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('그룹 루틴 삭제에 실패했습니다. 다시 시도해주세요'),
+                                ),
+                              );
+                            }
                           },
                         );
                       },

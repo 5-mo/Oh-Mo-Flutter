@@ -54,6 +54,7 @@ class GroupRoutineBottomSheet extends StatefulWidget {
   final Future<void> Function()? onRoutineAdded;
   final Future<void> Function()? onDataChanged;
   final DateTime selectedDate;
+  final int? routineIdToEdit;
 
   const GroupRoutineBottomSheet({
     Key? key,
@@ -61,6 +62,7 @@ class GroupRoutineBottomSheet extends StatefulWidget {
     this.onRoutineAdded,
     this.onDataChanged,
     required this.selectedDate,
+    this.routineIdToEdit,
   }) : super(key: key);
 
   @override
@@ -92,7 +94,11 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   void initState() {
     super.initState();
     _loadCategories();
-    _loadMembers();
+    _loadMembers().then((_) {
+      if (widget.routineIdToEdit != null) {
+        _loadRoutineDataForEdit();
+      }
+    });
     contentController.addListener(_onTextChanged);
   }
 
@@ -104,50 +110,88 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     super.dispose();
   }
 
+  Future<void> _loadRoutineDataForEdit() async {
+    try {
+      final db = LocalDatabaseSingleton.instance;
+      final routine = await db.getRoutineById(widget.routineIdToEdit!);
+
+      if (routine != null) {
+        contentController.text = routine.content;
+
+        setState(() {
+          if (routine.weekDays != null && routine.weekDays!.isNotEmpty) {
+            final Map<String, String> numToDay = {
+              '1': '월',
+              '2': '화',
+              '3': '수',
+              '4': '목',
+              '5': '금',
+              '6': '토',
+              '7': '일',
+            };
+            selectedDays =
+                routine.weekDays!
+                    .split(',')
+                    .map((num) => numToDay[num.trim()] ?? '')
+                    .where((day) => day.isNotEmpty)
+                    .toList();
+          }
+          _showMentionSuggestions = false;
+        });
+      }
+    } catch (e) {
+      print('로컬 데이터 로드 실패 : $e');
+    }
+  }
+
   void _onTextChanged() {
     final text = contentController.text;
     final cursorPos = contentController.selection.baseOffset;
 
+    if (cursorPos < 0 || text.isEmpty) {
+      setState(() => _showMentionSuggestions = false);
+      return;
+    }
+
     final int atIndex = text.substring(0, cursorPos).lastIndexOf('@');
+
     if (atIndex != -1) {
       final query = text.substring(atIndex + 1, cursorPos);
-      if (!query.contains(' ')) {
-        final prefixText = text.substring(0, atIndex);
 
+      if (query.contains(' ')) {
+        setState(() => _showMentionSuggestions = false);
+        return;
+      }
+
+      final filtered =
+          _groupMembers.keys
+              .where(
+                (member) => member.toLowerCase().contains(query.toLowerCase()),
+              )
+              .toList();
+
+      if (filtered.isNotEmpty) {
+        final prefixText = text.substring(0, atIndex);
         final painter = TextPainter(
           text: TextSpan(
             text: prefixText,
-            style: TextStyle(fontSize: 14, color: Colors.black),
+            style: const TextStyle(fontSize: 14, color: Colors.black),
           ),
           textDirection: TextDirection.ltr,
         );
         painter.layout();
 
-        final calculatedOffset = painter.width + 16.0;
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          setState(() {
-            _mentionBoxOffsetx = calculatedOffset;
-            _filterMembers =
-                _groupMembers.keys
-                    .where(
-                      (member) =>
-                          member.toLowerCase().contains(query.toLowerCase()),
-                    )
-                    .toList();
-            _showMentionSuggestions = _filterMembers.isNotEmpty;
-          });
-          if (_filterMembers.isNotEmpty) _contentFocusNode.requestFocus();
+        setState(() {
+          _mentionBoxOffsetx = painter.width + 16.0;
+          _filterMembers = filtered;
+          _showMentionSuggestions = true;
         });
-        return;
+      } else {
+        setState(() => _showMentionSuggestions = false);
       }
+    } else {
+      setState(() => _showMentionSuggestions = false);
     }
-    Future(() {
-      setState(() {
-        _showMentionSuggestions = false;
-      });
-    });
   }
 
   Future<void> _loadMembers() async {
@@ -504,60 +548,123 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   }
 
   Widget _buildSaveButton() {
+    final bool isEditMode = widget.routineIdToEdit != null;
+
     return GestureDetector(
       onTap: () async {
-        final String content =
-            contentController.text.replaceAll('(나)', '').trim();
+        print("--- 저장 버튼 클릭됨 (isEditMode: $isEditMode) ---");
+
+        final String content = contentController.text.replaceAll('(나)', '').trim();
+        print("입력된 내용: $content");
 
         if (content.isEmpty || selectedDays.isEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")));
+          print("오류: 내용이나 요일이 비어있음");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")),
+          );
           return;
-        }
-
-        List<int> selectedAssigneeIds = [];
-        if (content.contains('@모두')) {
-          _memberNameToId.forEach((name, id) {
-            if (name != '모두' && id != 0) selectedAssigneeIds.add(id);
-          });
-        } else {
-          _memberNameToId.forEach((name, id) {
-            if (content.contains('@$name') && name != '모두') {
-              selectedAssigneeIds.add(id);
-            }
-          });
         }
 
         try {
           final englishWeek = convertToEnglishWeek(selectedDays);
-          final formattedStartDate = intl.DateFormat(
-            'yyyy-MM-dd',
-          ).format(widget.selectedDate);
+          print("선택된 요일(영문): $englishWeek");
 
-          final DateTime threeMonthsLater = widget.selectedDate.add(
-            const Duration(days: 90),
-          );
-          final String formattedEndDate = intl.DateFormat(
-            'yyyy-MM-dd',
-          ).format(threeMonthsLater);
+          // 종료 날짜 계산 (오늘로부터 90일 후)
+          final DateTime threeMonthsLater = widget.selectedDate.add(const Duration(days: 90));
+          final String formattedEndDate = intl.DateFormat('yyyy-MM-dd').format(threeMonthsLater);
+          print("종료 날짜: $formattedEndDate");
 
-          final dynamic serverResponse = await _groupService.createGroupRoutine(
-            groupId: widget.groupId ?? 0,
-            content: content,
-            routineWeek: englishWeek,
-            date: formattedEndDate,
-          );
+          if (isEditMode) {
+            // ================= [ 1. 수정 모드 실행 ] =================
+            print("수정 모드 실행 - scheduleId: ${widget.routineIdToEdit}");
 
-          if (serverResponse != null) {
-            List<int> routineIds = [];
-            if (serverResponse is List) {
-              routineIds = List<int>.from(serverResponse);
-            } else if (serverResponse is int) {
-              routineIds = [serverResponse];
+            final bool success = await _groupService.updateGroupRoutine(
+              scheduleId: widget.routineIdToEdit!,
+              content: content,
+              routineWeek: englishWeek,
+              date: formattedEndDate,
+            );
+
+            print("서버 수정 결과: $success");
+
+            if (success) {
+              final db = LocalDatabaseSingleton.instance;
+              print("로컬 DB 업데이트 시도...");
+
+              // Drift 로컬 DB 업데이트
+              await db.customUpdate(
+                'UPDATE routines SET content = ?, week_days = ? WHERE id = ?',
+                variables: [
+                  drift.Variable<String>(content),
+                  drift.Variable<String>(getRoutineWeek().join(',')), // '1,2,3' 형식
+                  drift.Variable<int>(widget.routineIdToEdit!),
+                ],
+                updates: {db.routines},
+              );
+
+              print("로컬 DB 업데이트 성공");
+
+              if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+              if (mounted) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("루틴이 수정되었습니다!")),
+                );
+              }
+            } else {
+              print("서버 수정 실패 응답 받음");
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("서버 수정에 실패했습니다.")),
+                );
+              }
             }
+          } else {
+            // ================= [ 2. 생성 모드 실행 ] =================
+            print("생성 모드 실행 - groupId: ${widget.groupId}");
 
-            if (routineIds.isNotEmpty) {
+            final dynamic serverResponse = await _groupService.createGroupRoutine(
+              groupId: widget.groupId ?? 0,
+              content: content,
+              routineWeek: englishWeek,
+              date: formattedEndDate,
+            );
+            print("서버 생성 응답: $serverResponse");
+
+            if (serverResponse != null) {
+              List<int> routineIds = [];
+              if (serverResponse is List) {
+                routineIds = List<int>.from(serverResponse);
+              } else if (serverResponse is int) {
+                routineIds = [serverResponse];
+              }
+
+              // 서버 응답이 빈 배열일 경우 방어 로직
+              if (routineIds.isEmpty) {
+                print("에러: 루틴 ID가 반환되지 않음");
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("루틴 생성 중 오류가 발생했습니다. (ID 미수신)")),
+                  );
+                }
+                return;
+              }
+
+              // 담당자 추출 로직
+              List<int> selectedAssigneeIds = [];
+              if (content.contains('@모두')) {
+                _memberNameToId.forEach((name, id) {
+                  if (name != '모두' && id != 0) selectedAssigneeIds.add(id);
+                });
+              } else {
+                _memberNameToId.forEach((name, id) {
+                  if (content.contains('@$name') && name != '모두') {
+                    selectedAssigneeIds.add(id);
+                  }
+                });
+              }
+
+              // 각 루틴 ID에 대해 담당자 등록
               for (int rId in routineIds) {
                 if (selectedAssigneeIds.isNotEmpty) {
                   await _groupService.registerAssigneeRoutine(
@@ -567,6 +674,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 }
               }
 
+              // 로컬 DB 저장 및 알림 처리
               final db = LocalDatabaseSingleton.instance;
               final weekString = getRoutineWeek().join(',');
 
@@ -584,37 +692,27 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 ),
               );
 
-              if (content.contains('(나)') || content.contains('@모두')) {
-                final group = await db.getGroupById(widget.groupId ?? 0);
-                final groupName = group?.name ?? "현재 그룹";
-                final days = selectedDays.join(',');
-                String line1 = "'$groupName' 그룹에 새로운 루틴이 등록되었습니다.";
-                String line2 = "[Routine] $content (매주 $days, 3개월간)";
-                await db.insertNotification(
-                  NotificationsCompanion(
-                    type: drift.Value('group'),
-                    content: drift.Value("$line1\n$line2"),
-                    timestamp: drift.Value(DateTime.now()),
-                    relatedId: drift.Value(localRoutineId),
-                    isRead: drift.Value(true),
-                  ),
-                );
-              }
+              print("생성 및 로컬 저장 완료. LocalID: $localRoutineId");
 
               if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
-
               if (mounted) {
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("루틴이 3개월간 등록되었습니다!")),
+                  const SnackBar(content: Text("루틴이 등록되었습니다!")),
                 );
               }
             }
           }
-        } catch (e) {
-          print('루틴 저장 실패: $e');
+        } catch (e, stacktrace) {
+          print("--- 예외 발생 ---");
+          print("에러 내용: $e");
+          print("스택 트레이스: $stacktrace");
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("저장 중 오류가 발생했습니다.")),
+            );
+          }
         }
-        ;
       },
       child: Container(
         width: double.infinity,
@@ -623,10 +721,10 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
           color: Colors.black,
           borderRadius: BorderRadius.circular(9),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
             '저장하기',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 20,
               fontFamily: 'PretendardBold',
               color: Colors.white,

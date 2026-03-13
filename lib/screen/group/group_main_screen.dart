@@ -617,6 +617,28 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         isIndicatorVisible: isIndicatorVisible,
                         isCheckboxVisible: isCheckboxVisible,
                         onDataChanged: () => _fetchGroupData(selectedDate),
+                        onEditPressed: (){
+                          showModalBottomSheet(
+                              context: context,
+                              isScrollControlled:true,
+                              backgroundColor: Colors.white,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(59),
+                                  topRight: Radius.circular(59),
+                                ),
+                              ),
+                              builder: (_)=>GroupRoutineBottomSheet(
+                                  groupId: widget.groupId,
+                                  routineIdToEdit:routine.id,
+                                  selectedDate: selectedDate,
+                              onRoutineAdded: ()async{
+                                    await _fetchGroupData(selectedDate);
+                              },
+                              ),
+                          );
+                        },
+
                       );
                     }).toList(),
               );

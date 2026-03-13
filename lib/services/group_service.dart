@@ -131,6 +131,64 @@ class GroupService {
     }
   }
 
+  Future<bool> updateGroupRoutine({
+    required int scheduleId,
+    required String content,
+    required List<String> routineWeek,
+    required String date,
+    String? time,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/routine/$scheduleId');
+    final body = {
+      "content": content,
+      "date": date,
+      "routineWeek": routineWeek,
+      "time": time ?? "00:00",
+    };
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json;charset=utf-8',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && decodedData['isSuccess'] == true;
+    } catch (e) {
+      print('루틴 수정 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteGroupRoutine(int routineId) async {
+    final url = Uri.parse('$baseUrl/group-schedule/routine/$routineId');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+        ),
+      );
+
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return true;
+      } else {
+        print('그룹 루틴 삭제 실패 : ${decodedData['message']}');
+        return false;
+      }
+    } catch (e) {
+      print('그룹 루틴 삭제 에러 : $e');
+      return false;
+    }
+  }
+
   Future<int?> createGroupTodo({
     required int groupId,
     required String content,
