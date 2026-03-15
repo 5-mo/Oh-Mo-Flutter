@@ -8,6 +8,8 @@ import '../services/group_service.dart';
 
 class GroupTodoCard extends StatefulWidget {
   final Todo todo;
+  final int? todoIdForApi;
+  final int? assigneeId;
   final bool isDoneForDay;
   final DateTime selectedDate;
   final Future<void> Function()? onDataChanged;
@@ -17,10 +19,12 @@ class GroupTodoCard extends StatefulWidget {
   final bool isCheckboxVisible;
   final int? memberGroupId;
   final String? myNickname;
+  final VoidCallback? onEditPressed;
 
   const GroupTodoCard({
     Key? key,
     required this.todo,
+    this.todoIdForApi,
     required this.isDoneForDay,
     required this.selectedDate,
     this.onDataChanged,
@@ -30,6 +34,8 @@ class GroupTodoCard extends StatefulWidget {
     required this.isCheckboxVisible,
     this.memberGroupId,
     this.myNickname,
+    this.onEditPressed,
+    this.assigneeId,
   }) : super(key: key);
 
   @override
@@ -89,40 +95,45 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
           const SizedBox(width: 12.0),
 
           Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: 14.0,
-                  fontFamily: 'PretendardRegular',
-                  decoration:
-                      widget.isDoneForDay
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                  color: widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
-                  decorationColor: Middle_GREY_COLOR,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onEditPressed,
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 14.0,
+                    fontFamily: 'PretendardRegular',
+                    decoration:
+                        widget.isDoneForDay
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                    color:
+                        widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
+                    decorationColor: Middle_GREY_COLOR,
+                  ),
+                  children: [
+                    TextSpan(text: mainContent),
+                    ...matches.map((m) {
+                      String mention = m.group(0)!;
+                      String nameOnly = mention.substring(1).trim();
+
+                      if (widget.myNickname != null &&
+                          nameOnly == widget.myNickname &&
+                          !mention.contains('(나)')) {
+                        mention = '$mention(나)';
+                      }
+
+                      return TextSpan(
+                        text: ' $mention',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[600],
+                          fontFamily: 'PretendardBold',
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 ),
-                children: [
-                  TextSpan(text: mainContent),
-                  ...matches.map((m) {
-                    String mention = m.group(0)!;
-                    String nameOnly = mention.substring(1).trim();
-
-                    if (widget.myNickname != null &&
-                        nameOnly == widget.myNickname &&
-                        !mention.contains('(나)')) {
-                      mention = '$mention(나)';
-                    }
-
-                    return TextSpan(
-                      text: ' $mention',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[600],
-                        fontFamily: 'PretendardBold',
-                      ),
-                    );
-                  }).toList(),
-                ],
               ),
             ),
           ),
@@ -201,9 +212,40 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                         return DeleteBottomSheet(
                           showConfirmationPopup: false,
                           onDelete: () async {
-                            final db = LocalDatabaseSingleton.instance;
-                            await db.deleteTodo(widget.todo.id);
-                            widget.onDataChanged?.call();
+                            final groupService = GroupService();
+
+                            final int? serverId = widget.todoIdForApi;
+
+                            if (serverId == null || serverId == 0) {
+                              print("에러 : 유효한 서버 ID가 없습니다.");
+                              return;
+                            }
+
+                            final bool isSuccess = await groupService
+                                .deleteGroupTodo(serverId);
+
+                            if (isSuccess) {
+                              final db = LocalDatabaseSingleton.instance;
+                              await db.deleteTodo(widget.todo.id);
+                              widget.onDataChanged?.call();
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("그룹 투두가 삭제되었습니다."),
+                                  ),
+                                );
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('서버에서 투두를 삭제하는 데 실패했습니다'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                         );
                       },
@@ -213,7 +255,7 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                     color: Colors.transparent,
                     padding: const EdgeInsets.all(2.0),
                     child: SvgPicture.asset(
-                      'android/assets/images/routine_alarm.svg',
+                      'android/assets/images/todo_alarm.svg',
                     ),
                   ),
                 ),

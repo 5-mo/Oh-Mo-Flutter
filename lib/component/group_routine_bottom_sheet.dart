@@ -55,6 +55,7 @@ class GroupRoutineBottomSheet extends StatefulWidget {
   final Future<void> Function()? onDataChanged;
   final DateTime selectedDate;
   final int? routineIdToEdit;
+  final Routine? routineToEdit;
 
   const GroupRoutineBottomSheet({
     Key? key,
@@ -63,6 +64,7 @@ class GroupRoutineBottomSheet extends StatefulWidget {
     this.onDataChanged,
     required this.selectedDate,
     this.routineIdToEdit,
+    this.routineToEdit,
   }) : super(key: key);
 
   @override
@@ -110,37 +112,70 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     super.dispose();
   }
 
+  String _mapEngDayToNum(dynamic englishWeeks) {
+    if (englishWeeks == null) return '';
+
+    const Map<String, String> dayMap = {
+      "MONDAY": "1", "TUESDAY": "2", "WEDNESDAY": "3", "THURSDAY": "4",
+      "FRIDAY": "5", "SATURDAY": "6", "SUNDAY": "7"
+    };
+
+    if (englishWeeks is List) {
+      return englishWeeks.map((e) => dayMap[e.toString().toUpperCase()] ?? '').where((e) => e.isNotEmpty).join(',');
+    } else {
+      return dayMap[englishWeeks.toString().toUpperCase()] ?? '';
+    }
+  }
+
   Future<void> _loadRoutineDataForEdit() async {
+    final routine = widget.routineToEdit;
+    if (routine == null) return;
+
+    // 1. 일단 현재 객체에 있는 요일 반영
+    contentController.text = routine.content;
+
+    setState(() {
+      final Map<String, String> numToDay = {
+        '1': '월', '2': '화', '3': '수', '4': '목', '5': '금', '6': '토', '7': '일',
+      };
+
+      if (routine.weekDays != null && routine.weekDays!.isNotEmpty) {
+        // 기존에 선택된 요일들에 현재 넘어온 요일을 합칩니다 (Set을 써서 중복 제거)
+        final newDays = routine.weekDays!
+            .split(',')
+            .map((num) => numToDay[num.trim()] ?? '')
+            .where((d) => d.isNotEmpty);
+
+        // 기존 selectedDays에 합치기
+        selectedDays = {...selectedDays, ...newDays}.toList();
+      }
+    });
+
+    // 2. 서버 상세 정보도 한 번 더 찔러서 합치기
     try {
-      final db = LocalDatabaseSingleton.instance;
-      final routine = await db.getRoutineById(widget.routineIdToEdit!);
+      final detail = await _groupService.fetchAssigneeRoutine(routine.routineId!);
+      if (detail != null && detail['routine'] != null) {
+        final routineInfo = detail['routine'];
+        final dynamic weeks = routineInfo['weeks'] ?? routineInfo['week'];
 
-      if (routine != null) {
-        contentController.text = routine.content;
-
-        setState(() {
-          if (routine.weekDays != null && routine.weekDays!.isNotEmpty) {
+        if (weeks != null) {
+          setState(() {
+            String mappedNums = _mapEngDayToNum(weeks);
             final Map<String, String> numToDay = {
-              '1': '월',
-              '2': '화',
-              '3': '수',
-              '4': '목',
-              '5': '금',
-              '6': '토',
-              '7': '일',
+              '1': '월', '2': '화', '3': '수', '4': '목', '5': '금', '6': '토', '7': '일'
             };
-            selectedDays =
-                routine.weekDays!
-                    .split(',')
-                    .map((num) => numToDay[num.trim()] ?? '')
-                    .where((day) => day.isNotEmpty)
-                    .toList();
-          }
-          _showMentionSuggestions = false;
-        });
+
+            final serverDays = mappedNums.split(',')
+                .map((n) => numToDay[n.trim()] ?? '')
+                .where((d) => d.isNotEmpty);
+
+            // 서버에서 온 요일들도 합치기
+            selectedDays = {...selectedDays, ...serverDays}.toList();
+          });
+        }
       }
     } catch (e) {
-      print('로컬 데이터 로드 실패 : $e');
+      print("상세 로드 중 오류: $e");
     }
   }
 
@@ -552,31 +587,31 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
 
     return GestureDetector(
       onTap: () async {
-        print("--- 저장 버튼 클릭됨 (isEditMode: $isEditMode) ---");
-
-        final String content = contentController.text.replaceAll('(나)', '').trim();
-        print("입력된 내용: $content");
+        final String content =
+            contentController.text.replaceAll('(나)', '').trim();
 
         if (content.isEmpty || selectedDays.isEmpty) {
-          print("오류: 내용이나 요일이 비어있음");
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")));
           return;
         }
 
         try {
           final englishWeek = convertToEnglishWeek(selectedDays);
-          print("선택된 요일(영문): $englishWeek");
-
-          // 종료 날짜 계산 (오늘로부터 90일 후)
-          final DateTime threeMonthsLater = widget.selectedDate.add(const Duration(days: 90));
-          final String formattedEndDate = intl.DateFormat('yyyy-MM-dd').format(threeMonthsLater);
-          print("종료 날짜: $formattedEndDate");
+          final DateTime threeMonthsLater = widget.selectedDate.add(
+            const Duration(days: 90),
+          );
+          final String formattedEndDate = intl.DateFormat(
+            'yyyy-MM-dd',
+          ).format(threeMonthsLater);
 
           if (isEditMode) {
-            // ================= [ 1. 수정 모드 실행 ] =================
-            print("수정 모드 실행 - scheduleId: ${widget.routineIdToEdit}");
+            print("--- [수정 요청 데이터 확인] ---");
+            print("보내는 scheduleId: ${widget.routineIdToEdit}");
+            print("보내는 content: $content");
+            print("보내는 week: $englishWeek");
+            print("보내는 date(종료일): $formattedEndDate");
 
             final bool success = await _groupService.updateGroupRoutine(
               scheduleId: widget.routineIdToEdit!,
@@ -585,50 +620,44 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
               date: formattedEndDate,
             );
 
-            print("서버 수정 결과: $success");
-
             if (success) {
               final db = LocalDatabaseSingleton.instance;
-              print("로컬 DB 업데이트 시도...");
 
-              // Drift 로컬 DB 업데이트
               await db.customUpdate(
                 'UPDATE routines SET content = ?, week_days = ? WHERE id = ?',
                 variables: [
                   drift.Variable<String>(content),
-                  drift.Variable<String>(getRoutineWeek().join(',')), // '1,2,3' 형식
+                  drift.Variable<String>(getRoutineWeek().join(',')),
                   drift.Variable<int>(widget.routineIdToEdit!),
                 ],
                 updates: {db.routines},
               );
 
-              print("로컬 DB 업데이트 성공");
-
               if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
               if (mounted) {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("루틴이 수정되었습니다!")),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("루틴이 수정되었습니다!")));
               }
             } else {
               print("서버 수정 실패 응답 받음");
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("서버 수정에 실패했습니다.")),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("서버 수정에 실패했습니다.")));
               }
             }
           } else {
-            // ================= [ 2. 생성 모드 실행 ] =================
             print("생성 모드 실행 - groupId: ${widget.groupId}");
 
-            final dynamic serverResponse = await _groupService.createGroupRoutine(
-              groupId: widget.groupId ?? 0,
-              content: content,
-              routineWeek: englishWeek,
-              date: formattedEndDate,
-            );
+            final dynamic serverResponse = await _groupService
+                .createGroupRoutine(
+                  groupId: widget.groupId ?? 0,
+                  content: content,
+                  routineWeek: englishWeek,
+                  date: formattedEndDate,
+                );
             print("서버 생성 응답: $serverResponse");
 
             if (serverResponse != null) {
@@ -639,18 +668,18 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 routineIds = [serverResponse];
               }
 
-              // 서버 응답이 빈 배열일 경우 방어 로직
               if (routineIds.isEmpty) {
                 print("에러: 루틴 ID가 반환되지 않음");
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("루틴 생성 중 오류가 발생했습니다. (ID 미수신)")),
+                    const SnackBar(
+                      content: Text("루틴 생성 중 오류가 발생했습니다. (ID 미수신)"),
+                    ),
                   );
                 }
                 return;
               }
 
-              // 담당자 추출 로직
               List<int> selectedAssigneeIds = [];
               if (content.contains('@모두')) {
                 _memberNameToId.forEach((name, id) {
@@ -664,7 +693,6 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 });
               }
 
-              // 각 루틴 ID에 대해 담당자 등록
               for (int rId in routineIds) {
                 if (selectedAssigneeIds.isNotEmpty) {
                   await _groupService.registerAssigneeRoutine(
@@ -674,7 +702,6 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 }
               }
 
-              // 로컬 DB 저장 및 알림 처리
               final db = LocalDatabaseSingleton.instance;
               final weekString = getRoutineWeek().join(',');
 
@@ -682,6 +709,9 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 RoutinesCompanion.insert(
                   groupId: drift.Value(widget.groupId),
                   content: content,
+                  routineId: drift.Value(
+                    routineIds.isNotEmpty ? routineIds.first : null,
+                  ),
                   weekDays: drift.Value(weekString),
                   startDate: drift.Value(widget.selectedDate),
                   endDate: drift.Value(threeMonthsLater),
@@ -692,25 +722,22 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 ),
               );
 
-              print("생성 및 로컬 저장 완료. LocalID: $localRoutineId");
-
-              if (widget.onRoutineAdded != null) await widget.onRoutineAdded!();
+              if (widget.onRoutineAdded != null) {
+                await widget.onRoutineAdded!();
+              }
               if (mounted) {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("루틴이 등록되었습니다!")),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("루틴이 등록되었습니다!")));
               }
             }
           }
         } catch (e, stacktrace) {
-          print("--- 예외 발생 ---");
-          print("에러 내용: $e");
-          print("스택 트레이스: $stacktrace");
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("저장 중 오류가 발생했습니다.")),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("저장 중 오류가 발생했습니다.")));
           }
         }
       },

@@ -49,6 +49,8 @@ class MentionText extends SpecialText {
 class GroupTodoBottomSheet extends StatefulWidget {
   final int? groupId;
   final Future<void> Function()? onTodoAdded;
+  final int? todoIdToEdit;
+  final Todo? todoToEdit;
   final Future<void> Function()? onDataChanged;
   final DateTime selectedDate;
 
@@ -57,6 +59,8 @@ class GroupTodoBottomSheet extends StatefulWidget {
     this.groupId,
     this.onTodoAdded,
     this.onDataChanged,
+    this.todoIdToEdit,
+    this.todoToEdit,
     required this.selectedDate,
   }) : super(key: key);
 
@@ -87,6 +91,10 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   void initState() {
     super.initState();
     _loadMembers();
+
+    if (widget.todoIdToEdit != null) {
+      contentController.text = widget.todoToEdit!.content;
+    }
     contentController.addListener(_onTextChanged);
   }
 
@@ -317,71 +325,71 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 children:
-                _filterMembers.map((member) {
-                  final bool isMe =
-                  (member != '모두' &&
-                      myNickname != null &&
-                      member == myNickname);
-                  final String showName = isMe ? '$member(나)' : member;
+                    _filterMembers.map((member) {
+                      final bool isMe =
+                          (member != '모두' &&
+                              myNickname != null &&
+                              member == myNickname);
+                      final String showName = isMe ? '$member(나)' : member;
 
-                  return InkWell(
-                    onTap: () => _onMemberSelected(member),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 6.0,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircleAvatar(
-                            radius: 10,
-                            backgroundColor: Colors.grey[200],
-                            backgroundImage:
-                            (() {
-                              final path = _groupMembers[member];
-                              if (path == null || path.isEmpty)
-                                return null;
-
-                              if (path.startsWith('http')) {
-                                return NetworkImage(path);
-                              }
-                              if (path.startsWith(
-                                'android/assets',
-                              )) {
-                                return AssetImage(path);
-                              }
-                              return null;
-                            })()
-                            as ImageProvider?,
-                            child:
-                            (() {
-                              final path = _groupMembers[member];
-                              if (path == null || path.isEmpty) {
-                                return Icon(
-                                  Icons.person,
-                                  size: 12,
-                                  color: Colors.grey[400],
-                                );
-                              }
-                              return null;
-                            })(),
+                      return InkWell(
+                        onTap: () => _onMemberSelected(member),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 6.0,
                           ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              showName,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.black,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage:
+                                    (() {
+                                          final path = _groupMembers[member];
+                                          if (path == null || path.isEmpty)
+                                            return null;
+
+                                          if (path.startsWith('http')) {
+                                            return NetworkImage(path);
+                                          }
+                                          if (path.startsWith(
+                                            'android/assets',
+                                          )) {
+                                            return AssetImage(path);
+                                          }
+                                          return null;
+                                        })()
+                                        as ImageProvider?,
+                                child:
+                                    (() {
+                                      final path = _groupMembers[member];
+                                      if (path == null || path.isEmpty) {
+                                        return Icon(
+                                          Icons.person,
+                                          size: 12,
+                                          color: Colors.grey[400],
+                                        );
+                                      }
+                                      return null;
+                                    })(),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  showName,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
+                        ),
+                      );
+                    }).toList(),
               ),
             ),
           ],
@@ -393,7 +401,8 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        final String content = contentController.text.replaceFirst('(나)', '').trim();
+        final String content =
+            contentController.text.replaceFirst('(나)', '').trim();
         if (content.isEmpty) return;
 
         List<int> finalAssigneeIds = [];
@@ -406,43 +415,67 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
           });
         } else {
           _memberNameToId.forEach((name, id) {
-            if ((content.contains('@$name') || content.contains('@$name(나)')) && id != 0) {
+            if ((content.contains('@$name') || content.contains('@$name(나)')) &&
+                id != 0) {
               finalAssigneeIds.add(id);
             }
           });
         }
 
         if (finalAssigneeIds.isEmpty) {
-          final myId = _memberNameToId[myNickname] ?? _memberNameToId['$myNickname(나)'];
+          final myId =
+              _memberNameToId[myNickname] ?? _memberNameToId['$myNickname(나)'];
           if (myId != null) finalAssigneeIds.add(myId);
         }
 
         try {
-          final int? newTodoId = await _groupService.createGroupTodo(
-            groupId: widget.groupId ?? 0,
-            content: content,
-            date: DateFormat('yyyy-MM-dd').format(widget.selectedDate),
-          );
+          bool isSuccess = false;
+          int? currentTodoId;
 
-          if (newTodoId != null) {
-            // @모두 또는 여러 명일 경우, 한 명씩 서버에 등록 요청을 보냅니다.
+          if (widget.todoIdToEdit != null) {
+            currentTodoId = widget.todoIdToEdit;
+            isSuccess = await _groupService.updateGroupTodo(
+              todoId: currentTodoId!,
+              content: content,
+              date: DateFormat('yyyy-MM-dd').format(widget.selectedDate),
+            );
+          } else {
+            currentTodoId = await _groupService.createGroupTodo(
+              groupId: widget.groupId ?? 0,
+              content: content,
+              date: DateFormat('yyyy-MM-dd').format(widget.selectedDate),
+            );
+            isSuccess = (currentTodoId != null);
+          }
+          if (isSuccess && currentTodoId != null) {
             for (int memberId in finalAssigneeIds) {
               await _groupService.registerAssigneeTodo(
-                todoId: newTodoId,
+                todoId: currentTodoId,
                 memberGroupId: memberId,
               );
             }
 
             final db = LocalDatabaseSingleton.instance;
 
-            await db.insertTodo(
-              TodosCompanion.insert(
-                groupId: drift.Value(widget.groupId),
-                content: content,
-                date: widget.selectedDate,
-              ),
-            );
-            if (content.contains('(나)') || content.contains('@모두')) {
+            if (widget.todoIdToEdit != null) {
+              await db.updateTodo(
+                TodosCompanion(
+                  id: drift.Value(widget.todoIdToEdit!),
+                  content: drift.Value(content),
+                  date: drift.Value(widget.selectedDate),
+                ),
+              );
+            } else {
+              await db.insertTodo(
+                TodosCompanion.insert(
+                  groupId: drift.Value(widget.groupId),
+                  content: content,
+                  date: widget.selectedDate,
+                ),
+              );
+            }
+            if (widget.todoIdToEdit == null &&
+                (content.contains('(나)') || content.contains('@모두'))) {
               final group = await db.getGroupById(widget.groupId ?? 0);
               final groupName = group?.name ?? "ohmo";
               final todoDateStr = DateFormat(
@@ -458,7 +491,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                   type: drift.Value('group'),
                   content: drift.Value(multiLineContent),
                   timestamp: drift.Value(DateTime.now()),
-                  relatedId: drift.Value(newTodoId),
+                  relatedId: drift.Value(currentTodoId),
                   isRead: drift.Value(true),
                 ),
               );
@@ -472,7 +505,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
               ).showSnackBar(const SnackBar(content: Text("투두가 등록되었습니다!")));
             }
           } else {
-            throw Exception("서버 투두 등록 실패");
+            throw Exception(widget.todoIdToEdit != null ? "서버 투두 수정 실패" : "서버 투두 등록 실패");
           }
         } catch (e) {
           print('투두 저장 실패: $e');

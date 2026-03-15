@@ -58,6 +58,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   late final LocalDatabase _db;
   Set<int> _completedRoutineIds = {};
   Set<int> _completedTodoIds = {};
+  Map<int, int> _todoRealIdMap = {};
 
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
@@ -66,6 +67,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   int _actualMemberCount = 0;
   Map<int, int> _routineCompletionCounts = {};
   Map<int, int> _todoCompletionCounts = {};
+  Map<int, int?> _todoAssigneeIdMap = {};
   String _groupName = '...';
   StreamSubscription<String>? _sseSubscription;
 
@@ -175,7 +177,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     if (localGroup?.localColor != null) {
       colorToApply = ColorTypeExtension.fromString(localGroup!.localColor!);
     } else {
-      colorToApply = ColorTypeExtension.fromString(group['groupColor'] ?? 'pinkLight');
+      colorToApply = ColorTypeExtension.fromString(
+        group['groupColor'] ?? 'pinkLight',
+      );
     }
 
     final memberData = await _groupService.fetchGroupMembers(widget.groupId);
@@ -214,10 +218,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
     for (var item in apiTodos) {
       final int scheduleId = item['scheduleId'];
-
       final groupTodo = item['groupTodoWithAssignee'] ?? {};
-      final List<dynamic> assignees = groupTodo['memberGroupInfos'] ?? [];
       final todoInfo = groupTodo['todo'] ?? {};
+      final List<dynamic> assignees = groupTodo['memberGroupInfos'] ?? [];
+
+      // 1. 수정용 ID (진짜 투두 번호)
+      final int realServerTodoId = todoInfo['todoId'] ?? 0;
 
       int? myAssigneeId;
       bool myStatus = false;
@@ -234,6 +240,8 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       }
 
       int finalId = myAssigneeId ?? scheduleId;
+
+      _todoRealIdMap[finalId] = realServerTodoId;
 
       int totalDoneCount =
           todoInfo['doneCount'] ??
@@ -260,11 +268,34 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       if (myStatus && finalId != 0) tempCompletedTodoIds.add(finalId);
     }
 
+    Map<String, Set<String>> routineWeeksGroup = {};
+
     for (var item in apiRoutines) {
+      final content = item['content'] ?? '내용없음';
       final groupRoutine = item['groupRoutineWithAssignee'] ?? {};
+      final routineData = groupRoutine['routine'] ?? {};
+
+      String dayNum = _mapEngDayToNum(routineData['week'] ?? '');
+
+      if (!routineWeeksGroup.containsKey(content)) {
+        routineWeeksGroup[content] = {};
+      }
+      if (dayNum.isNotEmpty) {
+        routineWeeksGroup[content]!.add(dayNum);
+      }
+    }
+    for (var item in apiRoutines) {
+      final content = item['content'] ?? '내용없음';
+      final groupRoutine = item['groupRoutineWithAssignee'] ?? {};
+      final routineData = groupRoutine['routine'] ?? {};
       final List<dynamic> assignees = groupRoutine['memberGroupInfos'] ?? [];
-      final routineInfo = groupRoutine['routine'] ?? {};
-      final String content = item['content'] ?? '내용없음';
+
+      String combinedWeekDays =
+          routineWeeksGroup[content]?.toList().join(',') ?? '';
+
+      final int actualServerRoutineId =
+          routineData['routineId'] ?? item['routineId'] ?? 0;
+      final int actualScheduleId = item['scheduleId'] ?? 0;
 
       int? myAssigneeId;
       bool myStatus = false;
@@ -288,17 +319,19 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       }
 
       int totalDoneCount =
-          routineInfo['doneCount'] ??
+          routineData['doneCount'] ??
           assignees.where((a) => a['status'] == true).length;
 
       mappedRoutines.add(
         Routine(
           id: finalId,
+          routineId: actualServerRoutineId,
+          scheduleId: actualScheduleId,
           content: content,
           groupId: widget.groupId,
           startDate: DateTime.parse(item['date']),
           endDate: DateTime.now().add(const Duration(days: 90)),
-          weekDays: _mapEngDayToNum(routineInfo['week'] ?? ''),
+          weekDays: combinedWeekDays,
           colorType:
               ColorTypeExtension.fromString(
                 item['category']?['color'] ?? 'pinkLight',
@@ -380,17 +413,27 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     }
   }
 
-  String _mapEngDayToNum(String engDay) {
-    const map = {
-      'MONDAY': '1',
-      'TUESDAY': '2',
-      'WEDNESDAY': '3',
-      'THURSDAY': '4',
-      'FRIDAY': '5',
-      'SATURDAY': '6',
-      'SUNDAY': '7',
+  String _mapEngDayToNum(dynamic englishWeeks) {
+    if (englishWeeks == null) return '';
+
+    const Map<String, String> dayMap = {
+      "MONDAY": "1",
+      "TUESDAY": "2",
+      "WEDNESDAY": "3",
+      "THURSDAY": "4",
+      "FRIDAY": "5",
+      "SATURDAY": "6",
+      "SUNDAY": "7",
     };
-    return map[engDay] ?? '1';
+
+    if (englishWeeks is List) {
+      return englishWeeks
+          .map((e) => dayMap[e.toString().toUpperCase()] ?? '')
+          .where((e) => e.isNotEmpty)
+          .join(',');
+    } else {
+      return dayMap[englishWeeks.toString().toUpperCase()] ?? '';
+    }
   }
 
   void onDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -617,28 +660,29 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         isIndicatorVisible: isIndicatorVisible,
                         isCheckboxVisible: isCheckboxVisible,
                         onDataChanged: () => _fetchGroupData(selectedDate),
-                        onEditPressed: (){
+                        onEditPressed: () {
                           showModalBottomSheet(
-                              context: context,
-                              isScrollControlled:true,
-                              backgroundColor: Colors.white,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(59),
-                                  topRight: Radius.circular(59),
-                                ),
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.white,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(59),
+                                topRight: Radius.circular(59),
                               ),
-                              builder: (_)=>GroupRoutineBottomSheet(
+                            ),
+                            builder:
+                                (_) => GroupRoutineBottomSheet(
                                   groupId: widget.groupId,
-                                  routineIdToEdit:routine.id,
+                                  routineIdToEdit: routine.scheduleId,
+                                  routineToEdit: routine,
                                   selectedDate: selectedDate,
-                              onRoutineAdded: ()async{
+                                  onRoutineAdded: () async {
                                     await _fetchGroupData(selectedDate);
-                              },
-                              ),
+                                  },
+                                ),
                           );
                         },
-
                       );
                     }).toList(),
               );
@@ -693,6 +737,8 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
                       return GroupTodoCard(
                         todo: todo,
+                        todoIdForApi: _todoRealIdMap[todo.id],
+                        assigneeId: _todoAssigneeIdMap[todo.id],
                         myNickname: _myNickname,
                         isDoneForDay: _completedTodoIds.contains(todo.id),
                         selectedDate: selectedDate,
@@ -702,6 +748,28 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         isIndicatorVisible: isIndicatorVisible,
                         isCheckboxVisible: isCheckboxVisible,
                         onDataChanged: () => _refreshAllData(selectedDate),
+                        onEditPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.white,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(59),
+                                topRight: Radius.circular(59),
+                              ),
+                            ),
+                            builder:
+                                (_) => GroupTodoBottomSheet(
+                                  groupId: widget.groupId,
+                                  todoIdToEdit: _todoRealIdMap[todo.id],
+                                  todoToEdit: todo,
+                                  selectedDate: selectedDate,
+                                  onTodoAdded:
+                                      () => _refreshAllData(selectedDate),
+                                ),
+                          );
+                        },
                       );
                     }).toList(),
               );

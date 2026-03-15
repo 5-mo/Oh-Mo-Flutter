@@ -209,9 +209,21 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                         return DeleteBottomSheet(
                           onDelete: () async {
                             final groupService = GroupService();
+                            final int? serverRoutineId =
+                                widget.routine.routineId;
+
+                            if (serverRoutineId == null ||
+                                serverRoutineId == 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('서버와 연결되지 않은 루틴은 삭제할 수 없습니다.'),
+                                ),
+                              );
+                              return;
+                            }
 
                             bool isSuccess = await groupService
-                                .deleteGroupRoutine(widget.routine.id);
+                                .deleteGroupRoutine(serverRoutineId);
 
                             if (isSuccess) {
                               final db = LocalDatabaseSingleton.instance;
@@ -221,9 +233,6 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                               );
 
                               widget.onDataChanged?.call();
-
-                              if (Navigator.canPop(context))
-                                Navigator.pop(context);
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -240,7 +249,7 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                     color: Colors.transparent,
                     padding: const EdgeInsets.all(2.0),
                     child: SvgPicture.asset(
-                      'android/assets/images/routine_alarm.svg',
+                      'android/assets/images/todo_alarm.svg',
                     ),
                   ),
                 ),

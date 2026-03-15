@@ -145,6 +145,9 @@ class GroupService {
       "routineWeek": routineWeek,
       "time": time ?? "00:00",
     };
+    print("PATCH 요청 URL: $url");
+    print("PATCH 요청 바디: ${jsonEncode(body)}");
+
     try {
       final response = await AuthService.authenticatedRequest(
         (token) => http.patch(
@@ -157,6 +160,7 @@ class GroupService {
         ),
       );
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      print("수정 서버 응답 바디: $decodedData");
       return response.statusCode == 200 && decodedData['isSuccess'] == true;
     } catch (e) {
       print('루틴 수정 에러 : $e');
@@ -221,6 +225,66 @@ class GroupService {
           : null;
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<bool> updateGroupTodo({
+    required int todoId,
+    required String content,
+    required String date,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/todo/$todoId');
+
+    final Map<String, dynamic> body = {
+      "content": content,
+      "date": date,
+      "time": null,
+      "alarmTime": null,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteGroupTodo(int todoId) async {
+    final url = Uri.parse('$baseUrl/group-schedule/todo/$todoId');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        if (response.body.isEmpty) return true;
+        final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+        return decodedData['isSuccess'] == true;
+      } else {
+        print('그룹 투두 삭제 실패 : ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('그룹 투두 삭제 에러 : $e');
+      return false;
     }
   }
 
