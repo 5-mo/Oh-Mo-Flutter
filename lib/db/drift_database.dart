@@ -19,11 +19,13 @@ part 'drift_database.g.dart';
 
 class MemberInfo {
   final int userId;
+  final int? memberGroupId;
   final String nickname;
   final String role;
 
   MemberInfo({
     required this.userId,
+    this.memberGroupId,
     required this.nickname,
     required this.role,
   });
@@ -607,7 +609,11 @@ class LocalDatabase extends _$LocalDatabase {
     )).write(GroupsCompanion(colorType: Value(color.index)));
   }
 
-  Future<void> updateLocalColor(int groupId, ColorType color, String groupName) async {
+  Future<void> updateLocalColor(
+    int groupId,
+    ColorType color,
+    String groupName,
+  ) async {
     await into(groups).insertOnConflictUpdate(
       GroupsCompanion.insert(
         id: drift.Value(groupId),
@@ -668,6 +674,7 @@ class LocalDatabase extends _$LocalDatabase {
       final member = row.readTable(groupMembers);
       return MemberInfo(
         userId: user.id,
+        memberGroupId: member.memberGroupId,
         nickname: user.nickname,
         role: member.role,
       );

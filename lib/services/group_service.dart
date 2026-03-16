@@ -72,6 +72,35 @@ class GroupService {
     }
   }
 
+  Future<bool> delegateGroupManager({
+    required int groupId,
+    required int targetMemberGroupId,
+  }) async {
+    final url = Uri.parse('$baseUrl/group/manager');
+    final body = {
+      "groupId": groupId,
+      "targetMemberGroupId": targetMemberGroupId,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      print('방장 위임 에러 : $e');
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>?> getGroupDetail(int groupId) async {
     final List<dynamic> groups = await fetchGroups();
 

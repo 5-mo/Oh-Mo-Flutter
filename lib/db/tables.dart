@@ -18,6 +18,7 @@ class Groups extends Table{
 class GroupMembers extends Table {
   IntColumn get groupId => integer().references(Groups, #id)();
   IntColumn get userId => integer().references(Users, #id)();
+  IntColumn get memberGroupId=> integer().nullable()();
   TextColumn get role => text().withDefault(const Constant('MEMBER'))();
 
   @override

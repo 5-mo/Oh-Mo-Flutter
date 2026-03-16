@@ -4600,6 +4600,17 @@ class $GroupMembersTable extends GroupMembers
       'REFERENCES users (id)',
     ),
   );
+  static const drift.VerificationMeta _memberGroupIdMeta =
+      const drift.VerificationMeta('memberGroupId');
+  @override
+  late final drift.GeneratedColumn<int> memberGroupId =
+      drift.GeneratedColumn<int>(
+        'member_group_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   static const drift.VerificationMeta _roleMeta = const drift.VerificationMeta(
     'role',
   );
@@ -4613,7 +4624,12 @@ class $GroupMembersTable extends GroupMembers
     defaultValue: const drift.Constant('MEMBER'),
   );
   @override
-  List<drift.GeneratedColumn> get $columns => [groupId, userId, role];
+  List<drift.GeneratedColumn> get $columns => [
+    groupId,
+    userId,
+    memberGroupId,
+    role,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4642,6 +4658,15 @@ class $GroupMembersTable extends GroupMembers
     } else if (isInserting) {
       context.missing(_userIdMeta);
     }
+    if (data.containsKey('member_group_id')) {
+      context.handle(
+        _memberGroupIdMeta,
+        memberGroupId.isAcceptableOrUnknown(
+          data['member_group_id']!,
+          _memberGroupIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('role')) {
       context.handle(
         _roleMeta,
@@ -4667,6 +4692,10 @@ class $GroupMembersTable extends GroupMembers
             DriftSqlType.int,
             data['${effectivePrefix}user_id'],
           )!,
+      memberGroupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}member_group_id'],
+      ),
       role:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -4685,10 +4714,12 @@ class GroupMember extends drift.DataClass
     implements drift.Insertable<GroupMember> {
   final int groupId;
   final int userId;
+  final int? memberGroupId;
   final String role;
   const GroupMember({
     required this.groupId,
     required this.userId,
+    this.memberGroupId,
     required this.role,
   });
   @override
@@ -4696,6 +4727,9 @@ class GroupMember extends drift.DataClass
     final map = <String, drift.Expression>{};
     map['group_id'] = drift.Variable<int>(groupId);
     map['user_id'] = drift.Variable<int>(userId);
+    if (!nullToAbsent || memberGroupId != null) {
+      map['member_group_id'] = drift.Variable<int>(memberGroupId);
+    }
     map['role'] = drift.Variable<String>(role);
     return map;
   }
@@ -4704,6 +4738,10 @@ class GroupMember extends drift.DataClass
     return GroupMembersCompanion(
       groupId: drift.Value(groupId),
       userId: drift.Value(userId),
+      memberGroupId:
+          memberGroupId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(memberGroupId),
       role: drift.Value(role),
     );
   }
@@ -4716,6 +4754,7 @@ class GroupMember extends drift.DataClass
     return GroupMember(
       groupId: serializer.fromJson<int>(json['groupId']),
       userId: serializer.fromJson<int>(json['userId']),
+      memberGroupId: serializer.fromJson<int?>(json['memberGroupId']),
       role: serializer.fromJson<String>(json['role']),
     );
   }
@@ -4725,20 +4764,31 @@ class GroupMember extends drift.DataClass
     return <String, dynamic>{
       'groupId': serializer.toJson<int>(groupId),
       'userId': serializer.toJson<int>(userId),
+      'memberGroupId': serializer.toJson<int?>(memberGroupId),
       'role': serializer.toJson<String>(role),
     };
   }
 
-  GroupMember copyWith({int? groupId, int? userId, String? role}) =>
-      GroupMember(
-        groupId: groupId ?? this.groupId,
-        userId: userId ?? this.userId,
-        role: role ?? this.role,
-      );
+  GroupMember copyWith({
+    int? groupId,
+    int? userId,
+    drift.Value<int?> memberGroupId = const drift.Value.absent(),
+    String? role,
+  }) => GroupMember(
+    groupId: groupId ?? this.groupId,
+    userId: userId ?? this.userId,
+    memberGroupId:
+        memberGroupId.present ? memberGroupId.value : this.memberGroupId,
+    role: role ?? this.role,
+  );
   GroupMember copyWithCompanion(GroupMembersCompanion data) {
     return GroupMember(
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       userId: data.userId.present ? data.userId.value : this.userId,
+      memberGroupId:
+          data.memberGroupId.present
+              ? data.memberGroupId.value
+              : this.memberGroupId,
       role: data.role.present ? data.role.value : this.role,
     );
   }
@@ -4748,36 +4798,41 @@ class GroupMember extends drift.DataClass
     return (StringBuffer('GroupMember(')
           ..write('groupId: $groupId, ')
           ..write('userId: $userId, ')
+          ..write('memberGroupId: $memberGroupId, ')
           ..write('role: $role')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(groupId, userId, role);
+  int get hashCode => Object.hash(groupId, userId, memberGroupId, role);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is GroupMember &&
           other.groupId == this.groupId &&
           other.userId == this.userId &&
+          other.memberGroupId == this.memberGroupId &&
           other.role == this.role);
 }
 
 class GroupMembersCompanion extends drift.UpdateCompanion<GroupMember> {
   final drift.Value<int> groupId;
   final drift.Value<int> userId;
+  final drift.Value<int?> memberGroupId;
   final drift.Value<String> role;
   final drift.Value<int> rowid;
   const GroupMembersCompanion({
     this.groupId = const drift.Value.absent(),
     this.userId = const drift.Value.absent(),
+    this.memberGroupId = const drift.Value.absent(),
     this.role = const drift.Value.absent(),
     this.rowid = const drift.Value.absent(),
   });
   GroupMembersCompanion.insert({
     required int groupId,
     required int userId,
+    this.memberGroupId = const drift.Value.absent(),
     this.role = const drift.Value.absent(),
     this.rowid = const drift.Value.absent(),
   }) : groupId = drift.Value(groupId),
@@ -4785,12 +4840,14 @@ class GroupMembersCompanion extends drift.UpdateCompanion<GroupMember> {
   static drift.Insertable<GroupMember> custom({
     drift.Expression<int>? groupId,
     drift.Expression<int>? userId,
+    drift.Expression<int>? memberGroupId,
     drift.Expression<String>? role,
     drift.Expression<int>? rowid,
   }) {
     return drift.RawValuesInsertable({
       if (groupId != null) 'group_id': groupId,
       if (userId != null) 'user_id': userId,
+      if (memberGroupId != null) 'member_group_id': memberGroupId,
       if (role != null) 'role': role,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4799,12 +4856,14 @@ class GroupMembersCompanion extends drift.UpdateCompanion<GroupMember> {
   GroupMembersCompanion copyWith({
     drift.Value<int>? groupId,
     drift.Value<int>? userId,
+    drift.Value<int?>? memberGroupId,
     drift.Value<String>? role,
     drift.Value<int>? rowid,
   }) {
     return GroupMembersCompanion(
       groupId: groupId ?? this.groupId,
       userId: userId ?? this.userId,
+      memberGroupId: memberGroupId ?? this.memberGroupId,
       role: role ?? this.role,
       rowid: rowid ?? this.rowid,
     );
@@ -4818,6 +4877,9 @@ class GroupMembersCompanion extends drift.UpdateCompanion<GroupMember> {
     }
     if (userId.present) {
       map['user_id'] = drift.Variable<int>(userId.value);
+    }
+    if (memberGroupId.present) {
+      map['member_group_id'] = drift.Variable<int>(memberGroupId.value);
     }
     if (role.present) {
       map['role'] = drift.Variable<String>(role.value);
@@ -4833,6 +4895,7 @@ class GroupMembersCompanion extends drift.UpdateCompanion<GroupMember> {
     return (StringBuffer('GroupMembersCompanion(')
           ..write('groupId: $groupId, ')
           ..write('userId: $userId, ')
+          ..write('memberGroupId: $memberGroupId, ')
           ..write('role: $role, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -8528,6 +8591,7 @@ typedef $$GroupMembersTableCreateCompanionBuilder =
     GroupMembersCompanion Function({
       required int groupId,
       required int userId,
+      drift.Value<int?> memberGroupId,
       drift.Value<String> role,
       drift.Value<int> rowid,
     });
@@ -8535,6 +8599,7 @@ typedef $$GroupMembersTableUpdateCompanionBuilder =
     GroupMembersCompanion Function({
       drift.Value<int> groupId,
       drift.Value<int> userId,
+      drift.Value<int?> memberGroupId,
       drift.Value<String> role,
       drift.Value<int> rowid,
     });
@@ -8591,6 +8656,11 @@ class $$GroupMembersTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  drift.ColumnFilters<int> get memberGroupId => $composableBuilder(
+    column: $table.memberGroupId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
   drift.ColumnFilters<String> get role => $composableBuilder(
     column: $table.role,
     builder: (column) => drift.ColumnFilters(column),
@@ -8652,6 +8722,11 @@ class $$GroupMembersTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  drift.ColumnOrderings<int> get memberGroupId => $composableBuilder(
+    column: $table.memberGroupId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
   drift.ColumnOrderings<String> get role => $composableBuilder(
     column: $table.role,
     builder: (column) => drift.ColumnOrderings(column),
@@ -8713,6 +8788,11 @@ class $$GroupMembersTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  drift.GeneratedColumn<int> get memberGroupId => $composableBuilder(
+    column: $table.memberGroupId,
+    builder: (column) => column,
+  );
+
   drift.GeneratedColumn<String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
 
@@ -8794,11 +8874,13 @@ class $$GroupMembersTableTableManager
               ({
                 drift.Value<int> groupId = const drift.Value.absent(),
                 drift.Value<int> userId = const drift.Value.absent(),
+                drift.Value<int?> memberGroupId = const drift.Value.absent(),
                 drift.Value<String> role = const drift.Value.absent(),
                 drift.Value<int> rowid = const drift.Value.absent(),
               }) => GroupMembersCompanion(
                 groupId: groupId,
                 userId: userId,
+                memberGroupId: memberGroupId,
                 role: role,
                 rowid: rowid,
               ),
@@ -8806,11 +8888,13 @@ class $$GroupMembersTableTableManager
               ({
                 required int groupId,
                 required int userId,
+                drift.Value<int?> memberGroupId = const drift.Value.absent(),
                 drift.Value<String> role = const drift.Value.absent(),
                 drift.Value<int> rowid = const drift.Value.absent(),
               }) => GroupMembersCompanion.insert(
                 groupId: groupId,
                 userId: userId,
+                memberGroupId: memberGroupId,
                 role: role,
                 rowid: rowid,
               ),
