@@ -431,9 +431,8 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     );
     if (confirmed == true) {
       try {
-        await _db.leaveGroup(widget.groupId, currentUserId);
-
-        if (mounted) {
+        final bool isSuccess=await GroupService().leaveGroup(widget.groupId);
+        if (isSuccess&&mounted) {
           Navigator.of(pageContext).pop('leave');
         }
       } catch (e) {

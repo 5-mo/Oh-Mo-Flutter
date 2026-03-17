@@ -25,14 +25,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -47,18 +48,58 @@ class GroupService {
     }
   }
 
+  Future<bool> leaveGroup(int groupId) async {
+    final url = Uri.parse('$baseUrl/group/leave');
+    final Map<String, dynamic> body = {
+      "groupId": groupId,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+              (token) =>
+              http.delete(
+                url,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer $token',
+                  'Accept': 'application/json',
+                },
+                body: jsonEncode(body),
+              )
+      );
+      if (response.statusCode == 500) {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        print('서버 DB 제약 조건 에러: ${errorData['message']}');
+        throw Exception('서버 데이터 제약 조건으로 인해 그룹을 나갈 수 없습니다. (관리자 문의)');
+      }
+
+      if (response.body.isEmpty) return true;
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        return true;
+      } else {
+        throw Exception(data['message'] ?? '그룹 나가기 실패');
+      }
+    } catch (e) {
+      print('그룹 나가기 통신 에러: $e');
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchGroups() async {
     final url = Uri.parse('$baseUrl/group');
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
-          url,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-        ),
+            (token) =>
+            http.get(
+              url,
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/json',
+              },
+            ),
       );
 
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
@@ -84,14 +125,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.patch(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.patch(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       return response.statusCode == 200 && decoded['isSuccess'] == true;
@@ -122,7 +164,7 @@ class GroupService {
     final url = Uri.parse('$baseUrl/group-schedule/routine');
 
     String formattedTime =
-        (time == null || time.isEmpty) ? "00:00" : time.trim().substring(0, 5);
+    (time == null || time.isEmpty) ? "00:00" : time.trim().substring(0, 5);
 
     final Map<String, dynamic> body = {
       "groupId": groupId,
@@ -132,21 +174,24 @@ class GroupService {
       "time": formattedTime,
     };
 
-    if (alarmTime != null && alarmTime.trim().isNotEmpty) {
+    if (alarmTime != null && alarmTime
+        .trim()
+        .isNotEmpty) {
       body["alarmTime"] = alarmTime.substring(0, 5);
     }
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.post(
+              url,
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/json',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
@@ -179,14 +224,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.patch(
-          url,
-          headers: {
-            'Content-Type': 'application/json;charset=utf-8',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.patch(
+              url,
+              headers: {
+                'Content-Type': 'application/json;charset=utf-8',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
       print("수정 서버 응답 바디: $decodedData");
@@ -202,10 +248,11 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.delete(
-          url,
-          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
-        ),
+            (token) =>
+            http.delete(
+              url,
+              headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+            ),
       );
 
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
@@ -238,14 +285,15 @@ class GroupService {
     };
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -273,15 +321,16 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.patch(
-          url,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.patch(
+              url,
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/json',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -297,10 +346,11 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.delete(
-          url,
-          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
-        ),
+            (token) =>
+            http.delete(
+              url,
+              headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+            ),
       );
 
       if (response.statusCode == 200) {
@@ -325,14 +375,15 @@ class GroupService {
     final body = {"todoId": todoId, "memberGroupId": memberGroupId};
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       if (response.statusCode == 200) {
@@ -352,7 +403,8 @@ class GroupService {
     );
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(url, headers: {'Authorization': 'Bearer $token'}),
+            (token) =>
+            http.get(url, headers: {'Authorization': 'Bearer $token'}),
       );
       final decoded = json.decode(utf8.decode(response.bodyBytes));
       return (decoded['isSuccess'] == true) ? decoded['result'] : [];
@@ -368,10 +420,11 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
-          url,
-          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
-        ),
+            (token) =>
+            http.get(
+              url,
+              headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+            ),
       );
 
       final decoded = json.decode(utf8.decode(response.bodyBytes));
@@ -394,14 +447,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
-          url,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json; charset=utf-8',
-          },
-        ),
+            (token) =>
+            http.get(
+              url,
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
+              },
+            ),
       );
 
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
@@ -422,14 +476,15 @@ class GroupService {
     ).replace(queryParameters: {'groupId': groupId.toString()});
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
-          url,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json; charset=utf-8',
-          },
-        ),
+            (token) =>
+            http.get(
+              url,
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
+              },
+            ),
       );
 
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
@@ -454,15 +509,17 @@ class GroupService {
     for (int mId in memberGroupIdList) {
       try {
         final response = await AuthService.authenticatedRequest(
-          (token) => http.post(
-            url,
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              'Authorization': 'Bearer $token',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({"routineId": routineId, "memberGroupId": mId}),
-          ),
+              (token) =>
+              http.post(
+                url,
+                headers: {
+                  'Content-Type': 'application/json; charset=utf-8',
+                  'Authorization': 'Bearer $token',
+                  'Accept': 'application/json',
+                },
+                body: jsonEncode(
+                    {"routineId": routineId, "memberGroupId": mId}),
+              ),
         );
 
         final decodedData = json.decode(utf8.decode(response.bodyBytes));
@@ -488,14 +545,15 @@ class GroupService {
     final body = {"groupId": groupId, "nickname": nickname};
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.patch(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.patch(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -520,14 +578,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
       final data = jsonDecode(utf8.decode(response.bodyBytes));
 
@@ -558,14 +617,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.delete(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.delete(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
       final data = jsonDecode(utf8.decode(response.bodyBytes));
       if (response.statusCode == 200 && data['isSuccess'] == true) return true;
@@ -582,11 +642,12 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
-          body: '',
-        ),
+            (token) =>
+            http.post(
+              url,
+              headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+              body: '',
+            ),
       );
 
       if (response.statusCode == 200) {
@@ -611,14 +672,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -645,13 +707,14 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
-          url,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-        ),
+            (token) =>
+            http.get(
+              url,
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/json',
+              },
+            ),
       );
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
       return (response.statusCode == 200 && decodedData['isSuccess'] == true)
@@ -671,7 +734,8 @@ class GroupService {
     );
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(url, headers: {'Authorization': 'Bearer $token'}),
+            (token) =>
+            http.get(url, headers: {'Authorization': 'Bearer $token'}),
       );
       final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
       return (response.statusCode == 200 && decodedData['isSuccess'] == true)
@@ -694,14 +758,15 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.patch(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(body),
-        ),
+            (token) =>
+            http.patch(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(body),
+            ),
       );
 
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -718,10 +783,11 @@ class GroupService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.delete(
-          url,
-          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
-        ),
+            (token) =>
+            http.delete(
+              url,
+              headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+            ),
       );
 
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
