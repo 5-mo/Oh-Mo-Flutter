@@ -5,6 +5,8 @@ import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/monthly_schedule_response.dart';
 import 'package:ohmo/models/daily_schedule_response.dart';
 import 'package:ohmo/screen/daylog_screen.dart';
+import 'package:ohmo/screen/group/group_main_screen.dart';
+import 'package:ohmo/screen/home_screen_to_group_screen.dart';
 import 'package:ohmo/screen/my_screen.dart';
 import 'package:ohmo/component/routine_banner.dart';
 import 'package:ohmo/component/routine_card.dart';
@@ -1177,11 +1179,16 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                               day.day,
                             );
                             final events = calendarEvents[normalizedDay] ?? [];
-
                             return events;
                           },
                           onPageChanged: widget.onPageChanged,
                           hasUnread: hasUnread,
+                          onGroupIconPressed: (){
+                            Navigator.push(context, MaterialPageRoute(
+                                builder: (context) => HomeScreenToGroupScreen(),
+                            ),
+                            );
+                          },
                           onAlarmIconPressed: () {
                             Navigator.push(
                               context,
