@@ -222,7 +222,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       final todoInfo = groupTodo['todo'] ?? {};
       final List<dynamic> assignees = groupTodo['memberGroupInfos'] ?? [];
 
-      // 1. 수정용 ID (진짜 투두 번호)
       final int realServerTodoId = todoInfo['todoId'] ?? 0;
 
       int? myAssigneeId;
@@ -350,7 +349,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     bool hasItems = mappedTodos.isNotEmpty || mappedRoutines.isNotEmpty;
     bool allTodosDone = mappedTodos.every((t) => t.isDone);
     bool allRoutinesDone = mappedRoutines.every((r) => r.isDone);
-    bool isDayFullyCleared = hasItems && allTodosDone && allRoutinesDone;
+    bool isDayFullyCleared = mappedTodos.isNotEmpty && allTodosDone;
 
     if (mounted) {
       setState(() {

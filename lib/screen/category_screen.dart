@@ -135,13 +135,38 @@ class _CategoryScreenState extends State<CategoryScreen> {
     final List<Map<String, dynamic>> groupWithMembers = await Future.wait(
       fetchedGroups.map((group) async {
         final int groupId = group['groupId'];
+        final String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
         final memberData = await _groupService.fetchGroupMembers(groupId);
+        final scheduleData = await _groupService.fetchGroupSchedules(
+          groupId: groupId,
+          date: todayStr,
+        );
+        Map<int, int> memberTotalCount = {};
+        Map<int, int> memberDoneCount = {};
 
-        final localGroup = await _db.getGroupById(groupId);
+        // 3. 투두/루틴을 돌면서 각 담당자(assignee)의 상태를 집계합니다.
+        void countSchedules(List<dynamic> schedules) {
+          for (var s in schedules) {
+            // 투두/루틴 구조에 따라 assignee 리스트 위치가 다를 수 있으니 확인 필요
+            final groupData =
+                s['groupTodoWithAssignee'] ??
+                s['groupRoutineWithAssignee'] ??
+                {};
+            final List<dynamic> assignees = groupData['memberGroupInfos'] ?? [];
 
-        final String finalColorType =
-            localGroup?.localColor ?? group['groupColor'] ?? 'pinkLight';
+            for (var a in assignees) {
+              final mInfo = a['memberGroupInfo'] ?? {};
+              int mId = mInfo['memberGroupId'];
+              bool isDone = a['status'] ?? false;
 
+              memberTotalCount[mId] = (memberTotalCount[mId] ?? 0) + 1;
+              if (isDone) {
+                memberDoneCount[mId] = (memberDoneCount[mId] ?? 0) + 1;
+              }
+            }
+          }
+        }
 
         final List<dynamic> members =
             memberData != null
@@ -150,17 +175,37 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     [])
                 : [];
 
-        final myEmail = await _groupService.getMyEmail();
+        final List<dynamic> allTodos =
+            scheduleData != null ? (scheduleData['todos'] ?? []) : [];
+        final List<dynamic> allRoutines =
+            scheduleData != null ? (scheduleData['routines'] ?? []) : [];
 
-        final myInfo = members.firstWhere(
-          (m) => m['memberInfo']['email'] == myEmail,
-          orElse: () => null,
-        );
+        countSchedules(allTodos);
+        countSchedules(allRoutines);
+
+        final processedMembers =
+            members.map((m) {
+              int mId = m['memberGroupId'];
+              int total = memberTotalCount[mId] ?? 0;
+              int done = memberDoneCount[mId] ?? 0;
+              double progress = total > 0 ? done / total : 0.0;
+
+              return {...m, 'calculatedProgress': progress};
+            }).toList();
+
+        final localGroup = await _db.getGroupById(groupId);
+        final String finalColorType =
+            localGroup?.localColor ?? group['groupColor'] ?? 'pinkLight';
+        final myEmail = await _groupService.getMyEmail();
+        final myInfo =
+            members
+                .where((m) => m['memberInfo']['email'] == myEmail)
+                .firstOrNull;
 
         return {
           ...group,
           'groupColor': finalColorType,
-          'members': members,
+          'members': processedMembers,
           'myRole': myInfo?['role'],
           'totalCount': memberData != null ? memberData['numPeople'] : 0,
         };
@@ -1358,11 +1403,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       ColorTypeExtension.fromString(colorTypeString),
     );
     final List<dynamic> members = group['members'] ?? [];
-    final myInfo = members.firstWhere(
-      (m) => m['memberInfo']['email'] == "",
-      orElse: () => null,
-    );
-    final int totalCount = group['totalCount'] ?? members.length;
+
     return InkWell(
       onTap: () async {
         if (groupId == null) {
@@ -1471,11 +1512,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   ...members.take(6).map((member) {
-                    final memberInfo = member['memberInfo'] ?? {};
+                    final dynamic m = member;
+                    final memberInfo = m['memberInfo'] ?? {};
                     final String? profileUrl = memberInfo['profileImageUrl'];
+
+                    final double progress =
+                        (m['calculatedProgress'] ?? 0.0).toDouble();
+
                     return Padding(
                       padding: const EdgeInsets.only(right: 4.0),
-                      child: _buildMemberProfile(profileUrl, 0.2, color),
+                      child: _buildMemberProfile(profileUrl, progress, color),
                     );
                   }).toList(),
                 ],
