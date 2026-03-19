@@ -508,12 +508,14 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final allRoutines = await database.getAllRoutines();
+
+    final allRoutines=await database.getAllRoutines();
+    final personalRoutinesOnly=allRoutines.where((r)=>r.groupId==null).toList();
 
     final dateOnly = DateTime(date.year, date.month, date.day);
     final completedIds = await database.getCompletedRoutineIds(dateOnly);
 
-    return allRoutines.map((r) {
+    return personalRoutinesOnly.map((r) {
       return Routine(
         id: r.id,
         content: r.content,
