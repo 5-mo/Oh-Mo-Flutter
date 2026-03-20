@@ -377,6 +377,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
             _dailyAnswers = Map<String, String>.from(
               jsonDecode(existingLog.answerMapJson!),
             );
+          } else {
+            _dailyAnswers = {};
           }
         } else {
           _diaryController.clear();
@@ -432,16 +434,26 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Future<void> _updateFocusedDay(DateTime newDate) async {
     setState(() {
       _focusedDay = newDate;
-      _monthlyProgressFuture = _calculateMonthlyProgress();
-
-      if (widget.selectedDateNotifier.value != newDate) {
-        widget.selectedDateNotifier.value = newDate;
-      }
+      _answerController.clear();
+      _diaryController.clear();
+      _dailyAnswers.clear();
+      selectedQuestion = null;
+      _resetIconState();
     });
+
+    if (widget.selectedDateNotifier.value != newDate) {
+      widget.selectedDateNotifier.value = newDate;
+    }
 
     _filterTodosForSelectedDate();
     await logWeeklyData(newDate);
     await _loadDayLogData(newDate);
+
+    if (mounted) {
+      setState(() {
+        _monthlyProgressFuture = _calculateMonthlyProgress();
+      });
+    }
   }
 
   Future<void> logWeeklyData(DateTime date) async {
@@ -509,8 +521,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Future<List<Routine>> fetchRoutines(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
 
-    final allRoutines=await database.getAllRoutines();
-    final personalRoutinesOnly=allRoutines.where((r)=>r.groupId==null).toList();
+    final allRoutines = await database.getAllRoutines();
+    final personalRoutinesOnly =
+        allRoutines.where((r) => r.groupId == null).toList();
 
     final dateOnly = DateTime(date.year, date.month, date.day);
     final completedIds = await database.getCompletedRoutineIds(dateOnly);
