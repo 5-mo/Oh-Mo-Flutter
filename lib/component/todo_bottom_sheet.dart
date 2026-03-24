@@ -53,65 +53,67 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
 
-    await _loadCategories();
+    final loadedTodos = await _loadCategories();
 
     if (widget.todoIdToEdit != null) {
-      await _loadDataForEdit(widget.todoIdToEdit!);
-    } else {
-      print('[TodoSheet] 신규 등록 모드');
+      await _loadDataForEdit(widget.todoIdToEdit!, loadedTodos);
     }
 
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        todos = loadedTodos;
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _loadDataForEdit(int todoId) async {
+  Future<void> _loadDataForEdit(
+    int todoId,
+    List<CategoryItem> currentTodos,
+  ) async {
     final db = LocalDatabaseSingleton.instance;
     final todo = await db.getTodoById(todoId);
     if (todo == null) return;
 
-    setState(() {
-      contentController.text = todo.content;
-      _currentDate = todo.date;
-      _existingAlarmMinutes = todo.alarmMinutes;
+    contentController.text = todo.content;
+    _currentDate = todo.date;
+    _existingAlarmMinutes = todo.alarmMinutes;
 
-      if (todo.timeMinutes != null) {
-        selectedTime = TimeOfDay(
-          hour: todo.timeMinutes! ~/ 60,
-          minute: todo.timeMinutes! % 60,
+    if (todo.timeMinutes != null) {
+      selectedTime = TimeOfDay(
+        hour: todo.timeMinutes! ~/ 60,
+        minute: todo.timeMinutes! % 60,
+      );
+      isChecked = true;
+    } else {
+      selectedTime = null;
+      isChecked = false;
+    }
+
+    if (todo.categoryId != null) {
+      try {
+        final matchedCategory = currentTodos.firstWhere(
+          (cat) => cat.id == todo.categoryId,
+          orElse:
+              () => CategoryItem(
+                id: -1,
+                categoryName: 'unknown',
+                colorType: 'black',
+                scheduleType: '',
+              ),
         );
-        isChecked = true;
-      } else {
-        selectedTime = null;
-        isChecked = false;
-      }
 
-      if (todo.categoryId != null) {
-        try {
-          final matchedCategory = todos.firstWhere(
-            (cat) => cat.id == todo.categoryId,
-            orElse:
-                () => CategoryItem(
-                  id: -1,
-                  categoryName: 'unknown',
-                  colorType: 'black',
-                  scheduleType: '',
-                ),
-          );
-
-          if (matchedCategory.id != -1) {
-            if (matchedCategory.categoryName == 'default') {
-              selectedCategoryId = null;
-            } else {
-              selectedCategoryId = matchedCategory.id;
-            }
+        if (matchedCategory.id != -1) {
+          if (matchedCategory.categoryName == 'default') {
+            selectedCategoryId = null;
+          } else {
+            selectedCategoryId = matchedCategory.id;
           }
-        } catch (e) {
-          selectedCategoryId = null;
         }
+      } catch (e) {
+        selectedCategoryId = null;
       }
-    });
+    }
   }
 
   @override
@@ -708,7 +710,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     }
   }
 
-  Future<void> _loadCategories() async {
+  Future<List<CategoryItem>> _loadCategories() async {
     final localDb = LocalDatabaseSingleton.instance;
     final categoryRepo = LocalCategoryRepository(localDb);
     final categoryService = CategoryService();
@@ -766,16 +768,8 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
       }
     } catch (e) {
       print('카테고리 동기화 실패 (인터넷 문제 등): $e');
-    } finally {
-      final loadedTodos = await categoryRepo.fetchCategories(
-        scheduleType: 'TO_DO',
-      );
-      if (mounted) {
-        setState(() {
-          todos = loadedTodos;
-        });
-      }
     }
+    return await categoryRepo.fetchCategories(scheduleType: 'TO_DO');
   }
 
   String _mapServerColorToLocal(String serverColor) {

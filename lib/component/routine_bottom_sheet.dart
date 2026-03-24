@@ -68,12 +68,19 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
-    await _loadCategories();
+
+    final finalCategories = await _loadCategories();
 
     if (widget.routineIdToEdit != null) {
       await _loadDataForEdit(widget.routineIdToEdit!);
     }
-    setState(() => _isLoading = false);
+
+    if (mounted) {
+      setState(() {
+        routines = finalCategories;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadDataForEdit(int routineId) async {
@@ -733,7 +740,13 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           } else {
             final defaultCat = routines.firstWhere(
               (cat) => cat.categoryName == 'default',
-              orElse: () => CategoryItem(id: -1, categoryName: 'default', colorType: 'uncategorizedBlack', scheduleType: 'ROUTINE'),
+              orElse:
+                  () => CategoryItem(
+                    id: -1,
+                    categoryName: 'default',
+                    colorType: 'uncategorizedBlack',
+                    scheduleType: 'ROUTINE',
+                  ),
             );
             localCategoryId = defaultCat.id;
             realServerCategoryId = defaultCat.serverId ?? 0;
@@ -996,16 +1009,22 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
   }
 
   Future<void> _splitRoutine(
-      LocalDatabase db,
-      RoutinesCompanion newRoutineData,
-      DateTime splitDate,
-      ) async {
+    LocalDatabase db,
+    RoutinesCompanion newRoutineData,
+    DateTime splitDate,
+  ) async {
     final profile = Provider.of<ProfileData>(context, listen: false);
     final routineService = RoutineService();
 
-    final normalizedSplitDate = DateTime(splitDate.year, splitDate.month, splitDate.day);
+    final normalizedSplitDate = DateTime(
+      splitDate.year,
+      splitDate.month,
+      splitDate.day,
+    );
     final oldEndDate = normalizedSplitDate.subtract(const Duration(days: 1));
-    final String oldRoutineEndDateStr = DateFormat('yyyy-MM-dd').format(oldEndDate);
+    final String oldRoutineEndDateStr = DateFormat(
+      'yyyy-MM-dd',
+    ).format(oldEndDate);
 
     setState(() => _isLoading = true);
 
@@ -1014,12 +1033,17 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       if (oldRoutine == null) return;
 
       bool oldRoutineSynced = false;
-      if (!profile.isGuest && oldRoutine.scheduleId != null && oldRoutine.scheduleId != 0) {
+      if (!profile.isGuest &&
+          oldRoutine.scheduleId != null &&
+          oldRoutine.scheduleId != 0) {
         int actualServerCategoryId = 0;
         try {
           final catMatch = routines.firstWhere(
-                (c) => c.id == oldRoutine.categoryId || c.serverId == oldRoutine.categoryId,
-            orElse: () => routines.firstWhere((c) => c.categoryName == 'default'),
+            (c) =>
+                c.id == oldRoutine.categoryId ||
+                c.serverId == oldRoutine.categoryId,
+            orElse:
+                () => routines.firstWhere((c) => c.categoryName == 'default'),
           );
           actualServerCategoryId = catMatch.serverId ?? 0;
         } catch (e) {
@@ -1028,7 +1052,8 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
         String oldTimeStr = "";
         if (oldRoutine.timeMinutes != null) {
-          oldTimeStr = "${(oldRoutine.timeMinutes! ~/ 60).toString().padLeft(2, '0')}:${(oldRoutine.timeMinutes! % 60).toString().padLeft(2, '0')}";
+          oldTimeStr =
+              "${(oldRoutine.timeMinutes! ~/ 60).toString().padLeft(2, '0')}:${(oldRoutine.timeMinutes! % 60).toString().padLeft(2, '0')}";
         }
 
         final bool isPatchSuccess = await routineService.updateRoutine(
@@ -1038,7 +1063,10 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
           content: oldRoutine.content,
           date: oldRoutineEndDateStr,
           routineWeek: _convertDaysToEng(
-            oldRoutine.weekDays!.split(',').map((e) => _dayMapReverse[int.parse(e.trim())]!).toList(),
+            oldRoutine.weekDays!
+                .split(',')
+                .map((e) => _dayMapReverse[int.parse(e.trim())]!)
+                .toList(),
           ),
         );
         if (isPatchSuccess) oldRoutineSynced = true;
@@ -1050,22 +1078,26 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
       String? newTimeStr;
       if (selectedTime != null) {
-        newTimeStr = "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
+        newTimeStr =
+            "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
       }
 
       if (!profile.isGuest) {
-        final String newRoutineEndDateStr = DateFormat('yyyy-MM-dd').format(selectedEndDate!);
+        final String newRoutineEndDateStr = DateFormat(
+          'yyyy-MM-dd',
+        ).format(selectedEndDate!);
         final List<String> newRoutineWeekEng = _convertDaysToEng(selectedDays);
 
-        final Map<String, int?>? serverIds = await routineService.registerRoutine(
-          categoryId: newRoutineData.categoryId.value ?? 0,
-          time: newTimeStr ?? "",
-          alarmTime: isChecked ? newTimeStr : null,
-          content: contentController.text,
-          date: newRoutineEndDateStr,
-          routineWeek: newRoutineWeekEng,
-          color: ColorType.values[newRoutineData.colorType.value].name,
-        );
+        final Map<String, int?>? serverIds = await routineService
+            .registerRoutine(
+              categoryId: newRoutineData.categoryId.value ?? 0,
+              time: newTimeStr ?? "",
+              alarmTime: isChecked ? newTimeStr : null,
+              content: contentController.text,
+              date: newRoutineEndDateStr,
+              routineWeek: newRoutineWeekEng,
+              color: ColorType.values[newRoutineData.colorType.value].name,
+            );
 
         if (serverIds != null) {
           realRoutineId = serverIds['routineId'];
@@ -1102,7 +1134,9 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       if (widget.onDataChanged != null) await widget.onDataChanged!();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("루틴이 분할 저장되었습니다.")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("루틴이 분할 저장되었습니다.")));
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -1213,7 +1247,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     return 'pinkLight';
   }
 
-  Future<void> _loadCategories() async {
+  Future<List<CategoryItem>> _loadCategories() async {
     final localDb = LocalDatabaseSingleton.instance;
     final categoryRepo = LocalCategoryRepository(localDb);
     final categoryService = CategoryService();
@@ -1259,11 +1293,7 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
       }
     } catch (e) {
       print('카테고리 동기화 중 오류 발생: $e');
-    } finally {
-      final loadedRoutines = await categoryRepo.fetchCategories(
-        scheduleType: 'ROUTINE',
-      );
-      if (mounted) setState(() => routines = loadedRoutines);
     }
+    return await categoryRepo.fetchCategories(scheduleType: 'ROUTINE');
   }
 }
