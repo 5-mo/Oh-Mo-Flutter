@@ -69,8 +69,8 @@ class GroupService {
       );
       if (response.statusCode == 500) {
         final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-        print('서버 DB 제약 조건 에러: ${errorData['message']}');
-        throw Exception('서버 데이터 제약 조건으로 인해 그룹을 나갈 수 없습니다. (관리자 문의)');
+        print('서버 상세 에러: ${errorData['message']}');
+        throw Exception(errorData['message'] ?? '서버 제약 조건으로 인해 나갈 수 없습니다.');
       }
 
       if (response.body.isEmpty) return true;

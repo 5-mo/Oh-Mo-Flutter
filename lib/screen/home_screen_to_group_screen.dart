@@ -1,6 +1,7 @@
 import 'package:expansion_tile_card/expansion_tile_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 import 'package:ohmo/component/delete_popup.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/local_category_repository.dart';
@@ -51,15 +52,17 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
 
   Future<void> _loadAllData() async {
     final fetchedGroups = await _groupService.fetchGroups();
+    final String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     final List<Map<String, dynamic>> groupWithMembers = await Future.wait(
       fetchedGroups.map((group) async {
         final int groupId = group['groupId'];
-        final memberData = await _groupService.fetchGroupMembers(groupId);
-        final localGroup = await _db.getGroupById(groupId);
 
-        final String finalColorType =
-            localGroup?.localColor ?? group['groupColor'] ?? 'pinkLight';
+        final memberData = await _groupService.fetchGroupMembers(groupId);
+        final scheduleData = await _groupService.fetchGroupSchedules(
+          groupId: groupId,
+          date: todayStr,
+        );
 
         final List<dynamic> members =
             memberData != null
@@ -68,17 +71,57 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
                     [])
                 : [];
 
+        Map<int, int> memberTotalCount = {};
+        Map<int, int> memberDoneCount = {};
+
+        void countSchedules(List<dynamic> schedules) {
+          for (var s in schedules) {
+            final groupData =
+                s['groupTodoWithAssignee'] ??
+                s['groupRoutineWithAssignee'] ??
+                {};
+            final List<dynamic> assignees = groupData['memberGroupInfos'] ?? [];
+
+            for (var a in assignees) {
+              final mInfo = a['memberGroupInfo'] ?? {};
+              int mId = mInfo['memberGroupId'];
+              bool isDone = a['status'] ?? false;
+
+              memberTotalCount[mId] = (memberTotalCount[mId] ?? 0) + 1;
+              if (isDone) {
+                memberDoneCount[mId] = (memberDoneCount[mId] ?? 0) + 1;
+              }
+            }
+          }
+        }
+
+        if (scheduleData != null) {
+          countSchedules(scheduleData['todos'] ?? []);
+          countSchedules(scheduleData['routines'] ?? []);
+        }
+
+        final processMembers =
+            members.map((m) {
+              int mId = m['memberGroupId'];
+              int total = memberTotalCount[mId] ?? 0;
+              int done = memberDoneCount[mId] ?? 0;
+              double progress = total > 0 ? done / total : 0.0;
+
+              return {...m, 'calculatedProgress': progress};
+            }).toList();
+
+        final localGroup = await _db.getGroupById(groupId);
+        final String finalColorType =
+            localGroup?.localColor ?? group['groupColor'] ?? 'pinkLight';
         final myEmail = await _groupService.getMyEmail();
-
         final myInfo = members.firstWhere(
-          (m) => m['memberInfo']['email'] == myEmail,
-          orElse: () => null,
+          (m) => m['memberInfo']['email'] == "",
+          orElse: () => <dynamic, dynamic>{},
         );
-
         return {
           ...group,
           'groupColor': finalColorType,
-          'members': members,
+          'members': processMembers,
           'myRole': myInfo?['role'],
           'totalCount': memberData != null ? memberData['numPeople'] : 0,
         };
@@ -135,7 +178,7 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
     );
   }
 
-  Widget _buildGroupSection({required dynamic group,required double width}) {
+  Widget _buildGroupSection({required dynamic group, required double width}) {
     final String name = group['groupName'] ?? '이름 없음';
     final int groupId = group['groupId'] ?? 0;
     final String colorTypeString = group['groupColor'] ?? 'pinkLight';
@@ -143,10 +186,9 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
       ColorTypeExtension.fromString(colorTypeString),
     );
     final List<dynamic> members = group['members'] ?? [];
-    final myInfo = members.firstWhere(
-      (m) => m['memberInfo']['email'] == "",
-      orElse: () => null,
-    );
+    final myInfo = members.where(
+      (m) => m['memberInfo']['email'] == ""
+    ).firstOrNull;
     final int totalCount = group['totalCount'] ?? members.length;
     return InkWell(
       onTap: () async {
@@ -183,7 +225,7 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
             Stack(
               children: [
                 Container(
-                  width: width-10,
+                  width: width - 10,
                   height: 70,
                   margin: const EdgeInsets.only(top: 5),
                   padding: const EdgeInsets.all(15.0),
@@ -258,9 +300,11 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
                   ...members.take(6).map((member) {
                     final memberInfo = member['memberInfo'] ?? {};
                     final String? profileUrl = memberInfo['profileImageUrl'];
+                    final double progress =
+                        (member['calculatedProgress'] ?? 0.0).toDouble();
                     return Padding(
                       padding: const EdgeInsets.only(right: 4.0),
-                      child: _buildMemberProfile(profileUrl, 0.2, color),
+                      child: _buildMemberProfile(profileUrl, progress, color),
                     );
                   }).toList(),
                 ],
