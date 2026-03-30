@@ -1,11 +1,14 @@
 import 'dart:convert';
 
 import 'dart:ui';
+import 'package:drift/drift.dart' as drift;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:ohmo/screen/splash_screen.dart';
+import 'package:ohmo/services/member_service.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'package:provider/provider.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
@@ -22,6 +25,36 @@ import 'firebase_options.dart';
 const platform = MethodChannel('com.example.ohmo/todo_events');
 
 @pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  final database = db.LocalDatabaseSingleton.instance;
+
+  String saveType='group';
+  final String? serverType=message.data['type'];
+
+  if(serverType=='GROUP_INVITATION'){
+    saveType='invitation';
+  }else if(serverType=='SCHEDULE_ALARM'){
+    saveType='calendar';
+  }else if(serverType=='NOTICE'){
+    saveType='group';
+  }
+
+  await database.insertNotification(
+    db.NotificationsCompanion.insert(
+      type: saveType,
+      content: message.notification?.body ?? message.data['message'] ?? '새로운 알림이 도착했습니다.',
+      timestamp: DateTime.now(),
+      isRead: const drift.Value(false),
+      relatedId: drift.Value(
+        int.tryParse(message.data['invitationId']?.toString() ??
+            message.data['groupId']?.toString() ?? '0'),
+      ),
+    ),
+  );
+}
+
 void backgroundMain() {
   WidgetsFlutterBinding.ensureInitialized();
   platform.setMethodCallHandler(_handleWidgetMethodCalls);
@@ -35,8 +68,12 @@ Future<void> clearTokens() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission(alert: true, badge: true, sound: true);
 
   await initializeDateFormatting('ko_KR');
 
@@ -64,6 +101,13 @@ void main() async {
         updateEmail: savedEmail,
         updateNickname: response['nickname'],
       );
+
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        final memberService = MemberService();
+        await memberService.updateFcmToken(fcmToken);
+        print("FCM Token 등록 성공 : $fcmToken");
+      }
     } else {
       profileData.setGeustMode(true);
     }

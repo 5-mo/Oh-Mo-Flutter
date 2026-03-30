@@ -15,6 +15,8 @@ import 'package:ohmo/screen/diary_collection_screen.dart';
 import '../db/drift_database.dart' as db;
 import '../services/calendar_service.dart';
 import 'etc_screen.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class MyScreen extends StatefulWidget {
   final Function(int) onTabChange;
@@ -156,7 +158,10 @@ class _MyScreenState extends State<MyScreen> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: profile.isGuest?null:() => _goToProfileEdit(context),
+                          onTap:
+                              profile.isGuest
+                                  ? null
+                                  : () => _goToProfileEdit(context),
                           child:
                               profile.image != null
                                   ? ClipOval(
@@ -202,8 +207,8 @@ class _MyScreenState extends State<MyScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        //_buildNotionButton(context),
-                        //SizedBox(height: 20.0),
+                        _buildNotionButton(context),
+                        SizedBox(height: 20.0),
                         _buildCategoryManaging(context),
                         if (_isDiaryVisible) ...[
                           SizedBox(height: 15.0),
@@ -241,13 +246,14 @@ class _MyScreenState extends State<MyScreen> {
     return Column(
       children: [
         Text(
-          profile.isGuest?"GUEST":profile.nickname,
+          profile.isGuest ? "GUEST" : profile.nickname,
           style: TextStyle(color: Colors.white, fontSize: 16.0),
         ),
-        if(!profile.isGuest)Text(
-          profile.email,
-          style: TextStyle(color: Colors.white, fontSize: 16.0),
-        ),
+        if (!profile.isGuest)
+          Text(
+            profile.email,
+            style: TextStyle(color: Colors.white, fontSize: 16.0),
+          ),
         SizedBox(height: 10.0),
         _buildProfileButton(context),
       ],
@@ -258,15 +264,17 @@ class _MyScreenState extends State<MyScreen> {
     final profile = Provider.of<ProfileData>(context, listen: false);
     return GestureDetector(
       onTap: () async {
-        if(profile.isGuest){
-          Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginScreen()));
+        if (profile.isGuest) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+          );
         } else {
           final result = await Navigator.push<Map<String, dynamic>>(
             context,
             MaterialPageRoute(
               builder:
-                  (context) =>
-                  ProfileScreen(
+                  (context) => ProfileScreen(
                     initialImage: profile.image,
                     initialNickname: profile.nickname,
                     initialEmail: profile.email,
@@ -293,7 +301,7 @@ class _MyScreenState extends State<MyScreen> {
 
         child: Center(
           child: Text(
-            profile.isGuest? '로그인해주세요':'프로필 수정',
+            profile.isGuest ? '로그인해주세요' : '프로필 수정',
             style: TextStyle(
               fontSize: 10,
               fontFamily: 'PretendardRegular',
@@ -348,9 +356,7 @@ class _MyScreenState extends State<MyScreen> {
           ),
 
           GestureDetector(
-            onTap: () {
-              print("검색");
-            },
+            onTap: () {},
             child: Icon(Icons.search, color: Colors.white),
           ),
           SizedBox(width: 10.0),
@@ -438,30 +444,82 @@ class _MyScreenState extends State<MyScreen> {
     );
   }
 
-  Widget _buildNotionButton(BuildContext context) {
-    return Container(
-      width: 311,
-      height: 44,
-      decoration: BoxDecoration(
-        shape: BoxShape.rectangle,
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(9),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
-        ],
-      ),
+  Future<void> _testNotionIntegration() async {
+    const String notionToken = 'ntn_S4139943297a3lp7jr2q8STxcy5IhFSH4j6RtOGsfz86xv';
+    const String databaseId = '7cb0f6c28581838fab3a8182f1f54a1a';
 
-      child: Center(
-        child: Row(
-          children: [
-            SizedBox(width: 20.0),
-            SvgPicture.asset('android/assets/images/notion.svg'),
-            SizedBox(width: 30.0),
-            Text(
-              'Notion 연결 및 업데이트',
-              style: TextStyle(fontSize: 18, fontFamily: 'PretendardRegular'),
-            ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('노션으로 데이터를 전송 중입니다...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final url = Uri.parse('https://api.notion.com/v1/pages');
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $notionToken',
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'parent': {'database_id': databaseId},
+          'properties': {
+            'content': {
+              'rich_text': [
+                {
+                  'text': {'content': '오모에서 보낸 테스트 일정! 🚀'}
+                }
+              ]
+            },
+          },
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ 노션 연동 성공! 표를 확인해보세요.')),
+          );
+        }
+      } else {
+        print('❌ 실패 상세: ${response.body}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('❌ 연동 실패: ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ 에러: $e');
+    }
+  }
+
+  Widget _buildNotionButton(BuildContext context) {
+    return GestureDetector( // GestureDetector 추가
+      onTap: _testNotionIntegration,
+      child: Container(
+        width: 311,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.rectangle,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(9),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
           ],
+        ),
+        child: Center(
+          child: Row(
+            children: [
+              const SizedBox(width: 20.0),
+              SvgPicture.asset('android/assets/images/notion.svg'),
+              const SizedBox(width: 30.0),
+              const Text(
+                'Notion 연결 및 업데이트',
+                style: TextStyle(fontSize: 18, fontFamily: 'PretendardRegular'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -481,7 +539,7 @@ class _MyScreenState extends State<MyScreen> {
           context,
           MaterialPageRoute(builder: (context) => CategoryScreen()),
         );
-        if(!mounted) return;
+        if (!mounted) return;
         _updateDiaryVisibility();
         if (result == true) {
           if (widget.onDataChanged != null) {

@@ -91,9 +91,13 @@ class MemberService {
         'Accept': '*/*',
       });
 
-      String extension = p.extension(imageFile.path).toLowerCase().replaceFirst('.', '');
+      String extension = p
+          .extension(imageFile.path)
+          .toLowerCase()
+          .replaceFirst('.', '');
       String type = 'image';
-      String subtype = (extension == 'jpg' || extension == 'jpeg') ? 'jpeg' : extension;
+      String subtype =
+          (extension == 'jpg' || extension == 'jpeg') ? 'jpeg' : extension;
 
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -116,6 +120,32 @@ class MemberService {
       }
     } catch (e) {
       print("프로필 이미지 수정 중 오류 발생 : $e");
+      return false;
+    }
+  }
+
+  Future<bool> updateFcmToken(String fcmToken) async {
+    final url = Uri.parse('$baseUrl/api/member/fcm-token');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'fcmToken': fcmToken}),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print("FCM 토큰 등록 에러 : $e");
       return false;
     }
   }

@@ -59,8 +59,8 @@ class _EtcScreenState extends State<EtcScreen> {
                 children: [
                   _buildEtcHeader(),
                   const SizedBox(height: 40.0),
-                  /*_buildAlarmSetting(context),
-                  const SizedBox(height: 15.0),*/
+                  _buildAlarmSetting(context),
+                  const SizedBox(height: 15.0),
                   _buildService(context),
                   const SizedBox(height: 15.0),
                   _buildPrivateInformation(context),
@@ -464,7 +464,7 @@ class _EtcScreenState extends State<EtcScreen> {
 
   Widget _buildVersion() {
     return Text(
-      '버전 1.0.1',
+      '버전 1.0.4',
       style: TextStyle(
         fontFamily: 'PretendardRegular',
         fontSize: 10.5,

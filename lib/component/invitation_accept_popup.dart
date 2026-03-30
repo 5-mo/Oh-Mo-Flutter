@@ -7,44 +7,105 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:drift/drift.dart' as drift;
 
 import '../db/drift_database.dart' as db;
+import '../services/group_service.dart';
 
 class InvitationAcceptPopup extends StatefulWidget {
-  const InvitationAcceptPopup({Key? key}) : super(key: key);
+  final int invitationId;
+  final int groupId;
+  final String groupName;
+  final String? groupColor;
+
+  const InvitationAcceptPopup({
+    Key? key,
+    required this.invitationId,
+    required this.groupId,
+    required this.groupName,
+    this.groupColor,
+  }) : super(key: key);
 
   @override
   State<InvitationAcceptPopup> createState() => _InvitationAcceptPopupState();
 }
 
 class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
+  bool _isLoading = true;
+  String? _groupName;
+  String? _groupColor;
+  List<dynamic> _members = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllGroupInfo();
+  }
+
+  Future<void> _loadAllGroupInfo() async {
+    try {
+      final groupService = GroupService();
+      final detail = await groupService.getGroupDetail(widget.groupId);
+      final memberResult = await groupService.fetchGroupMembers(widget.groupId);
+
+      print("서버 응답 상세: $detail");
+      print("서버 응답 멤버: $memberResult");
+
+      if (mounted) {
+        setState(() {
+
+          _groupName = detail?['groupName'] ?? widget.groupName;
+          _groupColor = detail?['groupColor'];
+
+          _members = memberResult?['memberList'] ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("에러 발생: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(37)),
-        title: Text(
-          "\n'사이드 프로젝트' 그룹이\n당신을 초대합니다!\n",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: 'PretendardSemiBold', fontSize: 16.0),
-        ),
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(37)),
 
-        contentPadding: EdgeInsets.fromLTRB(32.0, 20, 32.0, 5.0),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildCard(),
-            SizedBox(height: 39),
-            _buildCheckInvitationButton(),
-            SizedBox(height: 10),
-            _buildLaterButton(),
-          ],
-        ),
-        actions: <Widget>[],
-      ),
+      contentPadding: EdgeInsets.fromLTRB(32.0, 20, 32.0, 5.0),
+      content:
+          _isLoading
+              ? Container(
+                height: 200,
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.black),
+                ),
+              )
+              : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "\n'${_groupName ?? widget.groupName}' 그룹이\n당신을 초대합니다!\n",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'PretendardSemiBold',
+                      fontSize: 16.0,
+                    ),
+                  ),
+                  _buildCard(),
+                  SizedBox(height: 39),
+                  _buildCheckInvitationButton(),
+                  SizedBox(height: 10),
+                  _buildLaterButton(),
+                ],
+              ),
+      actions: <Widget>[],
     );
   }
 
   Widget _buildCard() {
+    final Color cardColor =
+        (_groupColor != null)
+            ? Color(int.parse(_groupColor!.replaceFirst('#', '0xFF')))
+            : ColorManager.getColor(ColorType.pinkLight);
     return Container(
       width: 206,
       height: 112,
@@ -58,12 +119,12 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
             offset: Offset(2, 3),
           ),
         ],
-        color: ColorManager.getColor(ColorType.pinkLight),
+        color: cardColor,
       ),
       child: Column(
         children: [
           Text(
-            '사이드 프로젝트',
+            _groupName ?? '',
             style: TextStyle(fontFamily: 'PretendardMedium', fontSize: 12.0),
           ),
           SizedBox(height: 5),
@@ -73,12 +134,18 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                _buildMemberProfile('android/assets/images/clear_ohmo.png'),
-                const SizedBox(width: 6),
-                _buildMemberProfile('android/assets/images/clear_ohmo.png'),
-                const SizedBox(width: 6),
-                _buildMemberProfile('android/assets/images/clear_ohmo.png'),
-                const SizedBox(width: 6),
+                ..._members
+                    .take(3)
+                    .map(
+                      (m) => Padding(
+                        padding: const EdgeInsets.only(right: 6.0),
+                        child: _buildMemberProfile(
+                          'android/assets/images/clear_ohmo.png',
+                          m['nickname'] ?? '멤버',
+                        ),
+                      ),
+                    )
+                    .toList(),
                 Transform.translate(
                   offset: Offset(0, -10.0),
                   child: Image.asset(
@@ -98,31 +165,25 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
   Widget _buildCheckInvitationButton() {
     return GestureDetector(
       onTap: () async {
-        const String groupName = '사이드 프로젝트';
-        const int groupId = 1;
-        try {
+        final success = await GroupService().acceptInvitation(
+          widget.invitationId,
+        );
+        if (success) {
           final localDb = db.LocalDatabaseSingleton.instance;
 
           await localDb.insertNotification(
             db.NotificationsCompanion(
               type: drift.Value('invitation'),
-              content: drift.Value("'$groupName' 그룹에 입장했습니다."),
+              content: drift.Value("'${widget.groupName}' 그룹에 입장했습니다."),
               timestamp: drift.Value(DateTime.now()),
-              relatedId: drift.Value(groupId),
+              relatedId: drift.Value(widget.groupId),
               isRead: drift.Value(true),
             ),
           );
-        } catch (e) {
-          print('Failed to insert "group joined" notification: $e');
         }
 
         if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (cosntext) => GroupMainScreen(groupId: 1),
-            ),
-          );
+          Navigator.pop(context, true);
         }
       },
       child: Container(
@@ -148,8 +209,13 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
 
   Widget _buildLaterButton() {
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).pop();
+      onTap: () async {
+        final success = await GroupService().rejectInvitation(
+          widget.invitationId,
+        );
+        if (success && mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Container(
         width: 238,
@@ -175,7 +241,7 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
     );
   }
 
-  Widget _buildMemberProfile(String imagePath) {
+  Widget _buildMemberProfile(String imagePath, String nickname) {
     return Container(
       decoration: BoxDecoration(shape: BoxShape.circle),
       child: Column(

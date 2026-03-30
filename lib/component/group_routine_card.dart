@@ -157,31 +157,39 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                                 (widget.routine.id == 0)
                                     ? null
                                     : (value) async {
-                                      final int targetId = widget.routine.id;
-                                      final groupService = GroupService();
-                                      bool isSuccess = await groupService
-                                          .updateAssigneeStatus(targetId);
 
-                                      if (isSuccess) {
-                                        final db =
-                                            LocalDatabaseSingleton.instance;
-                                        await db.toggleRoutineCompletion(
-                                          widget.routine.id,
-                                          widget.selectedDate,
-                                        );
-                                        widget.onDataChanged?.call();
-                                      } else {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              '서버 상태 업데이트에 실패했습니다.',
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    },
+                                  final int targetId = widget.routine.id;
+
+                                  if (targetId == 0) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('아직 서버와 동기화 중입니다. 잠시 후 다시 시도해주세요.'))
+                                    );
+                                    return;
+                                  }
+
+                                  final groupService = GroupService();
+                                  bool isSuccess = await groupService.updateAssigneeStatus(targetId);
+
+                                  if (isSuccess) {
+                                    final db = LocalDatabaseSingleton.instance;
+                                    await db.toggleRoutineCompletion(
+                                      widget.routine.id,
+                                      widget.selectedDate,
+                                    );
+
+                                    await Future.delayed(const Duration(milliseconds: 500));
+
+                                    if (widget.onDataChanged != null) {
+                                      await widget.onDataChanged!();
+                                    }
+                                  } else {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('서버 상태 업데이트에 실패했습니다.')),
+                                      );
+                                    }
+                                  }
+                                },
                             activeColor: Colors.black,
                             checkColor: Colors.white,
                             fillColor: MaterialStateProperty.all(Colors.black),
@@ -209,36 +217,17 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                         return DeleteBottomSheet(
                           onDelete: () async {
                             final groupService = GroupService();
-                            final int? serverRoutineId =
-                                widget.routine.routineId;
+                            final int? deleteTargetId = widget.routine.routineId;
 
-                            if (serverRoutineId == null ||
-                                serverRoutineId == 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('서버와 연결되지 않은 루틴은 삭제할 수 없습니다.'),
-                                ),
-                              );
+                            if (deleteTargetId == null || deleteTargetId == 0) {
                               return;
                             }
 
-                            bool isSuccess = await groupService
-                                .deleteGroupRoutine(serverRoutineId);
+                            bool isSuccess = await groupService.deleteGroupRoutine(deleteTargetId);
 
                             if (isSuccess) {
-                              final db = LocalDatabaseSingleton.instance;
-                              await db.deactivateRoutine(
-                                widget.routine.id,
-                                widget.selectedDate,
-                              );
-
-                              widget.onDataChanged?.call();
+                              if (widget.onDataChanged != null) await widget.onDataChanged!();
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('그룹 루틴 삭제에 실패했습니다. 다시 시도해주세요'),
-                                ),
-                              );
                             }
                           },
                         );

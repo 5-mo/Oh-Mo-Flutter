@@ -1,5 +1,7 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:ohmo/component/invitation_popup.dart';
 import 'package:ohmo/component/main_calendar.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/monthly_schedule_response.dart';
@@ -14,11 +16,13 @@ import 'package:ohmo/component/todo_banner.dart';
 import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:ohmo/services/calendar_service.dart';
+import 'package:ohmo/services/group_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/widget_updater.dart';
 import 'dart:convert';
 import '../component/alarm_bottom_sheet.dart';
+import '../component/invitation_accept_popup.dart';
 import '../component/routine_bottom_sheet.dart';
 import '../const/colors.dart';
 import '../customize_category.dart';
@@ -74,12 +78,88 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   bool _hideRoutineUI = false;
   bool _hideTodoUI = false;
+  final Set<int> _shownInvitationIds = {};
+  bool _isInvitationDialogShowing = false;
 
   @override
   void initState() {
     super.initState();
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      final database = db.LocalDatabaseSingleton.instance;
+
+      final String? serverType = message.data['type'];
+      final String groupName = message.data['groupName'] ?? '새로운';
+      final String serverMessage = message.data['message'] ?? message.notification?.body ?? '내용 없음';
+      final String? serverDateStr = message.data['date'];
+      String formattedNoticeDate = "";
+
+      if (serverDateStr != null) {
+        try {
+          DateTime dt = DateTime.parse(serverDateStr);
+          formattedNoticeDate = " (일시 : ${DateFormat('MM/dd').format(dt)})";
+        } catch (e) {
+          print("날짜 파싱 에러: $e");
+        }
+      }
+
+      String saveType = 'group';
+      String myCustomContent = "";
+
+      switch (serverType) {
+        case 'NOTICE':
+          saveType = 'group';
+          myCustomContent = "‘$groupName’ 그룹에 새로운 공지가 등록되었습니다.\n[공지] $serverMessage$formattedNoticeDate";
+          break;
+
+        case 'GROUP_INVITATION':
+          saveType = 'invitation';
+          myCustomContent = "‘$groupName’ 그룹의 초대장이 도착했습니다.\n초대장을 확인해보세요";
+          break;
+
+        case 'SCHEDULE_ADDED':
+        case 'ASSIGNEE_ADDED':
+          saveType = 'group';
+          String serverType = (message.data['scheduleType'] ?? "").toString().toUpperCase();
+          String serverMessage = message.data['message'] ?? message.notification?.body ?? "";
+
+          String prefix = "";
+          if (serverType == 'ROUTINE' || serverMessage.contains('루틴')) {
+            prefix = "[Routine]";
+          } else {
+            prefix = "[To-do]";
+          }
+
+          myCustomContent = "‘$groupName’ 그룹에 새로운 할 일이 등록되었습니다.\n$prefix $serverMessage";
+          break;
+
+        default:
+          saveType = 'group';
+          myCustomContent = message.notification?.body ?? message.data['message'] ?? '새로운 알림이 있습니다.';
+      }
+
+      await database.insertNotification(
+        db.NotificationsCompanion.insert(
+          type: saveType,
+          content: myCustomContent,
+          timestamp: DateTime.now(),
+          isRead: const Value(false),
+          relatedId: Value(
+            int.tryParse(message.data['invitationId']?.toString() ??
+                message.data['groupId']?.toString() ?? '0'),
+          ),
+        ),
+      );
+
+
+      if (serverType == 'GROUP_INVITATION' && !_isInvitationDialogShowing) {
+        _showSingleInvitationPopup(message.data);
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showInitialTooltip();
+      _checkAndShowInvitations();
     });
 
     _selectedIndex = widget.initialTabIndex;
@@ -108,6 +188,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     });
     WidgetUpdater.update();
+  }
+
+  void _showSingleInvitationPopup(Map<String, dynamic> data) async {
+    setState(() => _isInvitationDialogShowing = true);
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => InvitationPopup(
+            invitationId: int.tryParse(data['invitationId'].toString()) ?? 0,
+            groupId: int.tryParse(data['groupId'].toString()) ?? 0,
+            groupName: data['groupName'] ?? '이름 없음',
+          ),
+    );
+    setState(() => _isInvitationDialogShowing = false);
+  }
+
+  Future<void> _checkAndShowInvitations() async {
+    final groupService = GroupService();
+
+    List<Map<String, dynamic>> invitations =
+        await groupService.fetchMyInvitations();
+
+    for (var invite in invitations) {
+      final int invitationId = invite['invitationId'];
+
+      if (_shownInvitationIds.contains(invitationId)) continue;
+
+      if (mounted) {
+        _shownInvitationIds.add(invitationId);
+        setState(() => _isInvitationDialogShowing = true);
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => InvitationPopup(
+                invitationId: invite['invitationId'],
+                groupId: invite['groupId'],
+                groupName: invite['groupName'],
+              ),
+        );
+        if (mounted) {
+          setState(() => _isInvitationDialogShowing = false);
+        }
+      }
+    }
   }
 
   bool _isInitialLoading = true;
@@ -1183,10 +1311,12 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                           },
                           onPageChanged: widget.onPageChanged,
                           hasUnread: hasUnread,
-                          onGroupIconPressed: (){
-                            Navigator.push(context, MaterialPageRoute(
+                          onGroupIconPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
                                 builder: (context) => HomeScreenToGroupScreen(),
-                            ),
+                              ),
                             );
                           },
                           onAlarmIconPressed: () {

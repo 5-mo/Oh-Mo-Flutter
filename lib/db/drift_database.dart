@@ -22,12 +22,14 @@ class MemberInfo {
   final int? memberGroupId;
   final String nickname;
   final String role;
+  final String? profileImageUrl;
 
   MemberInfo({
     required this.userId,
     this.memberGroupId,
     required this.nickname,
     required this.role,
+    this.profileImageUrl,
   });
 }
 

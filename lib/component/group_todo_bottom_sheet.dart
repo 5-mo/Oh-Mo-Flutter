@@ -474,28 +474,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
                 ),
               );
             }
-            if (widget.todoIdToEdit == null &&
-                (content.contains('(나)') || content.contains('@모두'))) {
-              final group = await db.getGroupById(widget.groupId ?? 0);
-              final groupName = group?.name ?? "ohmo";
-              final todoDateStr = DateFormat(
-                'MM/dd',
-              ).format(widget.selectedDate);
 
-              String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
-              String line2 = "[To-do] $content ( ~$todoDateStr까지)";
-              final String multiLineContent = "$line1\n$line2";
-
-              await db.insertNotification(
-                NotificationsCompanion(
-                  type: drift.Value('group'),
-                  content: drift.Value(multiLineContent),
-                  timestamp: drift.Value(DateTime.now()),
-                  relatedId: drift.Value(currentTodoId),
-                  isRead: drift.Value(true),
-                ),
-              );
-            }
             widget.onTodoAdded?.call();
 
             if (mounted) {
@@ -505,7 +484,9 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
               ).showSnackBar(const SnackBar(content: Text("투두가 등록되었습니다!")));
             }
           } else {
-            throw Exception(widget.todoIdToEdit != null ? "서버 투두 수정 실패" : "서버 투두 등록 실패");
+            throw Exception(
+              widget.todoIdToEdit != null ? "서버 투두 수정 실패" : "서버 투두 등록 실패",
+            );
           }
         } catch (e) {
           print('투두 저장 실패: $e');

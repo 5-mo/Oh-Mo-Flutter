@@ -2,7 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:ohmo/component/invitation_accept_popup.dart';
 
 class InvitationPopup extends StatefulWidget {
-  const InvitationPopup({Key? key}) : super(key: key);
+  final int invitationId;
+  final int groupId;
+
+  final String groupName;
+
+  const InvitationPopup({
+    Key? key,
+    required this.invitationId,
+    required this.groupId,
+    required this.groupName,
+  }) : super(key: key);
 
   @override
   State<InvitationPopup> createState() => _InvitationPopupState();
@@ -43,11 +53,16 @@ class _InvitationPopupState extends State<InvitationPopup> {
   Widget _buildCheckInvitationButton() {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>InvitationAcceptPopup(),
-          ),
+        Navigator.of(context).pop();
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => InvitationAcceptPopup(
+                invitationId: widget.invitationId,
+                groupId: widget.groupId,
+                groupName: widget.groupName,
+              ),
         );
       },
       child: Container(

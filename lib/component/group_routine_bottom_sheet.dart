@@ -116,12 +116,20 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     if (englishWeeks == null) return '';
 
     const Map<String, String> dayMap = {
-      "MONDAY": "1", "TUESDAY": "2", "WEDNESDAY": "3", "THURSDAY": "4",
-      "FRIDAY": "5", "SATURDAY": "6", "SUNDAY": "7"
+      "MONDAY": "1",
+      "TUESDAY": "2",
+      "WEDNESDAY": "3",
+      "THURSDAY": "4",
+      "FRIDAY": "5",
+      "SATURDAY": "6",
+      "SUNDAY": "7",
     };
 
     if (englishWeeks is List) {
-      return englishWeeks.map((e) => dayMap[e.toString().toUpperCase()] ?? '').where((e) => e.isNotEmpty).join(',');
+      return englishWeeks
+          .map((e) => dayMap[e.toString().toUpperCase()] ?? '')
+          .where((e) => e.isNotEmpty)
+          .join(',');
     } else {
       return dayMap[englishWeeks.toString().toUpperCase()] ?? '';
     }
@@ -131,47 +139,56 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     final routine = widget.routineToEdit;
     if (routine == null) return;
 
-    // 1. 일단 현재 객체에 있는 요일 반영
     contentController.text = routine.content;
 
-    setState(() {
-      final Map<String, String> numToDay = {
-        '1': '월', '2': '화', '3': '수', '4': '목', '5': '금', '6': '토', '7': '일',
-      };
+    final Map<String, String> numToDay = {
+      '1': '월',
+      '2': '화',
+      '3': '수',
+      '4': '목',
+      '5': '금',
+      '6': '토',
+      '7': '일',
+    };
 
+    setState(() {
       if (routine.weekDays != null && routine.weekDays!.isNotEmpty) {
-        // 기존에 선택된 요일들에 현재 넘어온 요일을 합칩니다 (Set을 써서 중복 제거)
         final newDays = routine.weekDays!
             .split(',')
             .map((num) => numToDay[num.trim()] ?? '')
             .where((d) => d.isNotEmpty);
 
-        // 기존 selectedDays에 합치기
         selectedDays = {...selectedDays, ...newDays}.toList();
       }
     });
 
-    // 2. 서버 상세 정보도 한 번 더 찔러서 합치기
     try {
-      final detail = await _groupService.fetchAssigneeRoutine(routine.routineId!);
-      if (detail != null && detail['routine'] != null) {
+      if (routine.routineId == null) return;
+
+      final detail = await _groupService.fetchAssigneeRoutine(
+        routine.routineId!,
+      );
+
+      if (detail != null) {
         final routineInfo = detail['routine'];
-        final dynamic weeks = routineInfo['weeks'] ?? routineInfo['week'];
 
-        if (weeks != null) {
-          setState(() {
-            String mappedNums = _mapEngDayToNum(weeks);
-            final Map<String, String> numToDay = {
-              '1': '월', '2': '화', '3': '수', '4': '목', '5': '금', '6': '토', '7': '일'
-            };
+        if (routineInfo != null) {
+          final dynamic weeks =
+              routineInfo['repeatWeek'] ??
+              routineInfo['week'] ??
+              routineInfo['weeks'];
+          if (weeks != null) {
+            setState(() {
+              String mappedNums = _mapEngDayToNum(weeks);
 
-            final serverDays = mappedNums.split(',')
-                .map((n) => numToDay[n.trim()] ?? '')
-                .where((d) => d.isNotEmpty);
+              final serverDays = mappedNums
+                  .split(',')
+                  .map((n) => numToDay[n.trim()] ?? '')
+                  .where((d) => d.isNotEmpty);
 
-            // 서버에서 온 요일들도 합치기
-            selectedDays = {...selectedDays, ...serverDays}.toList();
-          });
+              selectedDays = {...selectedDays, ...serverDays}.toList();
+            });
+          }
         }
       }
     } catch (e) {
@@ -607,11 +624,6 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
           ).format(threeMonthsLater);
 
           if (isEditMode) {
-            print("--- [수정 요청 데이터 확인] ---");
-            print("보내는 scheduleId: ${widget.routineIdToEdit}");
-            print("보내는 content: $content");
-            print("보내는 week: $englishWeek");
-            print("보내는 date(종료일): $formattedEndDate");
 
             final bool success = await _groupService.updateGroupRoutine(
               scheduleId: widget.routineIdToEdit!,

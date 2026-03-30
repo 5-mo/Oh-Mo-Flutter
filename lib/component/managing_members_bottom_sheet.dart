@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/db/drift_database.dart';
 
+import '../services/group_service.dart';
 import 'group_popup.dart';
 
 class ManagingMembersBottomSheet extends StatefulWidget {
@@ -23,6 +24,7 @@ class _ManagingMembersBottomSheetState
   late final LocalDatabase _db;
   List<MemberInfo> _members = [];
   MemberInfo? _selectedMember;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -32,36 +34,51 @@ class _ManagingMembersBottomSheetState
   }
 
   Future<void> _fetchMembers() async {
-    /*
     try {
-      final allMembers = await _db.getMembersForGroup(widget.groupId);
+      final groupService = GroupService();
+      final data = await groupService.fetchGroupMembers(widget.groupId);
 
-      final kickableMembers =
-          allMembers.where((m) => m.role != 'OWNER').toList();
+      if (data != null) {
+        final List<dynamic> memberList =
+            data['memberGroupInfos'] ?? data['memberDtoList'] ?? [];
 
-      if (mounted) {
-        setState(() {
-          _members = kickableMembers;
-          _isLoading = false;
-        });
+        final myEmail = await groupService.getMyEmail();
+
+        final List<MemberInfo> fetchMembers =
+            memberList.where((m) => m['memberInfo']['email'] != myEmail).map((
+              m,
+            ) {
+              final Map<String, dynamic> info = m['memberInfo'] ?? {};
+
+              final String? groupNickname = m['nickname']?.toString();
+              final String? globalNickname = info['nickname']?.toString();
+              final String finalNickname =
+                  groupNickname ?? globalNickname ?? '이름 없음';
+              return MemberInfo(
+                userId: m['memberInfo']?['userId'] ?? 0,
+                memberGroupId: m['memberGroupId'],
+                nickname: finalNickname,
+                role: m['role'] ?? 'MEMBER',
+                profileImageUrl:
+                    info['profileImageUrl'] ?? info['profileImage'],
+              );
+            }).toList();
+
+        if (mounted) {
+          setState(() {
+            _members = fetchMembers;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      if (mounted)
-        setState(() {
-          _isLoading = false;
-        });
-      print('멤버 로딩 실패:$e');
-    }
-     */
-    if (mounted) {
-      setState(() {
-        _members = [
-          MemberInfo(userId: 101, nickname: '이유진', role: 'MEMBER'),
-          MemberInfo(userId: 102, nickname: '홍재원', role: 'MEMBER'),
-          MemberInfo(userId: 103, nickname: '정은지', role: 'MEMBER'),
-          MemberInfo(userId: 104, nickname: '임효진', role: 'MEMBER'),
-        ];
-      });
+      print('멤버 로딩 실패 : $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('멤버 목록을 불러오지 못했습니다.')));
+      }
     }
   }
 
@@ -78,6 +95,7 @@ class _ManagingMembersBottomSheetState
               '멤버 내보내기',
               style: TextStyle(fontFamily: 'PretendardBold', fontSize: 16.0),
             ),
+            const SizedBox(height: 20),
             _buildMemberList(),
             _buildKickButton(),
           ],
@@ -88,7 +106,7 @@ class _ManagingMembersBottomSheetState
 
   Widget _buildMemberList() {
     if (_members.isEmpty) {
-      return Center(child: Text('내보낼 수 있는 멤버가 없습니다.'));
+      return Center(child: Text('\n내보낼 수 있는 멤버가 없습니다.\n\n'));
     }
     return Container(
       height: 90,
@@ -131,9 +149,31 @@ class _ManagingMembersBottomSheetState
               ),
               child: CircleAvatar(
                 radius: 13,
-                backgroundImage: AssetImage(
-                  'android/assets/images/clear_ohmo.png',
-                ),
+                backgroundColor: Colors.grey[200],
+                backgroundImage:
+                    (() {
+                          final path = member.profileImageUrl;
+                          if (path == null || path.isEmpty) {
+                            return const AssetImage(
+                              'android/assets/images/clear_ohmo.png',
+                            );
+                          }
+                          if (path.startsWith('http')) {
+                            return NetworkImage(path);
+                          }
+                          return AssetImage(path);
+                        })()
+                        as ImageProvider?,
+                child:
+                    (member.profileImageUrl == null ||
+                            member.profileImageUrl!.isEmpty)
+                        ? ClipOval(
+                          child: Image.asset(
+                            'android/assets/images/clear_ohmo.png',
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                        : null,
               ),
             ),
             SizedBox(height: 5),
@@ -185,6 +225,13 @@ class _ManagingMembersBottomSheetState
   }
 
   Future<void> _confirmKick(MemberInfo member) async {
+    if (member.memberGroupId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('멤버 정보가 올바르지 않습니다.')));
+      return;
+    }
+
     final bool? confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -200,13 +247,24 @@ class _ManagingMembersBottomSheetState
 
     if (confirmed == true) {
       try {
-        await _db.removeMemberFromGroup(widget.groupId, member.userId);
+        final groupService = GroupService();
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("'${member.nickname}'님을 내보냈습니다.")),
+        final bool isSuccess = await groupService.kickGroupMember(
+          groupId: widget.groupId,
+          targetMemberGroupId: member.memberGroupId!,
         );
-        Navigator.pop(context, true);
+
+        if (isSuccess) {
+          await _db.removeMemberFromGroup(widget.groupId, member.userId);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("'${member.nickname}'님을 내보냈습니다.")),
+          );
+          Navigator.pop(context, true);
+        } else {
+          throw Exception('서버에서 강퇴 처리에 실패했습니다.');
+        }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(

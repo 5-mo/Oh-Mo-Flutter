@@ -185,12 +185,36 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     final memberData = await _groupService.fetchGroupMembers(widget.groupId);
     int currentActualCount = 0;
     if (memberData != null) {
-      final List<dynamic> actualMembers =
+      final List<dynamic> members =
           memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
-      currentActualCount = actualMembers.length;
+      currentActualCount = members.length;
     }
 
-    int? currentMyGroupId = group['memberGroupId'];
+    if (currentActualCount == 0) currentActualCount = 1;
+    int? currentMyGroupId;
+    String? currentMyNickname;
+
+    if (memberData != null) {
+      final myEmail = await _groupService.getMyEmail();
+
+      final List<dynamic> members =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
+
+      try {
+        final me = members.firstWhere(
+          (m) => m['memberInfo']['email'] == myEmail,
+        );
+
+        currentMyGroupId = me['memberGroupId'];
+
+        currentMyNickname =
+            me['nickname'] ??
+            me['memberInfo']['nickname'] ??
+            me['memberGroupInfo']?['nickname'];
+      } catch (e) {}
+    }
+
+    currentMyGroupId ??= group['memberGroupId'];
     if (currentMyGroupId == null && memberData != null) {
       final myEmail = await _groupService.getMyEmail();
       final List<dynamic> members =
@@ -221,16 +245,15 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       final groupTodo = item['groupTodoWithAssignee'] ?? {};
       final todoInfo = groupTodo['todo'] ?? {};
       final List<dynamic> assignees = groupTodo['memberGroupInfos'] ?? [];
-
       final int realServerTodoId = todoInfo['todoId'] ?? 0;
 
       int? myAssigneeId;
       bool myStatus = false;
 
-      if (_myMemberGroupId != null) {
+      if (currentMyGroupId != null) {
         for (var a in assignees) {
           final mgi = a['memberGroupInfo'] ?? {};
-          if (mgi['memberGroupId'].toString() == _myMemberGroupId.toString()) {
+          if (mgi['memberGroupId'].toString() == currentMyGroupId.toString()) {
             myAssigneeId = a['assigneeId'];
             myStatus = a['status'] ?? false;
             break;
@@ -239,7 +262,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       }
 
       int finalId = myAssigneeId ?? scheduleId;
-
       _todoRealIdMap[finalId] = realServerTodoId;
 
       int totalDoneCount =
@@ -268,41 +290,32 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     }
 
     Map<String, Set<String>> routineWeeksGroup = {};
-
     for (var item in apiRoutines) {
       final content = item['content'] ?? '내용없음';
-      final groupRoutine = item['groupRoutineWithAssignee'] ?? {};
-      final routineData = groupRoutine['routine'] ?? {};
-
+      final routineData =
+          (item['groupRoutineWithAssignee'] ?? {})['routine'] ?? {};
       String dayNum = _mapEngDayToNum(routineData['week'] ?? '');
-
-      if (!routineWeeksGroup.containsKey(content)) {
+      if (!routineWeeksGroup.containsKey(content))
         routineWeeksGroup[content] = {};
-      }
-      if (dayNum.isNotEmpty) {
-        routineWeeksGroup[content]!.add(dayNum);
-      }
+      if (dayNum.isNotEmpty) routineWeeksGroup[content]!.add(dayNum);
     }
+
     for (var item in apiRoutines) {
       final content = item['content'] ?? '내용없음';
       final groupRoutine = item['groupRoutineWithAssignee'] ?? {};
       final routineData = groupRoutine['routine'] ?? {};
       final List<dynamic> assignees = groupRoutine['memberGroupInfos'] ?? [];
 
-      String combinedWeekDays =
-          routineWeeksGroup[content]?.toList().join(',') ?? '';
-
-      final int actualServerRoutineId =
-          routineData['routineId'] ?? item['routineId'] ?? 0;
-      final int actualScheduleId = item['scheduleId'] ?? 0;
-
       int? myAssigneeId;
       bool myStatus = false;
 
-      if (_myMemberGroupId != null) {
+      if (currentMyGroupId != null) {
         for (var a in assignees) {
-          final mgi = a['memberGroupInfo'] ?? {};
-          if (mgi['memberGroupId'].toString() == _myMemberGroupId.toString()) {
+          final dynamic mgi = a['memberGroupInfo'] ?? a;
+          final int? serverMemberGroupId = int.tryParse(
+            mgi['memberGroupId'].toString(),
+          );
+          if (serverMemberGroupId == currentMyGroupId) {
             myAssigneeId = a['assigneeId'];
             myStatus = a['status'] ?? false;
             break;
@@ -310,16 +323,22 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         }
       }
 
-      int finalId = myAssigneeId ?? 0;
+      final int actualScheduleId = item['scheduleId'] ?? 0;
+      int finalId = myAssigneeId ?? actualScheduleId;
 
       if (finalId == 0 &&
           (content.contains('@모두') || content.contains('@모든'))) {
         finalId = item['scheduleId'];
       }
 
-      int totalDoneCount =
-          routineData['doneCount'] ??
-          assignees.where((a) => a['status'] == true).length;
+      final int actualServerRoutineId =
+          routineData['routineId'] ?? item['routineId'] ?? 0;
+      String combinedWeekDays =
+          routineWeeksGroup[content]?.toList().join(',') ?? '';
+
+      if (_completedRoutineIds.contains(finalId)) {
+        myStatus = true;
+      }
 
       mappedRoutines.add(
         Routine(
@@ -342,22 +361,29 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         ),
       );
 
-      tempRoutineCounts[finalId] = totalDoneCount;
-      if (myStatus && finalId != 0) tempCompletedRoutineIds.add(finalId);
+      tempRoutineCounts[finalId] =
+          routineData['doneCount'] ??
+          assignees.where((a) => a['status'] == true).length;
+      if (myStatus && finalId != 0) {
+        tempCompletedRoutineIds.add(finalId);
+      }
     }
 
-    bool hasItems = mappedTodos.isNotEmpty || mappedRoutines.isNotEmpty;
-    bool allTodosDone = mappedTodos.every((t) => t.isDone);
-    bool allRoutinesDone = mappedRoutines.every((r) => r.isDone);
+    bool allTodosDone =
+        mappedTodos.isNotEmpty && mappedTodos.every((t) => t.isDone);
+    bool allRoutinesDone =
+        mappedRoutines.isNotEmpty && mappedRoutines.every((r) => r.isDone);
     bool isDayFullyCleared = mappedTodos.isNotEmpty && allTodosDone;
 
     if (mounted) {
       setState(() {
         _myMemberGroupId = currentMyGroupId;
+        _myNickname = currentMyNickname;
         _currentColor = colorToApply;
         _groupName = group['groupName'] ?? '이름 없음';
         _actualMemberCount = currentActualCount;
         _memberCount = currentActualCount;
+
         _completedTodoIds = tempCompletedTodoIds;
         _completedRoutineIds = tempCompletedRoutineIds;
         _todoCompletionCounts = tempTodoCounts;
@@ -369,41 +395,16 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         );
 
         if (isDayFullyCleared) {
-          if (updatedCache.containsKey(dateOnly) &&
-              updatedCache[dateOnly]!.isNotEmpty) {
-            updatedCache[dateOnly] =
-                updatedCache[dateOnly]!.map((event) {
-                  return CalendarEvent(
-                    id: event.id,
-                    content: event.content,
-                    currentCompletion: 1,
-                    requiredCompletion: 1,
-                  );
-                }).toList();
-          } else {
-            updatedCache[dateOnly] = [
-              CalendarEvent(
-                id: -999,
-                content: '',
-                currentCompletion: 1,
-                requiredCompletion: 1,
-              ),
-            ];
-          }
-        } else {
-          if (updatedCache.containsKey(dateOnly)) {
-            updatedCache[dateOnly]!.removeWhere((e) => e.id == -999);
-
-            updatedCache[dateOnly] =
-                updatedCache[dateOnly]!.map((event) {
-                  return CalendarEvent(
-                    id: event.id,
-                    content: event.content,
-                    currentCompletion: 0,
-                    requiredCompletion: 1,
-                  );
-                }).toList();
-          }
+          updatedCache[dateOnly] = [
+            CalendarEvent(
+              id: -999,
+              content: '',
+              currentCompletion: 1,
+              requiredCompletion: 1,
+            ),
+          ];
+        } else if (updatedCache.containsKey(dateOnly)) {
+          updatedCache[dateOnly]!.removeWhere((e) => e.id == -999);
         }
         _eventsCache = updatedCache;
       });
@@ -630,23 +631,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               .map((m) => m.group(0)!)
                               .toList();
 
-                      final bool isCheckboxVisible =
+                      final bool hasNoMention = mentions.isEmpty;
+                      final bool isAllMention =
                           mentions.contains('@모두') ||
-                          routine.content.contains('@모두') ||
+                          routine.content.contains('@모두');
+
+                      final bool isCheckboxVisible =
+                          isAllMention ||
                           mentions.any(
                             (m) =>
                                 _myNickname != null && m.contains(_myNickname!),
                           );
                       final bool isIndicatorVisible =
-                          mentions.isNotEmpty ||
-                          routine.content.contains('@모두');
+                          !hasNoMention || isAllMention;
                       int finalTotalCount =
-                          (mentions.isEmpty ||
-                                  mentions.contains('@모두') ||
-                                  routine.content.contains('@모두'))
+                          isAllMention
                               ? _actualMemberCount
-                              : mentions.length;
-
+                              : (hasNoMention ? 0 : mentions.length);
                       return GroupRoutineCard(
                         routine: routine,
                         myNickname: _myNickname,
@@ -725,21 +726,27 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               .allMatches(todo.content)
                               .map((m) => m.group(0)!)
                               .toList();
-                      final bool isIndicatorVisible = mentions.isNotEmpty;
+                      final bool hasNoMention = mentions.isEmpty;
+                      final bool isAllMention = mentions.contains('@모두');
                       final bool isCheckboxVisible =
-                          mentions.contains('@모두') ||
-                          mentions.any((m) => m.contains(_myNickname ?? ""));
+                          isAllMention ||
+                          mentions.any(
+                            (m) =>
+                                _myNickname != null && m.contains(_myNickname!),
+                          );
+                      final bool isIndicatorVisible =
+                          !hasNoMention || isAllMention;
                       int totalCount =
-                          (mentions.isEmpty || mentions.contains('@모두'))
+                          isAllMention
                               ? _memberCount
-                              : mentions.length;
+                              : (hasNoMention ? 0 : mentions.length);
 
                       return GroupTodoCard(
                         todo: todo,
                         todoIdForApi: _todoRealIdMap[todo.id],
-                        assigneeId: _todoAssigneeIdMap[todo.id],
+                        assigneeId: todo.id,
                         myNickname: _myNickname,
-                        isDoneForDay: _completedTodoIds.contains(todo.id),
+                        isDoneForDay: todo.isDone,
                         selectedDate: selectedDate,
                         totalMemberCount: totalCount,
                         completedMemberCount:
@@ -922,35 +929,6 @@ class _NoticeSectionState extends State<NoticeSection> {
       );
     }
     if (isSuccess) {
-      final newNotice = NoticesCompanion.insert(
-        content: content,
-        createdAt: DateTime.now(),
-        groupId: drift.Value(widget.groupId),
-        noticeDate: _selectedDate!,
-      );
-
-      final int newNoticeId = await _db.insertNotice(newNotice);
-
-      final group = await _db.getGroupById(widget.groupId);
-      final groupName = group?.name ?? "ohmo";
-
-      final noticeDateStr = DateFormat('MM/dd').format(_selectedDate!);
-
-      String line1 = "'$groupName' 그룹에 새로운 공지가 등록되었습니다.";
-      String line2 = "[공지] $content(일시 : $noticeDateStr)";
-
-      final String multiLineContent = "$line1\n$line2";
-
-      await _db.insertNotification(
-        NotificationsCompanion(
-          type: drift.Value('group'),
-          content: drift.Value(multiLineContent),
-          timestamp: drift.Value(DateTime.now()),
-          relatedId: drift.Value(newNoticeId),
-          isRead: drift.Value(true),
-        ),
-      );
-
       _newNoticeController.clear();
       setState(() {
         _isAddingNewNotice = false;

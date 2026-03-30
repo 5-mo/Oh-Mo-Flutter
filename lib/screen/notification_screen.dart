@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:ohmo/component/invitation_popup.dart';
 import 'package:ohmo/db/drift_database.dart' as db;
 
 enum NotificationType { group, calender, invitation }
@@ -46,13 +47,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return StreamBuilder<List<db.Notification>>(
       stream: _notificationStream,
       builder: (context, snapshot) {
-        // 데이터 로딩 및 필터링 로직
         final allNotifications = snapshot.data ?? [];
         final now = DateTime.now();
-        final visibleNotifications = allNotifications.where((notification) {
-          return notification.timestamp.isBefore(now) ||
-              notification.timestamp.isAtSameMomentAs(now);
-        }).toList();
+        final visibleNotifications =
+            allNotifications.where((notification) {
+              return notification.timestamp.isBefore(now) ||
+                  notification.timestamp.isAtSameMomentAs(now);
+            }).toList();
 
         final bool hasNotifications = visibleNotifications.isNotEmpty;
 
@@ -79,7 +80,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       fontFamily: 'PretendardBold',
                     ),
                   ),
-                  // 알림 리스트가 있을 때만 상단 안내 문구 노출
                   if (hasNotifications) ...[
                     const SizedBox(width: 15),
                     const Text(
@@ -101,8 +101,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // Body 영역을 처리하는 위젯
-  Widget _buildBody(AsyncSnapshot<List<db.Notification>> snapshot, List<db.Notification> visibleNotifications) {
+  Widget _buildBody(
+    AsyncSnapshot<List<db.Notification>> snapshot,
+    List<db.Notification> visibleNotifications,
+  ) {
     if (snapshot.connectionState == ConnectionState.waiting) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -145,10 +147,40 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     visibleNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
+    final Map<String, db.Notification> filteredMap = {};
+
+    for (var notification in visibleNotifications) {
+      if (notification.content.contains('[Routine]')) {
+        // [수정 포인트]
+        // 1. 루틴 이름 추출
+        final String pureContent = notification.content.trim();
+
+        // 2. '분' 단위 대신 '날짜' 단위까지만 추출 (연, 월, 일)
+        // 오늘 등록한 모든 동일 루틴은 이 날짜값이 같습니다.
+        final String dateGroup = "${notification.timestamp.year}${notification.timestamp.month}${notification.timestamp.day}";
+
+        // 3. 내용 + 날짜를 조합한 키 생성
+        // 예: routine_매일운동하기_2026329
+        final String groupKey = "routine_${pureContent}_$dateGroup";
+
+        if (!filteredMap.containsKey(groupKey)) {
+          filteredMap[groupKey] = notification; // 맵에 없으면(가장 첫 번째 것) 추가
+        }
+      } else {
+        // 일반 알림은 중복 제거 없이 고유 ID로 저장
+        filteredMap['normal_${notification.id}'] = notification;
+      }
+    }
+
+    // 2. 맵에서 값만 추출하여 리스트화
+    final List<db.Notification> finalNotifications = filteredMap.values.toList();
+
+    // 3. 최종 정렬 (사용자에게 보여줄 순서)
+    finalNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return Column(
       children: [
         const SizedBox(height: 10.0),
-        Expanded(child: _buildNotificationList(visibleNotifications)),
+        Expanded(child: _buildNotificationList(finalNotifications)),
       ],
     );
   }
@@ -177,7 +209,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
               if (showHeader) ...[
                 if (index != 0) ...[
                   const SizedBox(height: 15),
-                  const Divider(color: Color(0xFFE2E2E2), height: 1, thickness: 1),
+                  const Divider(
+                    color: Color(0xFFE2E2E2),
+                    height: 1,
+                    thickness: 1,
+                  ),
                 ],
                 _buildDateHeaderWidget(item.timestamp),
               ],
@@ -191,7 +227,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Widget _buildNotificationItem(db.Notification item) {
     final type = NotificationType.values.firstWhere(
-          (e) => e.name == item.type,
+      (e) => e.name == item.type,
       orElse: () => NotificationType.group,
     );
     String displayContent = item.content;
@@ -285,18 +321,46 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ],
         ),
       ),
-      onTap: () {},
+      onTap: () {
+        if (item.type == 'invitation' && item.relatedId != null) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (context) => InvitationPopup(
+                  invitationId: item.relatedId ?? 0,
+                  groupId: item.relatedId ?? 0,
+                  groupName:
+                      item.content.split("'")[1].isNotEmpty
+                          ? item.content.split("'")[1]
+                          : '초대된 그룹',
+                ),
+          );
+        }
+      },
     );
   }
 
   Widget _getIconForType(NotificationType type) {
     switch (type) {
       case NotificationType.group:
-        return Image.asset('android/assets/images/notification_group.png', width: 40, height: 40);
+        return Image.asset(
+          'android/assets/images/notification_group.png',
+          width: 40,
+          height: 40,
+        );
       case NotificationType.calender:
-        return Image.asset('android/assets/images/notification_calender.png', width: 40, height: 40);
+        return Image.asset(
+          'android/assets/images/notification_calender.png',
+          width: 40,
+          height: 40,
+        );
       case NotificationType.invitation:
-        return Image.asset('android/assets/images/notification_invitation.png', width: 40, height: 40);
+        return Image.asset(
+          'android/assets/images/notification_invitation.png',
+          width: 40,
+          height: 40,
+        );
     }
   }
 

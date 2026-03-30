@@ -40,22 +40,29 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
             data['memberGroupInfos'] ?? data['memberDtoList'] ?? [];
         final myEmail = await groupService.getMyEmail();
 
-        final List<MemberInfo> fetchedMembers =
-            memberList
-                .where((m) => m['memberInfo']['email'] != myEmail)
-                .map(
-                  (m) => MemberInfo(
-                    userId: m['memberInfo']?['userId'] ?? 0,
-                    memberGroupId: m['memberGroupId'],
-                    nickname: m['nickname'] ?? '이름 없음',
-                    role: m['role'] ?? 'MEMBER',
-                  ),
-                )
-                .toList();
+        final List<MemberInfo> fetchMembers =
+            memberList.where((m) => m['memberInfo']['email'] != myEmail).map((
+              m,
+            ) {
+              final Map<String, dynamic> info = m['memberInfo'] ?? {};
+              final String? groupNickname = m['nickname']?.toString();
+              final String? globalNickname =
+                  m['memberInfo']?['nickname']?.toString();
+              final String finalNickname =
+                  groupNickname ?? globalNickname ?? '이름 없음';
+              return MemberInfo(
+                userId: m['memberInfo']?['userId'] ?? 0,
+                memberGroupId: m['memberGroupId'],
+                nickname: finalNickname,
+                role: m['role'] ?? 'MEMBER',
+                profileImageUrl:
+                    info['profileImageUrl'] ?? info['profileImage'],
+              );
+            }).toList();
 
         if (mounted) {
           setState(() {
-            _members = fetchedMembers;
+            _members = fetchMembers;
           });
         }
       }
@@ -92,7 +99,7 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
 
   Widget _buildMemberList() {
     if (_members.isEmpty) {
-      return Center(child: Text('권한을 넘길 멤버가 없습니다.'));
+      return Center(child: Text('\n\n권한을 넘길 멤버가 없습니다.\n\n'));
     }
     return Container(
       height: 90,
@@ -135,9 +142,31 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
               ),
               child: CircleAvatar(
                 radius: 13,
-                backgroundImage: AssetImage(
-                  'android/assets/images/clear_ohmo.png',
-                ),
+                backgroundColor: Colors.grey[200],
+                backgroundImage:
+                    (() {
+                          final path = member.profileImageUrl;
+                          if (path == null || path.isEmpty) {
+                            return const AssetImage(
+                              'android/assets/images/clear_ohmo.png',
+                            );
+                          }
+                          if (path.startsWith('http')) {
+                            return NetworkImage(path);
+                          }
+                          return AssetImage(path);
+                        })()
+                        as ImageProvider?,
+                child:
+                    (member.profileImageUrl == null ||
+                            member.profileImageUrl!.isEmpty)
+                        ? ClipOval(
+                          child: Image.asset(
+                            'android/assets/images/clear_ohmo.png',
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                        : null,
               ),
             ),
             SizedBox(height: 5),

@@ -4,6 +4,7 @@ import 'package:ohmo/component/delete_bottom_sheet.dart';
 import 'package:ohmo/db/drift_database.dart';
 
 import '../const/colors.dart';
+import '../db/drift_database.dart' as db;
 import '../services/group_service.dart';
 
 class GroupTodoCard extends StatefulWidget {
@@ -160,27 +161,41 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                                 (widget.todo.id == 0)
                                     ? null
                                     : (value) async {
-                                      final int targetId = widget.todo.id;
+                                      final int scheduleId = widget.todo.id;
+                                      final int? realTodoId =
+                                          widget.todoIdForApi;
+                                      final int? assigneeId = widget.assigneeId;
+
                                       final groupService = GroupService();
-                                      bool isSuccess = await groupService
-                                          .updateAssigneeStatus(targetId);
+                                      bool isSuccess = false;
+                                      if (assigneeId != null &&
+                                          assigneeId != 0) {
+                                        isSuccess = await groupService
+                                            .updateAssigneeStatus(assigneeId);
+                                      }
+                                      if (!isSuccess) {
+                                        isSuccess = await groupService
+                                            .updateAssigneeStatus(scheduleId);
+                                      }
+
+                                      if (!isSuccess && realTodoId != null) {
+                                        isSuccess = await groupService
+                                            .updateAssigneeStatus(realTodoId);
+                                      }
 
                                       if (isSuccess) {
-                                        final db =
-                                            LocalDatabaseSingleton.instance;
-                                        await db.toggleRoutineCompletion(
-                                          widget.todo.id,
-                                          widget.selectedDate,
-                                        );
-                                        widget.onDataChanged?.call();
+                                        await db.LocalDatabaseSingleton.instance
+                                            .toggleRoutineCompletion(
+                                              widget.todo.id,
+                                              widget.selectedDate,
+                                            );
+                                        await widget.onDataChanged?.call();
                                       } else {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           const SnackBar(
-                                            content: Text(
-                                              '서버 상태 업데이트에 실패했습니다.',
-                                            ),
+                                            content: Text('잠시 후 다시 시도해주세요...'),
                                           ),
                                         );
                                       }

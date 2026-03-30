@@ -174,7 +174,7 @@ class _PrivateInformationScreenState extends State<PrivateInformationScreen> {
                         '  • 개인정보 보호책임자\n\n'
                         '      - 성명: 홍재원\n\n'
                         '      - 직책: [PM]\n\n'
-                        '      - 이메일: ohmo.help@gmail.comm\n\n'
+                        '      - 이메일: ohmo.help@gmail.com\n\n'
                         '      - 전화번호: 010-7502-2458',
                 ),
                 _buildTermsSection(

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'dart:async';
 
+import 'package:ohmo/services/group_service.dart';
+
 class InvitingIdBottomSheet extends StatefulWidget {
   final int groupId;
   final String groupName;
@@ -29,6 +31,10 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
 
   late Future<Group?> _groupFuture;
 
+  final RegExp _emailRegExp = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -48,15 +54,12 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
       final id = _idController.text.trim();
-      if (id.isEmpty) {
-        if (mounted) setState(() => _isIdValid = false);
-        return;
-      }
-      final bool exists = (id == "test"); // db 연결 필요
+
+      final bool isValid = _emailRegExp.hasMatch(id);
 
       if (mounted) {
         setState(() {
-          _isIdValid = exists;
+          _isIdValid = isValid;
         });
       }
     });
@@ -164,21 +167,25 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
   Widget _buildSaveButton() {
     return Center(
       child: GestureDetector(
-        onTap: () {
-          final String id = _idController.text;
+        onTap: () async {
+          final String email = _idController.text.trim();
 
-          if (id.isEmpty) {
+          if (email.isEmpty) return;
+
+          final success = await GroupService().inviteMemberByEmail(
+            groupId: widget.groupId,
+            targetEmail: email,
+          );
+
+          if (success) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(SnackBar(content: Text("아이디를 입력해주세요.")));
-            return;
-          }
-          if (_isIdValid) {
+            ).showSnackBar(SnackBar(content: Text("$email 님에게 초대를 보냈습니다.")));
             Navigator.pop(context, true);
           } else {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(const SnackBar(content: Text("존재하지 않는 아이디입니다.")));
+            ).showSnackBar(const SnackBar(content: Text("초대 발송에 실패했습니다.")));
           }
         },
         child: Container(

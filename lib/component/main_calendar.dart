@@ -266,7 +266,7 @@ class _MainCalendarState extends State<MainCalendar> {
               final bool isWeekFormat = _format == CalendarFormat.week;
 
               if (event is CalendarEvent) {
-                final double bottomPosition = isWeekFormat ? 3 : -9;
+                final double bottomPosition = isWeekFormat ? 3 : 0;
                 return Positioned(
                   left: 0,
                   right: 0,

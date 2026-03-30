@@ -74,7 +74,7 @@ class _FaqScreenState extends State<FaqScreen> {
     {
       'question': '문제가 발생했을 때 어디에 문의하나요?',
       'answer':
-          "기타 메뉴의 '문의하기'를 통해 문의하실 수 있습니다. 이메일로도 support@example.com으로 연락 주시면 빠르게 답변드리겠습니다.",
+          "기타 메뉴의 '문의하기'를 통해 문의하실 수 있습니다. 이메일로도 ohmo.help@gmail.com으로 연락 주시면 빠르게 답변드리겠습니다.",
     },
     {
       'question': '비밀번호를 잊어버렸어요.',
