@@ -115,8 +115,8 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
   }
 
   Widget _buildMemberItem(MemberInfo member) {
-    final bool isSelected =
-        (_selectedMember != null && _selectedMember!.userId == member.userId);
+    final bool isSelected = (_selectedMember != null &&
+        _selectedMember!.memberGroupId == member.memberGroupId);
     return GestureDetector(
       onTap: () {
         setState(() {
