@@ -173,13 +173,15 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
     final localGroup = await _db.getGroupById(widget.groupId);
 
+    final serverColor = group['groupColor'];
     ColorType colorToApply;
-    if (localGroup?.localColor != null) {
+
+    if (serverColor != null) {
+      colorToApply = ColorTypeExtension.fromString(serverColor);
+    } else if (localGroup?.localColor != null) {
       colorToApply = ColorTypeExtension.fromString(localGroup!.localColor!);
     } else {
-      colorToApply = ColorTypeExtension.fromString(
-        group['groupColor'] ?? 'pinkLight',
-      );
+      colorToApply = ColorType.pinkLight;
     }
 
     final memberData = await _groupService.fetchGroupMembers(widget.groupId);
