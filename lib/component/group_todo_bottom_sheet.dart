@@ -78,6 +78,7 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   double _mentionBoxOffsetx = 0.0;
   Map<String, int> _memberIds = {};
   Set<int> _selectedAssigneeIds = {};
+  bool _isSaving = false;
 
   final TextEditingController contentController = TextEditingController();
   final FocusNode _contentFocusNode = FocusNode();
@@ -400,119 +401,145 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
 
   Widget _buildSaveButton() {
     return GestureDetector(
-      onTap: () async {
-        final String content =
-            contentController.text.replaceFirst('(나)', '').trim();
-        if (content.isEmpty) return;
+      onTap:
+          _isSaving
+              ? null
+              : () async {
+                final String content =
+                    contentController.text.replaceFirst('(나)', '').trim();
+                if (content.isEmpty) return;
+                setState(() => _isSaving = true);
 
-        List<int> finalAssigneeIds = [];
+                List<int> finalAssigneeIds = [];
 
-        if (content.contains('@모두')) {
-          _memberNameToId.forEach((name, id) {
-            if (name != '모두' && id != 0) {
-              finalAssigneeIds.add(id);
-            }
-          });
-        } else {
-          _memberNameToId.forEach((name, id) {
-            if ((content.contains('@$name') || content.contains('@$name(나)')) &&
-                id != 0) {
-              finalAssigneeIds.add(id);
-            }
-          });
-        }
+                if (content.contains('@모두')) {
+                  _memberNameToId.forEach((name, id) {
+                    if (name != '모두' && id != 0) {
+                      finalAssigneeIds.add(id);
+                    }
+                  });
+                } else {
+                  _memberNameToId.forEach((name, id) {
+                    if ((content.contains('@$name') ||
+                            content.contains('@$name(나)')) &&
+                        id != 0) {
+                      finalAssigneeIds.add(id);
+                    }
+                  });
+                }
 
-        if (finalAssigneeIds.isEmpty) {
-          final myId =
-              _memberNameToId[myNickname] ?? _memberNameToId['$myNickname(나)'];
-          if (myId != null) finalAssigneeIds.add(myId);
-        }
+                if (finalAssigneeIds.isEmpty) {
+                  final myId =
+                      _memberNameToId[myNickname] ??
+                      _memberNameToId['$myNickname(나)'];
+                  if (myId != null) finalAssigneeIds.add(myId);
+                }
 
-        try {
-          bool isSuccess = false;
-          int? currentTodoId;
+                try {
+                  bool isSuccess = false;
+                  int? currentTodoId;
 
-          if (widget.todoIdToEdit != null) {
-            currentTodoId = widget.todoIdToEdit;
-            isSuccess = await _groupService.updateGroupTodo(
-              todoId: currentTodoId!,
-              content: content,
-              date: DateFormat('yyyy-MM-dd').format(widget.selectedDate),
-            );
-          } else {
-            currentTodoId = await _groupService.createGroupTodo(
-              groupId: widget.groupId ?? 0,
-              content: content,
-              date: DateFormat('yyyy-MM-dd').format(widget.selectedDate),
-            );
-            isSuccess = (currentTodoId != null);
-          }
-          if (isSuccess && currentTodoId != null) {
-            for (int memberId in finalAssigneeIds) {
-              await _groupService.registerAssigneeTodo(
-                todoId: currentTodoId,
-                memberGroupId: memberId,
-              );
-            }
+                  if (widget.todoIdToEdit != null) {
+                    currentTodoId = widget.todoIdToEdit;
+                    isSuccess = await _groupService.updateGroupTodo(
+                      todoId: currentTodoId!,
+                      content: content,
+                      date: DateFormat(
+                        'yyyy-MM-dd',
+                      ).format(widget.selectedDate),
+                    );
+                  } else {
+                    currentTodoId = await _groupService.createGroupTodo(
+                      groupId: widget.groupId ?? 0,
+                      content: content,
+                      date: DateFormat(
+                        'yyyy-MM-dd',
+                      ).format(widget.selectedDate),
+                    );
+                    isSuccess = (currentTodoId != null);
+                  }
+                  if (isSuccess && currentTodoId != null) {
+                    for (int memberId in finalAssigneeIds) {
+                      await _groupService.registerAssigneeTodo(
+                        todoId: currentTodoId,
+                        memberGroupId: memberId,
+                      );
+                    }
 
-            final db = LocalDatabaseSingleton.instance;
+                    final db = LocalDatabaseSingleton.instance;
 
-            if (widget.todoIdToEdit != null) {
-              await db.updateTodo(
-                TodosCompanion(
-                  id: drift.Value(widget.todoIdToEdit!),
-                  content: drift.Value(content),
-                  date: drift.Value(widget.selectedDate),
-                ),
-              );
-            } else {
-              await db.insertTodo(
-                TodosCompanion.insert(
-                  groupId: drift.Value(widget.groupId),
-                  content: content,
-                  date: widget.selectedDate,
-                ),
-              );
-            }
+                    if (widget.todoIdToEdit != null) {
+                      await db.updateTodo(
+                        TodosCompanion(
+                          id: drift.Value(widget.todoIdToEdit!),
+                          content: drift.Value(content),
+                          date: drift.Value(widget.selectedDate),
+                        ),
+                      );
+                    } else {
+                      await db.insertTodo(
+                        TodosCompanion.insert(
+                          groupId: drift.Value(widget.groupId),
+                          content: content,
+                          date: widget.selectedDate,
+                        ),
+                      );
+                    }
 
-            widget.onTodoAdded?.call();
+                    widget.onTodoAdded?.call();
 
-            if (mounted) {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("투두가 등록되었습니다!")));
-            }
-          } else {
-            throw Exception(
-              widget.todoIdToEdit != null ? "서버 투두 수정 실패" : "서버 투두 등록 실패",
-            );
-          }
-        } catch (e) {
-          print('투두 저장 실패: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('투두 저장에 실패했습니다.')));
-          }
-        }
-      },
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("투두가 등록되었습니다!")),
+                      );
+                    }
+                  } else {
+                    throw Exception(
+                      widget.todoIdToEdit != null
+                          ? "서버 투두 수정 실패"
+                          : "서버 투두 등록 실패",
+                    );
+                  }
+                } catch (e) {
+                  print('투두 저장 실패: $e');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('투두 저장에 실패했습니다.')),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() => _isSaving = false);
+                  }
+                }
+              },
       child: Container(
         width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: _isSaving ? Colors.grey : Colors.black,
           borderRadius: BorderRadius.circular(9),
         ),
-        child: const Center(
-          child: Text(
-            '저장하기',
-            style: TextStyle(
-              fontSize: 20,
-              fontFamily: 'PretendardBold',
-              color: Colors.white,
-            ),
-          ),
+        child: Center(
+          child:
+              _isSaving
+                  ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.0,
+                    ),
+                  )
+                  : const Text(
+                    '저장하기',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'PretendardBold',
+                      color: Colors.white,
+                    ),
+                  ),
         ),
       ),
     );

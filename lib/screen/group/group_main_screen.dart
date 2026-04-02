@@ -76,14 +76,30 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   int? _myMemberGroupId;
   String? _myNickname;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
-    _fetchGroupData(selectedDate);
-    _loadSchedulesForMonth(selectedDate);
+    _fetchInitialData();
     //_startSseSubscription();
+  }
+
+  Future<void> _fetchInitialData() async {
+    setState(() => _isLoading = true);
+    try {
+      await Future.wait([
+        _loadSchedulesForMonth(selectedDate),
+        _fetchGroupData(selectedDate),
+      ]);
+    } catch (e) {
+      print("초기 로딩 에러 : $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -461,24 +477,44 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             onPressed: () => Navigator.pop(context, _needsRefresh),
           ),
           backgroundColor: ColorManager.getColor(_currentColor),
+          elevation: 0,
         ),
         backgroundColor: ColorManager.getColor(_currentColor),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              children: [
-                Row(children: [_buildGroupName(), Spacer(), _buildSetting()]),
-                SizedBox(height: 10.0),
-                NoticeSection(
-                  groupId: widget.groupId,
-                  onNoticeChanged: () => _refreshAllData(selectedDate),
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Opacity(
+                  opacity: _isLoading ? 0.0 : 1.0,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          _buildGroupName(),
+                          Spacer(),
+                          _buildSetting(),
+                        ],
+                      ),
+                      SizedBox(height: 10.0),
+                      NoticeSection(
+                        groupId: widget.groupId,
+                        onNoticeChanged: () => _refreshAllData(selectedDate),
+                      ),
+                      SizedBox(height: 10.0),
+                      _buildGroupCalendar(),
+                      SizedBox(height: 60.0),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 10.0),
-                _buildGroupCalendar(),
-                SizedBox(height: 60.0),
-              ],
-            ),
+              ),
+              if (_isLoading)
+                Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
