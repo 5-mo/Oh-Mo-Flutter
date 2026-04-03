@@ -745,7 +745,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                       if (mounted) {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("루틴이 등록되었습니다!")),
+                          const SnackBar(content: Text("3개월치 루틴이 등록되었습니다!")),
                         );
                       }
                     }
@@ -780,6 +780,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                       strokeWidth: 2.5,
                     ),
                   )
+
                   : Text(
                     '저장하기',
                     style: const TextStyle(
@@ -788,6 +789,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                       color: Colors.white,
                     ),
                   ),
+
         ),
       ),
     );
