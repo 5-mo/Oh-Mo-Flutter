@@ -144,26 +144,34 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         final String? dateStr = dayData['date'];
         if (dateStr == null) continue;
 
-        final DateTime noticeDate = DateTime.parse(dayData['date']);
+        final DateTime noticeDate = DateTime.parse(dateStr);
         final dateOnly = DateTime.utc(
           noticeDate.year,
           noticeDate.month,
           noticeDate.day,
         );
 
-        final List<dynamic> noticesJson = dayData['notices'] ?? [];
+        List<CalendarEvent> dayEvents = [];
 
-        tempEvents[dateOnly] =
-            noticesJson
-                .map(
-                  (nj) => CalendarEvent(
-                    id: nj['id'] ?? nj['noticeId'] ?? 0,
-                    content: nj['notice'] ?? '',
-                    currentCompletion: 0,
-                    requiredCompletion: 1,
-                  ),
-                )
-                .toList();
+        final List<dynamic> noticesJson = dayData['notices'] ?? [];
+        dayEvents.addAll(noticesJson.map((nj) => CalendarEvent(
+          id: nj['id'] ?? nj['noticeId'] ?? 0,
+          content: nj['notice'] ?? '',
+          currentCompletion: 0,
+          requiredCompletion: 1,
+        )).toList());
+
+
+        if (dayData['isFullDone'] == true) {
+          dayEvents.insert(0, CalendarEvent(
+            id: -999,
+            content: '',
+            currentCompletion: 1,
+            requiredCompletion: 1,
+          ));
+        }
+
+        tempEvents[dateOnly] = dayEvents;
       }
 
       if (mounted) {
@@ -386,12 +394,13 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         tempCompletedRoutineIds.add(finalId);
       }
     }
-
+    bool hasTasks = mappedTodos.isNotEmpty || mappedRoutines.isNotEmpty;
     bool allTodosDone =
-        mappedTodos.isNotEmpty && mappedTodos.every((t) => t.isDone);
+        mappedTodos.isEmpty || mappedTodos.every((t) => t.isDone);
     bool allRoutinesDone =
-        mappedRoutines.isNotEmpty && mappedRoutines.every((r) => r.isDone);
-    bool isDayFullyCleared = mappedTodos.isNotEmpty && allTodosDone;
+        mappedRoutines.isEmpty || mappedRoutines.every((r) => r.isDone);
+
+    bool isDayFullyCleared = hasTasks && allTodosDone && allRoutinesDone;
 
     if (mounted) {
       setState(() {
@@ -408,23 +417,28 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         _routineCompletionCounts = tempRoutineCounts;
 
         final dateOnly = DateTime.utc(date.year, date.month, date.day);
-        Map<DateTime, List<CalendarEvent>> updatedCache = Map.from(
-          _eventsCache,
-        );
+
+        bool hasTasks = mappedTodos.isNotEmpty || mappedRoutines.isNotEmpty;
+        bool allTodosDone = mappedTodos.every((t) => t.isDone);
+        bool allRoutinesDone = mappedRoutines.every((r) => r.isDone);
+        bool isDayFullyCleared = hasTasks && allTodosDone && allRoutinesDone;
+
+        List<CalendarEvent> dayEvents = List.from(_eventsCache[dateOnly] ?? []);
+
+        dayEvents.removeWhere((e) => e.id == -999);
 
         if (isDayFullyCleared) {
-          updatedCache[dateOnly] = [
+          dayEvents.insert(
+            0,
             CalendarEvent(
               id: -999,
               content: '',
               currentCompletion: 1,
               requiredCompletion: 1,
             ),
-          ];
-        } else if (updatedCache.containsKey(dateOnly)) {
-          updatedCache[dateOnly]!.removeWhere((e) => e.id == -999);
+          );
         }
-        _eventsCache = updatedCache;
+        _eventsCache[dateOnly] = dayEvents;
       });
       _todosNotifier.value = mappedTodos;
       _routinesNotifier.value = mappedRoutines;
@@ -594,12 +608,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             onDaySelected: onDaySelected,
             eventLoader: (day) {
               final dateOnly = DateTime.utc(day.year, day.month, day.day);
-
-              if (day.day == 1) {}
-
-              final events = _eventsCache[dateOnly] ?? [];
-              if (events.isNotEmpty) {}
-              return events;
+              return _eventsCache[dateOnly] ?? [];
             },
             onPageChanged: (focusedDay) => _loadSchedulesForMonth(focusedDay),
             headerPadding: const EdgeInsets.symmetric(
