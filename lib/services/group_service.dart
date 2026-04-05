@@ -895,4 +895,38 @@ class GroupService {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>?> registerGroupAiTodo({
+    required int groupId,
+    required String text,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/nlp/todo');
+
+    final Map<String, dynamic> body = {"groupId": groupId, "text": text};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json; charset-utf-8',
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return decodedData['result'];
+      } else {
+        print('그룹 AI 투두 등록 실패 : ${decodedData['message']}');
+        return null;
+      }
+    } catch (e) {
+      print('그룹 AI 투두 등록 에러 : $e');
+      return null;
+    }
+  }
 }

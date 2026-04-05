@@ -243,4 +243,32 @@ class TodoService {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>?> registerAiTodo(String text) async {
+    final url = Uri.parse('$baseUrl/nlp/todo');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({"text": text}),
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        if (jsonResponse['isSuccess'] == true) {
+          return jsonResponse['result'];
+        }
+      }
+      return null;
+    } catch (e) {
+      print('AI 일정 등록 에러 : $e');
+      return null;
+    }
+  }
 }
