@@ -13,7 +13,6 @@ import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/category_screen.dart';
 import 'package:ohmo/screen/diary_collection_screen.dart';
 import '../db/drift_database.dart' as db;
-import '../services/calendar_service.dart';
 import 'etc_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -38,7 +37,6 @@ class _MyScreenState extends State<MyScreen> {
   bool _isDiaryVisible = true;
   List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
-  final CalendarService _scheduleService = CalendarService();
   final MemberService _memberService = MemberService();
 
   final TextEditingController _searchController = TextEditingController();
@@ -57,22 +55,16 @@ class _MyScreenState extends State<MyScreen> {
       _showSearchRecords = true;
     });
 
-    final profile = Provider.of<ProfileData>(context, listen: false);
-    List<Map<String, dynamic>> results = [];
+    final database = db.LocalDatabaseSingleton.instance;
 
-    if (profile.isGuest) {
-      final database = db.LocalDatabaseSingleton.instance;
-      results = await database.searchSchedules(query);
-      print("🔎 [게스트 검색] 로컬 DB 결과: ${results.length}건");
-    } else {
-      results = await _scheduleService.searchSchedules(query);
-      print("🔎 [회원 검색] 서버 결과: ${results.length}건");
+    List<Map<String, dynamic>> results = await database.searchSchedules(query);
+
+    if (mounted) {
+      setState(() {
+        _searchResults = results;
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _searchResults = results;
-      _isLoading = false;
-    });
   }
 
   @override
@@ -445,11 +437,15 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Future<void> _testNotionIntegration() async {
-    const String notionToken = 'ntn_S4139943297a3lp7jr2q8STxcy5IhFSH4j6RtOGsfz86xv';
+    const String notionToken =
+        'ntn_S4139943297a3lp7jr2q8STxcy5IhFSH4j6RtOGsfz86xv';
     const String databaseId = '7cb0f6c28581838fab3a8182f1f54a1a';
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('노션으로 데이터를 전송 중입니다...'), duration: Duration(seconds: 1)),
+      const SnackBar(
+        content: Text('노션으로 데이터를 전송 중입니다...'),
+        duration: Duration(seconds: 1),
+      ),
     );
 
     try {
@@ -467,9 +463,9 @@ class _MyScreenState extends State<MyScreen> {
             'content': {
               'rich_text': [
                 {
-                  'text': {'content': '오모에서 보낸 테스트 일정! 🚀'}
-                }
-              ]
+                  'text': {'content': '오모에서 보낸 테스트 일정! 🚀'},
+                },
+              ],
             },
           },
         }),
@@ -495,7 +491,8 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Widget _buildNotionButton(BuildContext context) {
-    return GestureDetector( // GestureDetector 추가
+    return GestureDetector(
+      // GestureDetector 추가
       onTap: _testNotionIntegration,
       child: Container(
         width: 311,
