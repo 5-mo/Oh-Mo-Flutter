@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:ohmo/component/group_routine_bottom_sheet.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/services/group_sse_service.dart';
 import '../../component/color_palette_bottom_sheet.dart';
 import '../../component/delete_bottom_sheet.dart';
 import '../../component/group_routine_card.dart';
@@ -15,6 +18,8 @@ import '../../component/main_calendar.dart';
 import '../../component/routine_banner.dart';
 import '../../component/todo_banner.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+import '../../services/group_service.dart';
 
 class CalendarEvent {
   final int id;
@@ -47,29 +52,76 @@ class GroupMainScreen extends StatefulWidget {
 }
 
 class _GroupMainScreenState extends State<GroupMainScreen> {
+  final GroupService _groupService = GroupService();
+  final GroupSseService _sseService = GroupSseService();
   DateTime selectedDate = DateTime.now();
   late final LocalDatabase _db;
   Set<int> _completedRoutineIds = {};
   Set<int> _completedTodoIds = {};
+  Map<int, int> _todoRealIdMap = {};
 
   final ValueNotifier<List<Routine>> _routinesNotifier = ValueNotifier([]);
   final ValueNotifier<List<Todo>> _todosNotifier = ValueNotifier([]);
   ColorType _currentColor = ColorType.pinkLight;
   int _memberCount = 0;
+  int _actualMemberCount = 0;
   Map<int, int> _routineCompletionCounts = {};
   Map<int, int> _todoCompletionCounts = {};
+  Map<int, int?> _todoAssigneeIdMap = {};
   String _groupName = '...';
+  StreamSubscription<String>? _sseSubscription;
 
   Map<DateTime, List<CalendarEvent>> _eventsCache = {};
   bool _needsRefresh = false;
+
+  int? _myMemberGroupId;
+  String? _myNickname;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
-    _fetchGroupData(selectedDate);
+    _fetchInitialData();
+    //_startSseSubscription();
+  }
 
-    _loadSchedulesForMonth(selectedDate);
+  Future<void> _fetchInitialData() async {
+    setState(() => _isLoading = true);
+    try {
+      await Future.wait([
+        _loadSchedulesForMonth(selectedDate),
+        _fetchGroupData(selectedDate),
+      ]);
+    } catch (e) {
+      print("초기 로딩 에러 : $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    // _sseSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startSseSubscription() {
+    _sseSubscription = _sseService
+        .subscribeGroup(widget.groupId)
+        .listen(
+          (event) {
+            print("[실시간 알람 수신] : $event");
+
+            if (mounted) {
+              _refreshAllData(selectedDate);
+            }
+          },
+          onError: (err) => print("SSE 스트림 에러 : $err"),
+          cancelOnError: false,
+        );
   }
 
   Future<void> _refreshAllData(DateTime date) async {
@@ -78,125 +130,341 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Future<void> _loadSchedulesForMonth(DateTime month) async {
-    final firstDay = DateTime(month.year, month.month, 1);
-    final lastDay = DateTime(month.year, month.month + 1, 0);
+    final String yearMonth = DateFormat('yyyy-MM').format(month);
 
-    final allTodosInMonth = await _db.getTodosBetween(firstDay, lastDay);
-    final allNoticesForGroup = await _db.getNoticesForGroup(widget.groupId);
-    const int memberCount = 4;
-
-    _eventsCache.clear();
-    final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
-
-    for (
-      var day = firstDay;
-      day.isBefore(lastDay.add(const Duration(days: 1)));
-      day = day.add(const Duration(days: 1))
-    ) {
-      final dateOnly = DateTime(day.year, day.month, day.day);
-
-      final todosForDay = allTodosInMonth.where(
-        (todo) =>
-            todo.groupId == widget.groupId && isSameDay(todo.date, dateOnly),
+    try {
+      final List<dynamic> monthlyData = await _groupService.fetchNoticesByMonth(
+        groupId: widget.groupId,
+        yearMonth: yearMonth,
       );
-      bool isTodoCompleted = false;
 
-      if (todosForDay.isNotEmpty) {
-        final todo = todosForDay.first;
-        final mentions =
-            mentionRegex
-                .allMatches(todo.content)
-                .map((m) => m.group(0)!)
-                .toList();
-        int requiredCount =
-            (mentions.isEmpty || mentions.contains('@모두'))
-                ? memberCount
-                : mentions.length;
-        final currentCount =
-            (await _db.getTodoCompletionCount(todo.id, dateOnly)) ?? 0;
+      Map<DateTime, List<CalendarEvent>> tempEvents = {};
 
-        if (requiredCount > 0 && currentCount >= requiredCount) {
-          isTodoCompleted = true;
-        }
-      }
+      for (var dayData in monthlyData) {
+        final String? dateStr = dayData['date'];
+        if (dateStr == null) continue;
 
-      if (isTodoCompleted) {
-        _eventsCache[dateOnly] = [
-          CalendarEvent(
-            id: todosForDay.first.id,
+        final DateTime noticeDate = DateTime.parse(dateStr);
+        final dateOnly = DateTime.utc(
+          noticeDate.year,
+          noticeDate.month,
+          noticeDate.day,
+        );
+
+        List<CalendarEvent> dayEvents = [];
+
+        final List<dynamic> noticesJson = dayData['notices'] ?? [];
+        dayEvents.addAll(noticesJson.map((nj) => CalendarEvent(
+          id: nj['id'] ?? nj['noticeId'] ?? 0,
+          content: nj['notice'] ?? '',
+          currentCompletion: 0,
+          requiredCompletion: 1,
+        )).toList());
+
+
+        if (dayData['isFullDone'] == true) {
+          dayEvents.insert(0, CalendarEvent(
+            id: -999,
             content: '',
             currentCompletion: 1,
             requiredCompletion: 1,
-          ),
-        ];
-      } else {
-        final noticesForDay = allNoticesForGroup.where(
-          (notice) => isSameDay(notice.noticeDate, dateOnly),
-        );
-        if (noticesForDay.isNotEmpty) {
-          final notice = noticesForDay.first;
-          _eventsCache[dateOnly] = [
-            CalendarEvent(
-              id: notice.id,
-              content: notice.content,
-              currentCompletion: 0,
-              requiredCompletion: 1,
-            ),
-          ];
+          ));
         }
-      }
-    }
 
-    if (mounted) {
-      setState(() {});
+        tempEvents[dateOnly] = dayEvents;
+      }
+
+      if (mounted) {
+        setState(() {
+          _eventsCache = tempEvents;
+        });
+      }
+    } catch (e) {
+      print('월별 공지 로딩 에러: $e');
     }
   }
 
   Future<void> _fetchGroupData(DateTime date) async {
-    final group = await _db.getGroupById(widget.groupId);
-    if (group == null) {
-      if (mounted) {
-        Navigator.pop(context, true);
+    final dateString = DateFormat('yyyy-MM-dd').format(date);
+
+    final scheduleData = await _groupService.fetchGroupSchedules(
+      groupId: widget.groupId,
+      date: dateString,
+    );
+
+    final group = await _groupService.getGroupDetail(widget.groupId);
+    if (group == null) return;
+
+    final localGroup = await _db.getGroupById(widget.groupId);
+
+    final serverColor = group['groupColor'];
+    ColorType colorToApply;
+
+    if (serverColor != null) {
+      colorToApply = ColorTypeExtension.fromString(serverColor);
+    } else if (localGroup?.localColor != null) {
+      colorToApply = ColorTypeExtension.fromString(localGroup!.localColor!);
+    } else {
+      colorToApply = ColorType.pinkLight;
+    }
+
+    final memberData = await _groupService.fetchGroupMembers(widget.groupId);
+    int currentActualCount = 0;
+    if (memberData != null) {
+      final List<dynamic> members =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
+      currentActualCount = members.length;
+    }
+
+    if (currentActualCount == 0) currentActualCount = 1;
+    int? currentMyGroupId;
+    String? currentMyNickname;
+
+    if (memberData != null) {
+      final myEmail = await _groupService.getMyEmail();
+
+      final List<dynamic> members =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
+
+      try {
+        final me = members.firstWhere(
+          (m) => m['memberInfo']['email'] == myEmail,
+        );
+
+        currentMyGroupId = me['memberGroupId'];
+
+        currentMyNickname =
+            me['nickname'] ??
+            me['memberInfo']['nickname'] ??
+            me['memberGroupInfo']?['nickname'];
+      } catch (e) {}
+    }
+
+    currentMyGroupId ??= group['memberGroupId'];
+    if (currentMyGroupId == null && memberData != null) {
+      final myEmail = await _groupService.getMyEmail();
+      final List<dynamic> members =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
+      try {
+        final me = members.firstWhere(
+          (m) => m['memberInfo']['email'] == myEmail,
+        );
+        currentMyGroupId = me['memberGroupId'];
+        _myNickname = me['nickname'];
+      } catch (e) {}
+    }
+
+    if (scheduleData == null) return;
+
+    final List<dynamic> apiTodos = scheduleData['todos'] ?? [];
+    final List<dynamic> apiRoutines = scheduleData['routines'] ?? [];
+
+    List<Todo> mappedTodos = [];
+    List<Routine> mappedRoutines = [];
+    Map<int, int> tempTodoCounts = {};
+    Map<int, int> tempRoutineCounts = {};
+    Set<int> tempCompletedTodoIds = {};
+    Set<int> tempCompletedRoutineIds = {};
+
+    for (var item in apiTodos) {
+      final int scheduleId = item['scheduleId'];
+      final groupTodo = item['groupTodoWithAssignee'] ?? {};
+      final todoInfo = groupTodo['todo'] ?? {};
+      final List<dynamic> assignees = groupTodo['memberGroupInfos'] ?? [];
+      final int realServerTodoId = todoInfo['todoId'] ?? 0;
+
+      int? myAssigneeId;
+      bool myStatus = false;
+
+      if (currentMyGroupId != null) {
+        for (var a in assignees) {
+          final mgi = a['memberGroupInfo'] ?? {};
+          if (mgi['memberGroupId'].toString() == currentMyGroupId.toString()) {
+            myAssigneeId = a['assigneeId'];
+            myStatus = a['status'] ?? false;
+            break;
+          }
+        }
       }
-      return;
+
+      int finalId = myAssigneeId ?? scheduleId;
+      _todoRealIdMap[finalId] = realServerTodoId;
+
+      int totalDoneCount =
+          todoInfo['doneCount'] ??
+          assignees.where((a) => a['status'] == true).length;
+
+      mappedTodos.add(
+        Todo(
+          id: finalId,
+          content: item['content'] ?? '',
+          date: DateTime.parse(item['date']),
+          groupId: widget.groupId,
+          colorType:
+              ColorTypeExtension.fromString(
+                item['category']?['color'] ?? 'pinkLight',
+              ).index,
+          isDone: myStatus,
+          scheduleType: 'TO_DO',
+          isSynced: true,
+          isDeleted: false,
+        ),
+      );
+
+      tempTodoCounts[finalId] = totalDoneCount;
+      if (myStatus && finalId != 0) tempCompletedTodoIds.add(finalId);
     }
-    final routineIds = await _db.getCompletedRoutineIds(date);
-    final allRoutines = await _db.getRoutinesByGroupId(widget.groupId);
-    final routines =
-        allRoutines
-            .where((routine) => _isRoutineVisible(routine, date))
-            .toList();
 
-    final todoIds = await _db.getCompletedTodoIds(date);
-    final todos = await _db.getTodosByGroupIdAndDate(widget.groupId, date);
-
-    const int memberCount = 4;
-    //final memberCount = await _db.getMemberCountInGroup(widget.groupId);
-    final Map<int, int> routineCounts = {};
-    final Map<int, int> todoCounts = {};
-
-    for (var routine in routines) {
-      routineCounts[routine.id] =
-          (await _db.getCompletionCount(routine.id, date))!;
+    Map<String, Set<String>> routineWeeksGroup = {};
+    for (var item in apiRoutines) {
+      final content = item['content'] ?? '내용없음';
+      final routineData =
+          (item['groupRoutineWithAssignee'] ?? {})['routine'] ?? {};
+      String dayNum = _mapEngDayToNum(routineData['week'] ?? '');
+      if (!routineWeeksGroup.containsKey(content))
+        routineWeeksGroup[content] = {};
+      if (dayNum.isNotEmpty) routineWeeksGroup[content]!.add(dayNum);
     }
 
-    for (var todo in todos) {
-      todoCounts[todo.id] = (await _db.getTodoCompletionCount(todo.id, date))!;
+    for (var item in apiRoutines) {
+      final content = item['content'] ?? '내용없음';
+      final groupRoutine = item['groupRoutineWithAssignee'] ?? {};
+      final routineData = groupRoutine['routine'] ?? {};
+      final List<dynamic> assignees = groupRoutine['memberGroupInfos'] ?? [];
+
+      int? myAssigneeId;
+      bool myStatus = false;
+
+      if (currentMyGroupId != null) {
+        for (var a in assignees) {
+          final dynamic mgi = a['memberGroupInfo'] ?? a;
+          final int? serverMemberGroupId = int.tryParse(
+            mgi['memberGroupId'].toString(),
+          );
+          if (serverMemberGroupId == currentMyGroupId) {
+            myAssigneeId = a['assigneeId'];
+            myStatus = a['status'] ?? false;
+            break;
+          }
+        }
+      }
+
+      final int actualScheduleId = item['scheduleId'] ?? 0;
+      int finalId = myAssigneeId ?? actualScheduleId;
+
+      if (finalId == 0 &&
+          (content.contains('@모두') || content.contains('@모든'))) {
+        finalId = item['scheduleId'];
+      }
+
+      final int actualServerRoutineId =
+          routineData['routineId'] ?? item['routineId'] ?? 0;
+      String combinedWeekDays =
+          routineWeeksGroup[content]?.toList().join(',') ?? '';
+
+      if (_completedRoutineIds.contains(finalId)) {
+        myStatus = true;
+      }
+
+      mappedRoutines.add(
+        Routine(
+          id: finalId,
+          routineId: actualServerRoutineId,
+          scheduleId: actualScheduleId,
+          content: content,
+          groupId: widget.groupId,
+          startDate: DateTime.parse(item['date']),
+          endDate: DateTime.now().add(const Duration(days: 90)),
+          weekDays: combinedWeekDays,
+          colorType:
+              ColorTypeExtension.fromString(
+                item['category']?['color'] ?? 'pinkLight',
+              ).index,
+          isDone: myStatus,
+          scheduleType: 'ROUTINE',
+          isSynced: true,
+          isDeleted: false,
+        ),
+      );
+
+      tempRoutineCounts[finalId] =
+          routineData['doneCount'] ??
+          assignees.where((a) => a['status'] == true).length;
+      if (myStatus && finalId != 0) {
+        tempCompletedRoutineIds.add(finalId);
+      }
     }
+    bool hasTasks = mappedTodos.isNotEmpty || mappedRoutines.isNotEmpty;
+    bool allTodosDone =
+        mappedTodos.isEmpty || mappedTodos.every((t) => t.isDone);
+    bool allRoutinesDone =
+        mappedRoutines.isEmpty || mappedRoutines.every((r) => r.isDone);
+
+    bool isDayFullyCleared = hasTasks && allTodosDone && allRoutinesDone;
+
     if (mounted) {
       setState(() {
-        if (group != null) {
-          _currentColor = ColorType.values[group.colorType];
-          _groupName = group.name;
+        _myMemberGroupId = currentMyGroupId;
+        _myNickname = currentMyNickname;
+        _currentColor = colorToApply;
+        _groupName = group['groupName'] ?? '이름 없음';
+        _actualMemberCount = currentActualCount;
+        _memberCount = currentActualCount;
+
+        _completedTodoIds = tempCompletedTodoIds;
+        _completedRoutineIds = tempCompletedRoutineIds;
+        _todoCompletionCounts = tempTodoCounts;
+        _routineCompletionCounts = tempRoutineCounts;
+
+        final dateOnly = DateTime.utc(date.year, date.month, date.day);
+
+        bool hasTasks = mappedTodos.isNotEmpty || mappedRoutines.isNotEmpty;
+        bool allTodosDone = mappedTodos.every((t) => t.isDone);
+        bool allRoutinesDone = mappedRoutines.every((r) => r.isDone);
+        bool isDayFullyCleared = hasTasks && allTodosDone && allRoutinesDone;
+
+        List<CalendarEvent> dayEvents = List.from(_eventsCache[dateOnly] ?? []);
+
+        dayEvents.removeWhere((e) => e.id == -999);
+
+        if (isDayFullyCleared) {
+          dayEvents.insert(
+            0,
+            CalendarEvent(
+              id: -999,
+              content: '',
+              currentCompletion: 1,
+              requiredCompletion: 1,
+            ),
+          );
         }
-        _completedRoutineIds = routineIds.toSet();
-        _completedTodoIds = todoIds.toSet();
-        _memberCount = memberCount ?? 0;
-        _routineCompletionCounts = routineCounts;
-        _todoCompletionCounts = todoCounts;
+        _eventsCache[dateOnly] = dayEvents;
       });
-      _routinesNotifier.value = routines;
-      _todosNotifier.value = todos;
+      _todosNotifier.value = mappedTodos;
+      _routinesNotifier.value = mappedRoutines;
+    }
+  }
+
+  String _mapEngDayToNum(dynamic englishWeeks) {
+    if (englishWeeks == null) return '';
+
+    const Map<String, String> dayMap = {
+      "MONDAY": "1",
+      "TUESDAY": "2",
+      "WEDNESDAY": "3",
+      "THURSDAY": "4",
+      "FRIDAY": "5",
+      "SATURDAY": "6",
+      "SUNDAY": "7",
+    };
+
+    if (englishWeeks is List) {
+      return englishWeeks
+          .map((e) => dayMap[e.toString().toUpperCase()] ?? '')
+          .where((e) => e.isNotEmpty)
+          .join(',');
+    } else {
+      return dayMap[englishWeeks.toString().toUpperCase()] ?? '';
     }
   }
 
@@ -205,33 +473,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       selectedDate = selectedDay;
     });
     _fetchGroupData(selectedDay);
-  }
-
-  bool _isRoutineVisible(Routine routine, DateTime date) {
-    if (routine.startDate == null ||
-        routine.endDate == null ||
-        routine.weekDays == null) {
-      return false;
-    }
-    final checkDate = DateTime(date.year, date.month, date.day);
-    final startDate = DateTime(
-      routine.startDate!.year,
-      routine.startDate!.month,
-      routine.startDate!.day,
-    );
-    final endDate = DateTime(
-      routine.endDate!.year,
-      routine.endDate!.month,
-      routine.endDate!.day,
-    );
-    if (checkDate.isBefore(startDate) || checkDate.isAfter(endDate)) {
-      return false;
-    }
-    final weekDays = routine.weekDays?.split(',').map(int.parse).toList() ?? [];
-    if (!weekDays.contains(checkDate.weekday)) {
-      return false;
-    }
-    return true;
   }
 
   @override
@@ -247,30 +488,47 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           surfaceTintColor: Colors.white,
           leading: IconButton(
             icon: Icon(Icons.chevron_left),
-            onPressed: () {
-              Navigator.pop(context, _needsRefresh);
-            },
+            onPressed: () => Navigator.pop(context, _needsRefresh),
           ),
           backgroundColor: ColorManager.getColor(_currentColor),
+          elevation: 0,
         ),
         backgroundColor: ColorManager.getColor(_currentColor),
-
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              children: [
-                Row(children: [_buildGroupName(), Spacer(), _buildSetting()]),
-                SizedBox(height: 10.0),
-                NoticeSection(
-                  groupId: widget.groupId,
-                  onNoticeChanged: () => _refreshAllData(selectedDate),
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Opacity(
+                  opacity: _isLoading ? 0.0 : 1.0,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          _buildGroupName(),
+                          Spacer(),
+                          _buildSetting(),
+                        ],
+                      ),
+                      SizedBox(height: 10.0),
+                      NoticeSection(
+                        groupId: widget.groupId,
+                        onNoticeChanged: () => _refreshAllData(selectedDate),
+                      ),
+                      SizedBox(height: 10.0),
+                      _buildGroupCalendar(),
+                      SizedBox(height: 60.0),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 10.0),
-                _buildGroupCalendar(),
-                SizedBox(height: 60.0),
-              ],
-            ),
+              ),
+              if (_isLoading)
+                Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -300,16 +558,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               topRight: Radius.circular(59),
             ),
           ),
-          builder: (_) => GroupSettingsBottomSheet(groupId: widget.groupId),
+          builder:
+              (_) => GroupSettingsBottomSheet(
+                groupId: widget.groupId,
+                groupName: _groupName,
+                onColorChanged: (newColor) {
+                  setState(() {
+                    _currentColor = newColor;
+                  });
+                },
+              ),
         );
-        if (result == 'leave') {
-          _needsRefresh = true;
-          if (mounted) {
-            Navigator.pop(context, _needsRefresh);
-          }
-        } else if (result == true) {
+        if (result == true || result is ColorType) {
           _needsRefresh = true;
           await _fetchGroupData(selectedDate);
+        } else if (result == 'leave') {
+          _needsRefresh = true;
+          if (mounted) Navigator.pop(context, _needsRefresh);
         }
       },
       padding: const EdgeInsets.symmetric(horizontal: 22.0),
@@ -342,12 +607,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             selectedDate: selectedDate,
             onDaySelected: onDaySelected,
             eventLoader: (day) {
-              final dateOnly = DateTime(day.year, day.month, day.day);
+              final dateOnly = DateTime.utc(day.year, day.month, day.day);
               return _eventsCache[dateOnly] ?? [];
             },
-            onPageChanged: (focusedDay) {
-              _loadSchedulesForMonth(focusedDay);
-            },
+            onPageChanged: (focusedDay) => _loadSchedulesForMonth(focusedDay),
             headerPadding: const EdgeInsets.symmetric(
               horizontal: 15.0,
               vertical: 15.0,
@@ -369,7 +632,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             hasUnread: false,
             markerColor: _currentColor,
           ),
-
           Padding(
             padding: const EdgeInsets.only(left: 10.0),
             child: RoutineBanner(
@@ -384,13 +646,17 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                       topRight: Radius.circular(59),
                     ),
                   ),
-                  builder: (_) {
-                    return GroupRoutineBottomSheet(
-                      groupId: widget.groupId,
-                      onRoutineAdded: () => _fetchGroupData(selectedDate),
-                      selectedDate: selectedDate,
-                    );
-                  },
+                  builder:
+                      (_) => GroupRoutineBottomSheet(
+                        groupId: widget.groupId,
+                        onRoutineAdded: () async {
+                          await Future.delayed(
+                            const Duration(milliseconds: 300),
+                          );
+                          await _fetchGroupData(selectedDate);
+                        },
+                        selectedDate: selectedDate,
+                      ),
                 );
               },
               addButtonOffset: Offset(3, 0),
@@ -399,14 +665,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           ValueListenableBuilder<List<Routine>>(
             valueListenable: _routinesNotifier,
             builder: (context, routines, _) {
-              final visibleRoutines =
-                  routines
-                      .where((r) => _isRoutineVisible(r, selectedDate))
-                      .toList();
-              if (visibleRoutines.isEmpty) return const SizedBox(height: 20);
+              if (routines.isEmpty) {
+                return const SizedBox(height: 20);
+              }
               return Column(
                 children:
-                    visibleRoutines.map((routine) {
+                    routines.map((routine) {
                       final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
                       final mentions =
                           mentionRegex
@@ -414,31 +678,58 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               .map((m) => m.group(0)!)
                               .toList();
 
-                      final bool isIndicatorVisible = mentions.isNotEmpty;
-                      final bool isCheckboxVisible =
+                      final bool hasNoMention = mentions.isEmpty;
+                      final bool isAllMention =
                           mentions.contains('@모두') ||
-                          mentions.any((m) => m.contains('(나)'));
+                          routine.content.contains('@모두');
 
-                      int totalCountForThisRoutine;
-                      if (mentions.isEmpty || mentions.contains('@모두')) {
-                        totalCountForThisRoutine = _memberCount;
-                      } else {
-                        totalCountForThisRoutine = mentions.length;
-                      }
-
-                      final isDoneForDay = _completedRoutineIds.contains(
-                        routine.id,
-                      );
+                      final bool isCheckboxVisible =
+                          isAllMention ||
+                          mentions.any(
+                            (m) =>
+                                _myNickname != null && m.contains(_myNickname!),
+                          );
+                      final bool isIndicatorVisible =
+                          !hasNoMention || isAllMention;
+                      int finalTotalCount =
+                          isAllMention
+                              ? _actualMemberCount
+                              : (hasNoMention ? 0 : mentions.length);
                       return GroupRoutineCard(
                         routine: routine,
-                        isDoneForDay: isDoneForDay,
+                        myNickname: _myNickname,
+                        memberGroupId: _myMemberGroupId,
+                        isDoneForDay: _completedRoutineIds.contains(routine.id),
                         selectedDate: selectedDate,
-                        totalMemberCount: totalCountForThisRoutine,
+                        totalMemberCount: finalTotalCount,
                         completedMemberCount:
                             _routineCompletionCounts[routine.id] ?? 0,
                         isIndicatorVisible: isIndicatorVisible,
                         isCheckboxVisible: isCheckboxVisible,
                         onDataChanged: () => _fetchGroupData(selectedDate),
+                        onEditPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.white,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(59),
+                                topRight: Radius.circular(59),
+                              ),
+                            ),
+                            builder:
+                                (_) => GroupRoutineBottomSheet(
+                                  groupId: widget.groupId,
+                                  routineIdToEdit: routine.scheduleId,
+                                  routineToEdit: routine,
+                                  selectedDate: selectedDate,
+                                  onRoutineAdded: () async {
+                                    await _fetchGroupData(selectedDate);
+                                  },
+                                ),
+                          );
+                        },
                       );
                     }).toList(),
               );
@@ -458,13 +749,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                       topRight: Radius.circular(59),
                     ),
                   ),
-                  builder: (_) {
-                    return GroupTodoBottomSheet(
-                      groupId: widget.groupId,
-                      onTodoAdded: () => _refreshAllData(selectedDate),
-                      selectedDate: selectedDate,
-                    );
-                  },
+                  builder:
+                      (_) => GroupTodoBottomSheet(
+                        groupId: widget.groupId,
+                        onTodoAdded: () => _refreshAllData(selectedDate),
+                        selectedDate: selectedDate,
+                      ),
                 );
               },
               addButtonOffset: Offset(4, 0),
@@ -483,31 +773,56 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               .allMatches(todo.content)
                               .map((m) => m.group(0)!)
                               .toList();
-
-                      final bool isIndicatorVisible = mentions.isNotEmpty;
+                      final bool hasNoMention = mentions.isEmpty;
+                      final bool isAllMention = mentions.contains('@모두');
                       final bool isCheckboxVisible =
-                          mentions.contains('@모두') ||
-                          mentions.any((m) => m.contains('(나)'));
-
-                      int totalCountForThisTodo;
-                      if (mentions.isEmpty || mentions.contains('@모두')) {
-                        totalCountForThisTodo = _memberCount;
-                      } else {
-                        totalCountForThisTodo = mentions.length;
-                      }
-
-                      final isDoneForDay = _completedTodoIds.contains(todo.id);
+                          isAllMention ||
+                          mentions.any(
+                            (m) =>
+                                _myNickname != null && m.contains(_myNickname!),
+                          );
+                      final bool isIndicatorVisible =
+                          !hasNoMention || isAllMention;
+                      int totalCount =
+                          isAllMention
+                              ? _memberCount
+                              : (hasNoMention ? 0 : mentions.length);
 
                       return GroupTodoCard(
                         todo: todo,
-                        isDoneForDay: isDoneForDay,
+                        todoIdForApi: _todoRealIdMap[todo.id],
+                        assigneeId: todo.id,
+                        myNickname: _myNickname,
+                        isDoneForDay: todo.isDone,
                         selectedDate: selectedDate,
-                        totalMemberCount: totalCountForThisTodo,
+                        totalMemberCount: totalCount,
                         completedMemberCount:
                             _todoCompletionCounts[todo.id] ?? 0,
                         isIndicatorVisible: isIndicatorVisible,
                         isCheckboxVisible: isCheckboxVisible,
                         onDataChanged: () => _refreshAllData(selectedDate),
+                        onEditPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.white,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(59),
+                                topRight: Radius.circular(59),
+                              ),
+                            ),
+                            builder:
+                                (_) => GroupTodoBottomSheet(
+                                  groupId: widget.groupId,
+                                  todoIdToEdit: _todoRealIdMap[todo.id],
+                                  todoToEdit: todo,
+                                  selectedDate: selectedDate,
+                                  onTodoAdded:
+                                      () => _refreshAllData(selectedDate),
+                                ),
+                          );
+                        },
                       );
                     }).toList(),
               );
@@ -536,9 +851,11 @@ class NoticeSection extends StatefulWidget {
 class _NoticeSectionState extends State<NoticeSection> {
   final LocalDatabase _db = LocalDatabaseSingleton.instance;
   bool _isAddingNewNotice = false;
+  bool _isLoading = false;
   final _newNoticeController = TextEditingController();
   List<Notice> _notices = [];
   DateTime? _selectedDate;
+  int? _editingNoticeId;
 
   @override
   void initState() {
@@ -553,35 +870,44 @@ class _NoticeSectionState extends State<NoticeSection> {
   }
 
   Future<void> _fetchNotices() async {
-    final noticesFromDb = await _db.getNoticesForGroup(widget.groupId);
+    setState(() => _isLoading = true);
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    try {
+      final String yearMonth = DateFormat('yyyy-MM').format(DateTime.now());
+      final groupService = GroupService();
 
-    final futureNotices =
-        noticesFromDb.where((notice) {
-          final noticeDateOnly = DateTime(
-            notice.noticeDate.year,
-            notice.noticeDate.month,
-            notice.noticeDate.day,
+      final List<dynamic> serverMonthlyData = await groupService
+          .fetchNoticesByMonth(groupId: widget.groupId, yearMonth: yearMonth);
+
+      List<Notice> mappedNotices = [];
+
+      for (var dayData in serverMonthlyData) {
+        final List<dynamic> noticesJson = dayData['notices'] ?? [];
+        for (var json in noticesJson) {
+          mappedNotices.add(
+            Notice(
+              id: json['id'] ?? json['noticeId'] ?? 0,
+              content: json['notice'] ?? '',
+              noticeDate: DateTime.parse(json['date']),
+              groupId: json['groupId'] ?? widget.groupId,
+              createdAt: DateTime.now(),
+              isDeleted: false,
+            ),
           );
-          return !noticeDateOnly.isBefore(today);
-        }).toList();
-
-    futureNotices.sort((a, b) {
-      final dateComparison = a.noticeDate.compareTo(b.noticeDate);
-
-      if (dateComparison != 0) {
-        return dateComparison;
-      } else {
-        return b.createdAt.compareTo(a.createdAt);
+        }
       }
-    });
 
-    if (mounted) {
-      setState(() {
-        _notices = noticesFromDb;
-      });
+      mappedNotices.sort((a, b) => b.noticeDate.compareTo(a.noticeDate));
+
+      if (mounted) {
+        setState(() {
+          _notices = mappedNotices;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('공지사항 로드 중 오류 발생: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -614,38 +940,42 @@ class _NoticeSectionState extends State<NoticeSection> {
     }
   }
 
-  Future<void> _addNotice() async {
+  void _startEditing(Notice notice) {
+    setState(() {
+      _isAddingNewNotice = true;
+      _editingNoticeId = notice.id;
+      _newNoticeController.text = notice.content;
+      _selectedDate = notice.noticeDate;
+    });
+  }
+
+  Future<void> _saveNotice() async {
+    if (_isLoading) return;
+
     final content = _newNoticeController.text.trim();
-    if (content.isNotEmpty && _selectedDate != null) {
-      final group = await _db.getGroupById(widget.groupId);
-      final groupName = group?.name ?? "ohmo";
+    if (content.isEmpty || _selectedDate == null) return;
 
-      final noticeDateStr = DateFormat('MM/dd').format(_selectedDate!);
+    setState(() => _isLoading = true);
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
 
-      String line1 = "'$groupName' 그룹에 새로운 공지가 등록되었습니다.";
-      String line2 = "[공지] $content(일시 : $noticeDateStr)";
+    final groupService = GroupService();
 
-      final String multiLineContent = "$line1\n$line2";
+    final bool isSuccess;
 
-      final newNotice = NoticesCompanion.insert(
-        content: content,
-        createdAt: DateTime.now(),
-        groupId: drift.Value(widget.groupId),
-        noticeDate: _selectedDate!,
+    if (_editingNoticeId != null) {
+      isSuccess = await groupService.updateNotice(
+        noticeId: _editingNoticeId!,
+        notice: content,
+        date: dateStr,
       );
-      final int newNoticeId = await _db.insertNotice(newNotice);
-      String shortContent =
-          content.length > 20 ? "${content.substring(0, 20)}..." : content;
-      await _db.insertNotification(
-        NotificationsCompanion(
-          type: drift.Value('group'),
-          content: drift.Value(multiLineContent),
-          timestamp: drift.Value(DateTime.now()),
-          relatedId: drift.Value(newNoticeId),
-          isRead: drift.Value(true),
-        ),
+    } else {
+      isSuccess = await groupService.createNotice(
+        groupId: widget.groupId,
+        notice: content,
+        date: dateStr,
       );
-
+    }
+    if (isSuccess) {
       _newNoticeController.clear();
       setState(() {
         _isAddingNewNotice = false;
@@ -653,6 +983,16 @@ class _NoticeSectionState extends State<NoticeSection> {
       });
       _fetchNotices();
       widget.onNoticeChanged();
+    } else {
+      _showErrorSnackBar('서버 등록에 실패했습니다.');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -773,15 +1113,18 @@ class _NoticeSectionState extends State<NoticeSection> {
           ),
           SizedBox(width: 10),
           Expanded(
-            child: Text(
-              notice.content,
-              style: TextStyle(
-                fontFamily: 'PretendardSemibold',
-                color: Colors.white,
-                fontSize: 16,
-                height: 1.3,
+            child: GestureDetector(
+              onTap: () => _startEditing(notice),
+              child: Text(
+                notice.content,
+                style: TextStyle(
+                  fontFamily: 'PretendardSemibold',
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.3,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           InkWell(
@@ -798,11 +1141,29 @@ class _NoticeSectionState extends State<NoticeSection> {
                 ),
                 builder: (BuildContext bContext) {
                   return DeleteBottomSheet(
+                    title: '공지 삭제',
+                    message: '해당 공지사항을 삭제하시겠어요?\n삭제된 공지는 복구할 수 없습니다.',
                     onDelete: () async {
-                      final db = LocalDatabaseSingleton.instance;
-                      await db.deleteNotice(notice.id);
-                      _fetchNotices();
-                      widget.onNoticeChanged();
+                      final groupService = GroupService();
+
+                      final bool isSuccess = await groupService.deleteNotice(
+                        noticeId: notice.id,
+                      );
+
+                      if (isSuccess) {
+                        final db = LocalDatabaseSingleton.instance;
+                        await db.deleteNotice(notice.id);
+                        _fetchNotices();
+                        widget.onNoticeChanged();
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("공지사항이 삭제되었습니다.")),
+                          );
+                        }
+                      } else {
+                        _showErrorSnackBar('서버에서 공지사항을 삭제하는 데 실패했습니다.');
+                      }
                     },
                   );
                 },
@@ -811,7 +1172,7 @@ class _NoticeSectionState extends State<NoticeSection> {
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: SvgPicture.asset(
-                'android/assets/images/routine_alarm.svg',
+                'android/assets/images/todo_alarm.svg',
                 colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
               ),
             ),
@@ -870,7 +1231,7 @@ class _NoticeSectionState extends State<NoticeSection> {
 
           IconButton(
             icon: const Icon(Icons.check, color: Colors.white),
-            onPressed: _selectedDate != null ? _addNotice : null,
+            onPressed: _selectedDate != null ? _saveNotice : null,
           ),
         ],
       ),

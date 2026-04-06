@@ -4,12 +4,19 @@ import 'package:flutter/services.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'dart:async';
 
+import 'package:ohmo/services/group_service.dart';
+
 class InvitingIdBottomSheet extends StatefulWidget {
   final int groupId;
+  final String groupName;
   final String title;
 
-  const InvitingIdBottomSheet({Key? key, required this.groupId,this.title="아이디로 초대하기"})
-    : super(key: key);
+  const InvitingIdBottomSheet({
+    Key? key,
+    required this.groupId,
+    required this.groupName,
+    this.title = "아이디로 초대하기",
+  }) : super(key: key);
 
   @override
   State<InvitingIdBottomSheet> createState() => _InvitingIdBottomSheetState();
@@ -23,6 +30,10 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
   Timer? _debounce;
 
   late Future<Group?> _groupFuture;
+
+  final RegExp _emailRegExp = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+  );
 
   @override
   void initState() {
@@ -43,15 +54,12 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
       final id = _idController.text.trim();
-      if (id.isEmpty) {
-        if (mounted) setState(() => _isIdValid = false);
-        return;
-      }
-      final bool exists = (id == "test"); // db 연결 필요
+
+      final bool isValid = _emailRegExp.hasMatch(id);
 
       if (mounted) {
         setState(() {
-          _isIdValid = exists;
+          _isIdValid = isValid;
         });
       }
     });
@@ -88,111 +96,97 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
   }
 
   Widget _buildIdSection() {
-    return FutureBuilder<Group?>(
-      future: _groupFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-          return Text(
-            "그룹 정보를 불러오는 데 실패했습니다.",
-            style: TextStyle(color: Colors.red),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              height: 49,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(9),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 3,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          height: 49,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 3),
+            ],
+          ),
+          child: Row(
+            children: [
+              SizedBox(width: 15),
+              Expanded(
+                child: TextField(
+                  controller: _idController,
+                  autofocus: true,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontFamily: 'PretendardMedium',
+                    color: Colors.black,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  SizedBox(width: 15),
-                  Expanded(
-                    child: TextField(
-                      controller: _idController,
-                      autofocus: true,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontFamily: 'PretendardMedium',
-                        color: Colors.black,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "아이디를 입력하세요",
-                        hintStyle: TextStyle(
-                          fontSize: 15,
-                          fontFamily: 'PretendardMedium',
-                          color: Color(0xFFAFAFAF),
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.only(bottom: 2),
-                      ),
+                  decoration: InputDecoration(
+                    hintText: "아이디를 입력하세요",
+                    hintStyle: TextStyle(
+                      fontSize: 15,
+                      fontFamily: 'PretendardMedium',
+                      color: Color(0xFFAFAFAF),
                     ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.only(bottom: 2),
                   ),
-                  IconButton(
-                    icon: SvgPicture.asset(
-                      'android/assets/images/round_check.svg',
-                      height: 24,
-                      width: 24,
-                      colorFilter: ColorFilter.mode(
-                        _isIdValid ? Colors.black : Color(0xFFAFAFAF),
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    onPressed: () {
-                      if (_isIdValid) {
-                        final enteredId = _idController.text.trim();
-                        print('초대할 ID: $enteredId');
-
-                        if (mounted) {
-                          Navigator.pop(context);
-                        }
-                      } else {
-                        print('유효하지 않은 ID입니다.');
-                      }
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
-        );
-      },
+              IconButton(
+                icon: SvgPicture.asset(
+                  'android/assets/images/round_check.svg',
+                  height: 24,
+                  width: 24,
+                  colorFilter: ColorFilter.mode(
+                    _isIdValid ? Colors.black : Color(0xFFAFAFAF),
+                    BlendMode.srcIn,
+                  ),
+                ),
+                onPressed: () {
+                  if (_isIdValid) {
+                    final enteredId = _idController.text.trim();
+                    print('초대할 ID: $enteredId');
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  } else {
+                    print('유효하지 않은 ID입니다.');
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildSaveButton() {
     return Center(
       child: GestureDetector(
-        onTap: () {
-          final String id = _idController.text;
+        onTap: () async {
+          final String email = _idController.text.trim();
 
-          if (id.isEmpty) {
+          if (email.isEmpty) return;
+
+          final success = await GroupService().inviteMemberByEmail(
+            groupId: widget.groupId,
+            targetEmail: email,
+          );
+
+          if (success) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(SnackBar(content: Text("아이디를 입력해주세요.")));
-            return;
+            ).showSnackBar(SnackBar(content: Text("$email 님에게 초대를 보냈습니다.")));
+            Navigator.pop(context, true);
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("초대 발송에 실패했습니다.")));
           }
-
-          Navigator.pop(context);
         },
         child: Container(
           width: 327,

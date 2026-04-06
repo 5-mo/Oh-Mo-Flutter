@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import '../db/drift_database.dart' as db;
 import 'package:intl/intl.dart';
 
+import '../services/day_log_service.dart';
 import 'daylog_screen.dart';
 
 class DiaryCollectionScreen extends StatefulWidget {
@@ -12,7 +13,8 @@ class DiaryCollectionScreen extends StatefulWidget {
 
   DiaryCollectionScreen({
     required this.selectedDateNotifier,
-    required this.onTabChange,});
+    required this.onTabChange,
+  });
 
   @override
   State<DiaryCollectionScreen> createState() => _DiaryCollectionScreenState();
@@ -23,6 +25,7 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
   db.Emotion _currentEmotion = db.Emotion.none;
   String _diaryText = '';
   final db.LocalDatabase _database = db.LocalDatabaseSingleton.instance;
+  final DayLogService _dayLogService = DayLogService();
 
   @override
   void initState() {
@@ -32,36 +35,57 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
   }
 
   Future<void> _loadDiaryForDay(DateTime date) async {
-    final dayLog = await _database.getDayLog(date);
-    if (!mounted) return;
+    final dateString = DateFormat('yyyy-MM-dd').format(date);
 
     db.Emotion loadedEmotion = db.Emotion.none;
     String loadedDiary = '아직 작성된 일기가 없어요.\n오늘을 기록하러 가볼까요?';
 
+    final dayLog = await _database.getDayLog(date);
     if (dayLog != null) {
       if (dayLog.emotion != null) {
-        switch (dayLog.emotion) {
-          case 'happy':
-            loadedEmotion = db.Emotion.happy;
-            break;
-          case 'soso':
-            loadedEmotion = db.Emotion.soso;
-            break;
-          case 'bad':
-            loadedEmotion = db.Emotion.bad;
-            break;
-        }
+        loadedEmotion = _mapStringToEmotion(dayLog.emotion!);
       }
-
       if (dayLog.diary != null && dayLog.diary!.isNotEmpty) {
         loadedDiary = dayLog.diary!;
       }
     }
 
-    setState(() {
-      _currentEmotion = loadedEmotion;
-      _diaryText = loadedDiary;
-    });
+    if (mounted) {
+      setState(() {
+        _currentEmotion = loadedEmotion;
+        _diaryText = loadedDiary;
+      });
+    }
+
+    final serverEmoji = await _dayLogService.getEmoji(dateString);
+    if (serverEmoji != null && mounted) {
+      setState(() {
+        _currentEmotion = _mapStringToEmotion(serverEmoji);
+      });
+    }
+
+    final serverDiary = await _dayLogService.getDiary(dateString);
+
+    if (serverDiary != null && serverDiary['content'] != null) {
+      if (mounted) {
+        setState(() {
+          _diaryText = serverDiary['content'];
+        });
+      }
+    }
+  }
+
+  db.Emotion _mapStringToEmotion(String emotion) {
+    switch (emotion) {
+      case 'happy':
+        return db.Emotion.happy;
+      case 'soso':
+        return db.Emotion.soso;
+      case 'bad':
+        return db.Emotion.bad;
+      default:
+        return db.Emotion.none;
+    }
   }
 
   Future<void> _updateFocusedDay(DateTime newDate) async {
@@ -177,13 +201,18 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 50.0),
       child: Container(
         width: double.infinity,
-        height: 248,
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 25.0),
         alignment: isPlaceholder ? Alignment.center : Alignment.topLeft,
         decoration: BoxDecoration(color: Colors.grey[100]),
+        constraints: BoxConstraints(
+          minHeight: 248,
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment:
-          isPlaceholder ? MainAxisAlignment.center : MainAxisAlignment.start,
+              isPlaceholder
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
           children: [
             Text(
               _diaryText,
@@ -205,8 +234,8 @@ class _DiaryCollectionScreenState extends State<DiaryCollectionScreen> {
 
   Widget _buildDiaryButton() {
     return GestureDetector(
-      onTap: (){
-         Navigator.push(
+      onTap: () async {
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder:

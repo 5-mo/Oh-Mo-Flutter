@@ -9,7 +9,10 @@ import 'package:ohmo/component/category_todo_card.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/group/group_main_screen.dart';
+import 'package:ohmo/services/group_service.dart';
+import 'package:provider/provider.dart';
 import '../component/color_palette_bottom_sheet.dart';
 import '../component/group_settings_bottom_sheet.dart';
 import '../customize_category.dart';
@@ -17,8 +20,10 @@ import 'package:uuid/uuid.dart';
 import 'package:ohmo/db/drift_database.dart'
     show LocalDatabase, LocalDatabaseSingleton, Group;
 import 'package:ohmo/models/category_item.dart';
-
+import 'package:ohmo/services/category_service.dart';
 import 'group/group_sign_screen.dart';
+import 'package:intl/intl.dart';
+import '../services/day_log_service.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -54,13 +59,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
   bool _isDiaryDeleted = false;
   bool _isGroupDeleted = false;
 
+  int? _editingQuestionIndex;
+
   ColorType _selectedColorType = ColorType.pinkLight;
 
   late LocalCategoryRepository _repository;
   late LocalDatabase _db;
-  List<Group> _groups = [];
 
   final uuid = Uuid();
+  final CategoryService _categoryService = CategoryService();
+  final GroupService _groupService = GroupService();
+  List<dynamic> _groups = [];
 
   @override
   void initState() {
@@ -70,16 +79,138 @@ class _CategoryScreenState extends State<CategoryScreen> {
     _loadAllData();
   }
 
-  void _loadAllData() async {
+  Future<void> _loadAllData() async {
+    final currentLocalQuestions = await _repository.fetchDayLogQuestions();
+    final dayLogService = DayLogService();
+    final serverQuestions = await dayLogService.getQuestions();
+
+    if (serverQuestions != null && serverQuestions.isNotEmpty) {
+      final Set<int> existingServerIds =
+          currentLocalQuestions.map((q) => q.serverId).whereType<int>().toSet();
+
+      for (var serverQ in serverQuestions) {
+        final int sId = serverQ['id'] ?? serverQ['questionId'];
+        final String content = serverQ['questionContent'] ?? '';
+        final String emoji = serverQ['emoji'] ?? '🙂';
+
+        if (existingServerIds.contains(sId)) continue;
+
+        final localMatch = currentLocalQuestions.firstWhere(
+          (q) => q.serverId == null && q.question.trim() == content.trim(),
+          orElse: () => DayLogQuestionItem(id: -1, question: '', emoji: ''),
+        );
+
+        if (localMatch.id != -1) {
+          await _repository.updateDayLogQuestion(
+            localMatch.id,
+            content,
+            emoji,
+            serverId: sId,
+          );
+        } else {
+          await _repository.insertDayLogQuestion(content, emoji, serverId: sId);
+        }
+      }
+    }
+
+    final List<DayLogQuestionItem> uniqueDaylogs =
+        await _repository.fetchDayLogQuestions();
+
+    // ------------------ 루틴 & 투두 로직 ------------------
     final fetchedRoutines = await _repository.fetchCategories(
       scheduleType: 'ROUTINE',
     );
+    final filteredRoutines =
+        fetchedRoutines.where((c) => c.categoryName != 'default').toList();
+
     final fetchedTodos = await _repository.fetchCategories(
       scheduleType: 'TO_DO',
     );
-    final fetchedDaylogs = await _repository.fetchDayLogQuestions();
+    final filteredTodos =
+        fetchedTodos.where((c) => c.categoryName != 'default').toList();
 
-    final fetchedGroups = await _db.getGroupsForUser(currentUserId);
+    // ------------------ 그룹 로직 ------------------
+    final fetchedGroups = await _groupService.fetchGroups();
+
+    final List<Map<String, dynamic>> groupWithMembers = await Future.wait(
+      fetchedGroups.map((group) async {
+        final int groupId = group['groupId'];
+        final String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+        final memberData = await _groupService.fetchGroupMembers(groupId);
+        final scheduleData = await _groupService.fetchGroupSchedules(
+          groupId: groupId,
+          date: todayStr,
+        );
+        Map<int, int> memberTotalCount = {};
+        Map<int, int> memberDoneCount = {};
+
+        // 3. 투두/루틴을 돌면서 각 담당자(assignee)의 상태를 집계합니다.
+        void countSchedules(List<dynamic> schedules) {
+          for (var s in schedules) {
+            // 투두/루틴 구조에 따라 assignee 리스트 위치가 다를 수 있으니 확인 필요
+            final groupData =
+                s['groupTodoWithAssignee'] ??
+                s['groupRoutineWithAssignee'] ??
+                {};
+            final List<dynamic> assignees = groupData['memberGroupInfos'] ?? [];
+
+            for (var a in assignees) {
+              final mInfo = a['memberGroupInfo'] ?? {};
+              int mId = mInfo['memberGroupId'];
+              bool isDone = a['status'] ?? false;
+
+              memberTotalCount[mId] = (memberTotalCount[mId] ?? 0) + 1;
+              if (isDone) {
+                memberDoneCount[mId] = (memberDoneCount[mId] ?? 0) + 1;
+              }
+            }
+          }
+        }
+
+        final List<dynamic> members =
+            memberData != null
+                ? (memberData['memberGroupInfos'] ??
+                    memberData['memberDtoList'] ??
+                    [])
+                : [];
+
+        final List<dynamic> allTodos =
+            scheduleData != null ? (scheduleData['todos'] ?? []) : [];
+        final List<dynamic> allRoutines =
+            scheduleData != null ? (scheduleData['routines'] ?? []) : [];
+
+        countSchedules(allTodos);
+        countSchedules(allRoutines);
+
+        final processedMembers =
+            members.map((m) {
+              int mId = m['memberGroupId'];
+              int total = memberTotalCount[mId] ?? 0;
+              int done = memberDoneCount[mId] ?? 0;
+              double progress = total > 0 ? done / total : 0.0;
+
+              return {...m, 'calculatedProgress': progress};
+            }).toList();
+
+        final localGroup = await _db.getGroupById(groupId);
+        final String finalColorType =
+            localGroup?.localColor ?? group['groupColor'] ?? 'pinkLight';
+        final myEmail = await _groupService.getMyEmail();
+        final myInfo =
+            members
+                .where((m) => m['memberInfo']['email'] == myEmail)
+                .firstOrNull;
+
+        return {
+          ...group,
+          'groupColor': finalColorType,
+          'members': processedMembers,
+          'myRole': myInfo?['role'],
+          'totalCount': memberData != null ? memberData['numPeople'] : 0,
+        };
+      }),
+    );
 
     final isRoutineVisible = await RoutineVisibilityHelper.getVisibility();
     final isTodoVisible = await TodoVisibilityHelper.getVisibility();
@@ -89,11 +220,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     if (mounted) {
       setState(() {
-        routines = fetchedRoutines;
-        todos = fetchedTodos;
-        daylogQuestions = fetchedDaylogs;
-        _groups = fetchedGroups;
-        if (routines.isNotEmpty) selectedCategoryId = routines.first.id;
+        routines = filteredRoutines;
+        todos = filteredTodos;
+        daylogQuestions = uniqueDaylogs;
+        _groups = groupWithMembers;
+
+        if (routines.isNotEmpty) {
+          selectedCategoryId = routines.first.id;
+        }
 
         _isRoutineDeleted = !isRoutineVisible;
         _isTodoDeleted = !isTodoVisible;
@@ -108,12 +242,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        Navigator.pop(context, _needsRefresh);
+
+        if (context.mounted) {
+          Navigator.pop(context, _needsRefresh);
+        }
       },
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           surfaceTintColor: Colors.white,
           leading: IconButton(
@@ -149,6 +286,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 padding: const EdgeInsets.only(left: 31),
                 child: _buildGroupAccordion(),
               ),
+
               SizedBox(height: 60),
             ],
           ),
@@ -293,10 +431,31 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             ),
                             isColorPickerEnabled: true,
                             scheduleId: routine.id,
+                            onColorPickerTap: () {
+                              _openColorPicker(
+                                context,
+                                categoryId: routine.id,
+                                currentName: routine.categoryName,
+                              );
+                            },
                             deletePopupBuilder: (context) {
                               return DeletePopup(
                                 onDelete: () async {
-                                  await _repository.deleteCategory(routine.id);
+                                  final profile = Provider.of<ProfileData>(
+                                    context,
+                                    listen: false,
+                                  );
+
+                                  if (!profile.isGuest) {
+                                    await _categoryService.deleteCategory(
+                                      routine.id,
+                                    );
+                                  }
+
+                                  await _db.deleteCategoryWithChildren(
+                                    routine.id,
+                                  );
+
                                   setState(() {
                                     routines.removeWhere(
                                       (item) => item.id == routine.id,
@@ -309,6 +468,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               );
                             },
                             onEdit: (newContent) async {
+                              final profile = Provider.of<ProfileData>(
+                                context,
+                                listen: false,
+                              );
+
+                              if (!profile.isGuest) {
+                                await _categoryService.updateCategory(
+                                  categoryId: routine.id,
+                                  categoryName: newContent,
+                                  color: routine.colorType,
+                                );
+                              }
+
                               await _repository.updateCategoryName(
                                 routine.id,
                                 newContent,
@@ -374,11 +546,38 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newRoutineController.text.trim();
                                     if (newText.isEmpty) return;
 
+                                    final profile = Provider.of<ProfileData>(
+                                      context,
+                                      listen: false,
+                                    );
+
+                                    int? serverId;
+                                    bool isSynced = false;
+
+                                    if (!profile.isGuest) {
+                                      try {
+                                        serverId = await _categoryService
+                                            .createCategory(
+                                              categoryName: newText,
+                                              color:
+                                                  _selectedColorType.name
+                                                      .toUpperCase(),
+                                              scheduleType: 'ROUTINE',
+                                            );
+
+                                        if (serverId == null) isSynced = true;
+                                      } catch (e) {
+                                        print("서버 저장 실패 : $e");
+                                      }
+                                    }
+
                                     final newItem = await _repository
                                         .insertCategory(
                                           name: newText,
                                           type: 'ROUTINE',
                                           color: _selectedColorType.name,
+                                          serverCategoryId: serverId,
+                                          isSynced: isSynced,
                                         );
                                     setState(() {
                                       routines.add(newItem);
@@ -533,28 +732,62 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               todo.colorType,
                             ),
                             isColorPickerEnabled: true,
+                            onColorPickerTap: () {
+                              _openColorPicker(
+                                context,
+                                categoryId: todo.id,
+                                currentName: todo.categoryName,
+                              );
+                            },
                             deletePopupBuilder: (context) {
                               return DeletePopup(
                                 onDelete: () async {
-                                  await _repository.deleteCategory(todo.id);
-                                  setState(() {
-                                    todos.removeWhere(
-                                      (item) => item.id == todo.id,
+                                  final profile = Provider.of<ProfileData>(
+                                    context,
+                                    listen: false,
+                                  );
+
+                                  if (!profile.isGuest) {
+                                    await _categoryService.deleteCategory(
+                                      todo.id,
                                     );
-                                    _needsRefresh = true;
-                                  });
+                                  }
+
+                                  await _db.deleteCategoryWithChildren(todo.id);
+
+                                  if (mounted) {
+                                    setState(() {
+                                      todos.removeWhere(
+                                        (item) => item.id == todo.id,
+                                      );
+                                      _needsRefresh = true;
+                                    });
+                                  }
                                 },
                                 messageHeader: '삭제',
                                 message: '해당 목록을 삭제할까요?',
                               );
                             },
                             onEdit: (newContent) async {
+                              final profile = Provider.of<ProfileData>(
+                                context,
+                                listen: false,
+                              );
+
+                              if (!profile.isGuest) {
+                                await _categoryService.updateCategory(
+                                  categoryId: todo.id,
+                                  categoryName: newContent,
+                                  color: todo.colorType,
+                                );
+                              }
+
                               await _repository.updateCategoryName(
                                 todo.id,
                                 newContent,
                               );
                               setState(() {
-                                todo.categoryName = newContent;
+                                todos.removeWhere((item) => item.id == todo.id);
                                 _needsRefresh = true;
                               });
                             },
@@ -607,12 +840,51 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newTodoController.text.trim();
                                     if (newText.isEmpty) return;
 
+                                    final profile = Provider.of<ProfileData>(
+                                      context,
+                                      listen: false,
+                                    );
+                                    int? serverId;
+                                    bool isSynced = false;
+
+                                    if (!profile.isGuest) {
+                                      try {
+                                        serverId = await _categoryService
+                                            .createCategory(
+                                              categoryName: newText,
+                                              color:
+                                                  _selectedColorType.name
+                                                      .toUpperCase(),
+                                              scheduleType: "TO_DO",
+                                            );
+
+                                        if (serverId != null) {
+                                          isSynced = true;
+                                        } else {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                "서버 저장 실패. 오프라인으로 저장합니다.",
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        print("서버 에러: $e");
+                                      }
+                                    }
+
                                     final newItem = await _repository
                                         .insertCategory(
                                           name: newText,
                                           type: 'TO_DO',
                                           color: _selectedColorType.name,
+                                          serverCategoryId: serverId,
+                                          isSynced: isSynced,
                                         );
+
                                     setState(() {
                                       todos.add(newItem);
                                       _isAddingNewTodo = false;
@@ -790,7 +1062,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ...daylogQuestions.map((question) {
+                        ...daylogQuestions.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          var question = entry.value;
+                          bool isEditing = _editingQuestionIndex == index;
                           return Padding(
                             padding: const EdgeInsets.only(
                               bottom: 8.0,
@@ -799,56 +1074,170 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Container(
-                                  width: 260,
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        question.emoji,
-                                        style: TextStyle(fontSize: 20),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          question.question,
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontFamily: 'PretendardRegular',
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(width: 10),
                                 GestureDetector(
                                   onTap: () {
-                                    showDialog(
+                                    showModalBottomSheet(
                                       context: context,
-                                      builder: (context) {
-                                        return DeletePopup(
-                                          onDelete: () async {
-                                            await _repository
-                                                .deleteDayLogQuestion(
-                                                  question.id,
-                                                );
-                                            setState(() {
-                                              daylogQuestions.removeWhere(
-                                                (item) =>
-                                                    item.id == question.id,
+                                      backgroundColor: Colors.white,
+                                      builder: (BuildContext bContext) {
+                                        return SizedBox(
+                                          height: 300,
+                                          child: EmojiPicker(
+                                            onEmojiSelected: (
+                                              category,
+                                              emoji,
+                                            ) async {
+                                              Navigator.pop(bContext);
+                                              await _handleEmojiEdit(
+                                                question,
+                                                emoji.emoji,
                                               );
-                                              _needsRefresh = true;
-                                            });
-                                          },
-                                          messageHeader: '삭제',
-                                          message: '해당 목록을 삭제할까요?',
+                                            },
+                                            config: Config(
+                                              categoryViewConfig:
+                                                  CategoryViewConfig(
+                                                    indicatorColor:
+                                                        Colors.black,
+                                                    iconColorSelected:
+                                                        Colors.black,
+                                                    backspaceColor:
+                                                        Colors.black,
+                                                  ),
+                                              bottomActionBarConfig:
+                                                  BottomActionBarConfig(
+                                                    backgroundColor:
+                                                        Colors.white,
+                                                    buttonColor: Colors.white,
+                                                    buttonIconColor:
+                                                        Colors.grey,
+                                                  ),
+                                            ),
+                                          ),
                                         );
                                       },
                                     );
                                   },
-                                  child: SvgPicture.asset(
-                                    'android/assets/images/routine_alarm.svg',
+                                  child: Text(
+                                    question.emoji,
+                                    style: TextStyle(fontSize: 20),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child:
+                                      isEditing
+                                          ? TextField(
+                                            autofocus: true,
+                                            controller: TextEditingController(
+                                              text: question.question,
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontFamily: 'PretendardRegular',
+                                            ),
+                                            onSubmitted: (value) async {
+                                              await _handleQuestionEdit(
+                                                question,
+                                                value,
+                                              );
+                                              setState(
+                                                () =>
+                                                    _editingQuestionIndex =
+                                                        null,
+                                              );
+                                            },
+                                            onTapOutside:
+                                                (_) => setState(
+                                                  () =>
+                                                      _editingQuestionIndex =
+                                                          null,
+                                                ),
+                                          )
+                                          : GestureDetector(
+                                            onTap:
+                                                () => setState(
+                                                  () =>
+                                                      _editingQuestionIndex =
+                                                          index,
+                                                ),
+                                            child: Text(
+                                              question.question,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontFamily: 'PretendardRegular',
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder:
+                                          (context) => DeletePopup(
+                                            onDelete: () async {
+                                              final profile =
+                                                  Provider.of<ProfileData>(
+                                                    context,
+                                                    listen: false,
+                                                  );
+                                              final dayLogService =
+                                                  DayLogService();
+
+                                              try {
+                                                if (!profile.isGuest &&
+                                                    question.serverId != null) {
+                                                  final bool serverDeleted =
+                                                      await dayLogService
+                                                          .deleteQuestion(
+                                                            question.serverId!,
+                                                          );
+                                                  if (!serverDeleted) {
+                                                    print(
+                                                      '서버 삭제 실패: 데이터가 동기화 시 다시 살아날 수 있습니다.',
+                                                    );
+                                                  }
+                                                }
+
+                                                await _repository
+                                                    .deleteDayLogQuestion(
+                                                      question.id,
+                                                    );
+
+                                                setState(() {
+                                                  daylogQuestions.removeWhere(
+                                                    (item) =>
+                                                        item.id == question.id,
+                                                  );
+                                                  _needsRefresh = true;
+                                                });
+
+                                                await _loadAllData();
+
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "질문이 삭제되었습니다.",
+                                                    ),
+                                                  ),
+                                                );
+                                              } catch (e) {
+                                                print('삭제 처리 중 오류 발생: $e');
+                                              }
+                                            },
+                                            messageHeader: '질문 삭제',
+                                            message: '해당 질문과 답변이 모두 삭제됩니다.',
+                                          ),
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 67.0),
+                                    child: SvgPicture.asset(
+                                      'android/assets/images/todo_alarm.svg',
+                                    ),
                                   ),
                                 ),
                               ],
@@ -888,6 +1277,25 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                                 });
                                                 Navigator.pop(context);
                                               },
+                                              config: Config(
+                                                categoryViewConfig:
+                                                    CategoryViewConfig(
+                                                      indicatorColor:
+                                                          Colors.black,
+                                                      iconColorSelected:
+                                                          Colors.black,
+                                                      backspaceColor:
+                                                          Colors.black,
+                                                    ),
+                                                bottomActionBarConfig:
+                                                    BottomActionBarConfig(
+                                                      backgroundColor:
+                                                          Colors.white,
+                                                      buttonColor: Colors.white,
+                                                      buttonIconColor:
+                                                          Colors.grey,
+                                                    ),
+                                              ),
                                             ),
                                           ),
                                         );
@@ -922,17 +1330,54 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         _newQuestionController.text.trim();
                                     if (newText.isEmpty) return;
 
-                                    final newItem = await _repository
-                                        .insertDayLogQuestion(
+                                    final profile = Provider.of<ProfileData>(
+                                      context,
+                                      listen: false,
+                                    );
+                                    final dayLogService = DayLogService();
+
+                                    if (!profile.isGuest) {
+                                      final dynamic response =
+                                          await dayLogService.registerQuestion(
+                                            questionContent: newText,
+                                            emoji: _newEmoji,
+                                          );
+
+                                      if (response != null) {
+                                        await _repository.insertDayLogQuestion(
                                           newText,
                                           _newEmoji,
+                                          serverId: null,
                                         );
-                                    setState(() {
-                                      daylogQuestions.add(newItem);
-                                      _isAddingNewQuestion = false;
-                                      _newQuestionController.clear();
-                                      _needsRefresh = true;
-                                    });
+
+                                        if (mounted) {
+                                          setState(() {
+                                            _isAddingNewQuestion = false;
+                                            _newQuestionController.clear();
+                                          });
+
+                                          await _loadAllData();
+
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text("질문이 추가되었습니다."),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    } else {
+                                      await _repository.insertDayLogQuestion(
+                                        newText,
+                                        _newEmoji,
+                                      );
+                                      setState(() {
+                                        _isAddingNewQuestion = false;
+                                        _newQuestionController.clear();
+                                      });
+                                      await _loadAllData();
+                                    }
                                   },
                                 ),
                               ],
@@ -950,16 +1395,25 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Widget _buildGroupSection({required Group group}) {
+  Widget _buildGroupSection({required dynamic group}) {
+    final String name = group['groupName'] ?? '이름 없음';
+    final int groupId = group['groupId'] ?? 0;
+    final String colorTypeString = group['groupColor'] ?? 'pinkLight';
     final Color color = ColorManager.getColor(
-      ColorType.values[group.colorType],
+      ColorTypeExtension.fromString(colorTypeString),
     );
+    final List<dynamic> members = group['members'] ?? [];
+
     return InkWell(
       onTap: () async {
+        if (groupId == null) {
+          print("에러: groupId가 비어있습니다.");
+          return;
+        }
         final bool? needsRefresh = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (context) => GroupMainScreen(groupId: group.id),
+            builder: (context) => GroupMainScreen(groupId: groupId),
           ),
         );
         if (needsRefresh == true) {
@@ -1001,7 +1455,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     ],
                   ),
                   child: Text(
-                    group.name.replaceAll(' ', '\n'),
+                    name.replaceAll(' ', '\n'),
                     style: TextStyle(
                       fontFamily: 'PretendardMedium',
                       fontSize: 12,
@@ -1014,6 +1468,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   right: 7,
                   child: GestureDetector(
                     onTap: () async {
+                      final String? currentRole = group['myRole'];
                       final bool? needsRefresh =
                           await showModalBottomSheet<bool>(
                             context: context,
@@ -1027,7 +1482,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             ),
                             builder: (BuildContext bContext) {
                               return GroupSettingsBottomSheet(
-                                groupId: group.id,
+                                groupId: groupId,
+                                groupName: name,
+                                initialRole: currentRole,
+                                onColorChanged: (ColorType newColor) {
+                                  _loadAllData();
+                                },
                               );
                             },
                           );
@@ -1039,7 +1499,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       color: Colors.transparent,
                       padding: const EdgeInsets.all(8.0),
                       child: SvgPicture.asset(
-                        'android/assets/images/routine_alarm.svg',
+                        'android/assets/images/todo_alarm.svg',
                       ),
                     ),
                   ),
@@ -1051,41 +1511,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.8,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.5,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    1.0,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                    color,
-                  ),
-                  const SizedBox(width: 4),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                    color,
-                  ),
-                  const SizedBox(width: 5),
-                  _buildMemberProfile(
-                    'android/assets/images/clear_ohmo.png',
-                    0.2,
-                    color,
-                  ),
+                  ...members.take(6).map((member) {
+                    final dynamic m = member;
+                    final memberInfo = m['memberInfo'] ?? {};
+                    final String? profileUrl = memberInfo['profileImageUrl'];
+
+                    final double progress =
+                        (m['calculatedProgress'] ?? 0.0).toDouble();
+
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4.0),
+                      child: _buildMemberProfile(profileUrl, progress, color),
+                    );
+                  }).toList(),
                 ],
               ),
             ),
@@ -1159,7 +1597,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Widget _buildMemberProfile(
-    String imagePath,
+    String? imageUrl,
     double progress,
     Color groupColor,
   ) {
@@ -1177,7 +1615,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          CircleAvatar(radius: 8, backgroundImage: AssetImage(imagePath)),
+          CircleAvatar(
+            radius: 8,
+            backgroundColor: Colors.grey[200],
+            backgroundImage:
+                (imageUrl != null &&
+                        imageUrl.isNotEmpty &&
+                        imageUrl.startsWith('http'))
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage('android/assets/images/clear_ohmo.png')
+                        as ImageProvider,
+          ),
           SizedBox(
             width: 18,
             height: 18,
@@ -1252,7 +1700,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ],
         ),
         child: Container(
-          width: 320,
+          width: 326,
           height: 50,
           decoration: BoxDecoration(
             shape: BoxShape.rectangle,
@@ -1316,7 +1764,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
           ],
         ),
-        // [추가] 복구 액션 (왼쪽 스와이프)
         startActionPane: ActionPane(
           motion: const DrawerMotion(),
           extentRatio: 0.25,
@@ -1425,8 +1872,93 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  void _openColorPicker(BuildContext context) {
-    showModalBottomSheet(
+  Future<void> _handleQuestionEdit(
+    DayLogQuestionItem question,
+    String newContent,
+  ) async {
+    final trimmedContent = newContent.trim();
+    if (trimmedContent.isEmpty || trimmedContent == question.question) return;
+
+    final profile = Provider.of<ProfileData>(context, listen: false);
+    final dayLogService = DayLogService();
+
+    try {
+      int? sId = question.serverId;
+
+      if (!profile.isGuest) {
+        final dynamic response = await dayLogService.updateQuestion(
+          questionId: question.serverId ?? 0,
+          questionContent: trimmedContent,
+          emoji: question.emoji,
+        );
+
+        if (response != null && response is Map) {
+          sId = response['id'] ?? response['questionId'];
+          print('Extracted Server ID: $sId');
+        } else if (response == true && question.serverId != null) {
+          sId = question.serverId;
+        }
+      }
+
+      await _repository.updateDayLogQuestion(
+        question.id,
+        trimmedContent,
+        question.emoji,
+        serverId: sId,
+      );
+
+      _loadAllData();
+
+      setState(() {
+        _editingQuestionIndex = null;
+        _needsRefresh = true;
+      });
+    } catch (e) {
+      print("수정 중 오류 발생: $e");
+    }
+  }
+
+  Future<void> _handleEmojiEdit(
+    DayLogQuestionItem question,
+    String newEmoji,
+  ) async {
+    if (question.emoji == newEmoji) return;
+
+    final profile = Provider.of<ProfileData>(context, listen: false);
+    final dayLogService = DayLogService();
+
+    try {
+      if (!profile.isGuest && question.serverId != null) {
+        await dayLogService.updateQuestion(
+          questionId: question.serverId!,
+          questionContent: question.question,
+          emoji: newEmoji,
+        );
+      }
+
+      await _repository.updateDayLogQuestion(
+        question.id,
+        question.question,
+        newEmoji,
+        serverId: question.serverId,
+      );
+
+      await _loadAllData();
+
+      setState(() {
+        _needsRefresh = true;
+      });
+    } catch (e) {
+      print("이모지 수정 중 오류 발생: $e");
+    }
+  }
+
+  void _openColorPicker(
+    BuildContext context, {
+    int? categoryId,
+    String? currentName,
+  }) async {
+    final ColorType? selected = await showModalBottomSheet<ColorType>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -1446,5 +1978,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
             },
           ),
     );
+
+    if (selected != null && categoryId != null && currentName != null) {
+      final profile = Provider.of<ProfileData>(context, listen: false);
+
+      if (!profile.isGuest) {
+        await _categoryService.updateCategory(
+          categoryId: categoryId,
+          categoryName: currentName,
+          color: selected.name,
+        );
+      }
+
+      await _repository.updateCategoryColor(categoryId, selected.name);
+
+      _loadAllData();
+      setState(() => _needsRefresh = true);
+    }
   }
 }

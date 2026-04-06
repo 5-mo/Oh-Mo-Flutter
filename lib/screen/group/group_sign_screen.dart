@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../models/profile_data_provider.dart';
+import '../login/login_screen.dart';
 import 'group_enter_room_screen.dart';
 import 'group_new_room_screen.dart';
+import 'package:provider/provider.dart';
 
 class GroupSignScreen extends StatefulWidget {
   const GroupSignScreen({Key? key}) : super(key: key);
@@ -14,6 +17,76 @@ class _GroupSignScreenState extends State<GroupSignScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkGuestStatus();
+    });
+  }
+
+  void _checkGuestStatus() {
+    final profile = Provider.of<ProfileData>(context, listen: false);
+
+    if (profile.isGuest) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              '\n로그인이 필요한 기능입니다\n',
+              style: TextStyle(fontFamily: 'PretendardBold', fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+            content: const Text(
+              '그룹 기능은 게스트 모드에서 이용할 수 없어요.\n로그인하고 멤버들과 일정을 공유해보세요! ✨',
+              style: TextStyle(fontFamily: 'PretendardRegular', fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: const Text(
+                  '나중에 할게요',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontFamily: 'PretendardMedium',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  '로그인하기',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'PretendardBold',
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override

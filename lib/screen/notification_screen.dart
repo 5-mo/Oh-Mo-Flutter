@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:ohmo/component/invitation_popup.dart';
 import 'package:ohmo/db/drift_database.dart' as db;
 
 enum NotificationType { group, calender, invitation }
@@ -24,18 +25,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
     _markAllAsRead();
 
     _notificationStream = _db.watchAllNotifications();
-    _timer = Timer.periodic(Duration(minutes: 1), (timer) {
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
       if (mounted) {
         setState(() {});
       }
     });
   }
 
-@override
-void dispose() {
-  _timer?.cancel();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   void _markAllAsRead() {
     unawaited(_db.markAllNotificationsAsRead());
@@ -43,109 +44,144 @@ void dispose() {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        surfaceTintColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.chevron_left),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        title: Text(
-          '알림',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18.0,
-            fontFamily: 'PretendardBold',
-          ),
-        ),
-        centerTitle: false,
-        titleSpacing: 3.0,
-        backgroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          _buildNotificationHeader(),
-          SizedBox(height: 10.0),
-          Expanded(
-            child: StreamBuilder<List<db.Notification>>(
-              stream: _notificationStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
+    return StreamBuilder<List<db.Notification>>(
+      stream: _notificationStream,
+      builder: (context, snapshot) {
+        final allNotifications = snapshot.data ?? [];
+        final now = DateTime.now();
+        final visibleNotifications =
+            allNotifications.where((notification) {
+              return notification.timestamp.isBefore(now) ||
+                  notification.timestamp.isAtSameMomentAs(now);
+            }).toList();
 
-                final allNotifications = snapshot.data ?? [];
-                final now = DateTime.now();
+        final bool hasNotifications = visibleNotifications.isNotEmpty;
 
-                if (allNotifications.isNotEmpty) {
-                }
-
-                final visibleNotifications = allNotifications.where((notification) {
-                  return notification.timestamp.isBefore(now) ||
-                      notification.timestamp.isAtSameMomentAs(now);
-
-                }).toList();
-
-                visibleNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-                if (visibleNotifications.isEmpty) {
-                  return Column(
-                    children: [
-                      SizedBox(height: 200),
-                      SvgPicture.asset(
-                        'android/assets/images/notification_off.svg',
-                        width: 24,
-                        height: 24,
+        return Scaffold(
+          appBar: AppBar(
+            surfaceTintColor: Colors.white,
+            leading: IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: () => Navigator.pop(context),
+            ),
+            titleSpacing: 0,
+            backgroundColor: Colors.white,
+            title: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  const Text(
+                    '알림',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 18.0,
+                      fontFamily: 'PretendardBold',
+                    ),
+                  ),
+                  if (hasNotifications) ...[
+                    const SizedBox(width: 15),
+                    const Text(
+                      "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
+                      style: TextStyle(
+                        fontFamily: 'PretendardRegular',
+                        fontSize: 8.0,
+                        color: Color(0xFF565656),
                       ),
-                      SizedBox(height: 7),
-                      Text(
-                        "최근 알림이 없습니다.",
-                        style: TextStyle(
-                          fontFamily: 'PretendardRegular',
-                          fontSize: 12.0,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 7),
-                      Text(
-                        textAlign: TextAlign.right,
-                        "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
-                        style: TextStyle(
-                          fontFamily: 'PretendardRegular',
-                          fontSize: 8.0,
-                          color: Color(0xFF565656),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-
-                return _buildNotificationList(visibleNotifications);
-              },
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-        ],
-      ),
+          body: _buildBody(snapshot, visibleNotifications),
+        );
+      },
     );
   }
 
-  Widget _buildNotificationHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Text(
-          "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서 설정할 수 있습니다",
-          style: TextStyle(
-            fontFamily: 'PretendardRegular',
-            fontSize: 8.0,
-            color: Color(0xFF565656),
-          ),
+  Widget _buildBody(
+    AsyncSnapshot<List<db.Notification>> snapshot,
+    List<db.Notification> visibleNotifications,
+  ) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (visibleNotifications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              'android/assets/images/notification_off.svg',
+              width: 24,
+              height: 24,
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              "최근 알림이 없습니다.",
+              style: TextStyle(
+                fontFamily: 'PretendardRegular',
+                fontSize: 14.0,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              "알림 해제는 휴대폰 설정 앱>알림>'OhMo'에서\n설정할 수 있습니다",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'PretendardRegular',
+                fontSize: 12.0,
+                height: 1.2,
+                color: Color(0xFF565656),
+              ),
+            ),
+            const SizedBox(height: 200),
+          ],
         ),
-      ),
+      );
+    }
+
+    visibleNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    final Map<String, db.Notification> filteredMap = {};
+
+    for (var notification in visibleNotifications) {
+      if (notification.content.contains('[Routine]')) {
+        // [수정 포인트]
+        // 1. 루틴 이름 추출
+        final String pureContent = notification.content.trim();
+
+        // 2. '분' 단위 대신 '날짜' 단위까지만 추출 (연, 월, 일)
+        // 오늘 등록한 모든 동일 루틴은 이 날짜값이 같습니다.
+        final String dateGroup = "${notification.timestamp.year}${notification.timestamp.month}${notification.timestamp.day}";
+
+        // 3. 내용 + 날짜를 조합한 키 생성
+        // 예: routine_매일운동하기_2026329
+        final String groupKey = "routine_${pureContent}_$dateGroup";
+
+        if (!filteredMap.containsKey(groupKey)) {
+          filteredMap[groupKey] = notification; // 맵에 없으면(가장 첫 번째 것) 추가
+        }
+      } else {
+        // 일반 알림은 중복 제거 없이 고유 ID로 저장
+        filteredMap['normal_${notification.id}'] = notification;
+      }
+    }
+
+    // 2. 맵에서 값만 추출하여 리스트화
+    final List<db.Notification> finalNotifications = filteredMap.values.toList();
+
+    // 3. 최종 정렬 (사용자에게 보여줄 순서)
+    finalNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return Column(
+      children: [
+        const SizedBox(height: 10.0),
+        Expanded(child: _buildNotificationList(finalNotifications)),
+      ],
     );
   }
 
@@ -166,19 +202,21 @@ void dispose() {
           }
         }
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 11),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (showHeader) ...[
                 if (index != 0) ...[
-                  SizedBox(height: 15),
-                  Divider(color: Color(0xFFE2E2E2), height: 1, thickness: 1),
+                  const SizedBox(height: 15),
+                  const Divider(
+                    color: Color(0xFFE2E2E2),
+                    height: 1,
+                    thickness: 1,
+                  ),
                 ],
-
                 _buildDateHeaderWidget(item.timestamp),
               ],
-
               _buildNotificationItem(item),
             ],
           ),
@@ -210,13 +248,14 @@ void dispose() {
     }
 
     if ((type == NotificationType.group || type == NotificationType.calender) &&
-        tagIndex != -1 && tag != null) {
+        tagIndex != -1 &&
+        tag != null) {
       final String part1 = displayContent.substring(0, tagIndex);
       final String part2 = tag;
       final String part3 = displayContent.substring(tagIndex + tag.length);
       contentWidget = RichText(
         text: TextSpan(
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'PretendardRegular',
             fontSize: 12.0,
             color: Colors.black,
@@ -226,7 +265,7 @@ void dispose() {
             TextSpan(text: part1),
             TextSpan(
               text: part2,
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: 'PretendardBold',
                 fontSize: 12.0,
                 color: Color(0xFF808080),
@@ -242,7 +281,7 @@ void dispose() {
     } else {
       contentWidget = Text(
         displayContent,
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: 'PretendardRegular',
           fontSize: 12.0,
           color: Colors.black,
@@ -254,10 +293,10 @@ void dispose() {
     return ListTile(
       leading: _getIconForType(type),
       title: Transform.translate(
-        offset: Offset(-5, 5),
+        offset: const Offset(-5, 5),
         child: Text(
           _getTitleForType(type),
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'RubikSprayPaint',
             fontSize: 13.0,
             color: Colors.black,
@@ -265,15 +304,15 @@ void dispose() {
         ),
       ),
       subtitle: Transform.translate(
-        offset: Offset(-5, 5),
+        offset: const Offset(-5, 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             contentWidget,
-            SizedBox(height: 1.0),
+            const SizedBox(height: 1.0),
             Text(
               _formatTimestamp(item.timestamp),
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: 'PretendardRegular',
                 fontSize: 10.0,
                 color: Color(0xFFB3B3B3),
@@ -282,8 +321,23 @@ void dispose() {
           ],
         ),
       ),
-      trailing: null,
-      onTap: () {},
+      onTap: () {
+        if (item.type == 'invitation' && item.relatedId != null) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (context) => InvitationPopup(
+                  invitationId: item.relatedId ?? 0,
+                  groupId: item.relatedId ?? 0,
+                  groupName:
+                      item.content.split("'")[1].isNotEmpty
+                          ? item.content.split("'")[1]
+                          : '초대된 그룹',
+                ),
+          );
+        }
+      },
     );
   }
 
@@ -313,11 +367,10 @@ void dispose() {
   String _getTitleForType(NotificationType type) {
     switch (type) {
       case NotificationType.group:
+      case NotificationType.invitation:
         return 'Group';
       case NotificationType.calender:
         return 'Calender';
-      case NotificationType.invitation:
-        return 'Group';
     }
   }
 
@@ -331,7 +384,7 @@ void dispose() {
       width: double.infinity,
       child: Text(
         _formatDateHeaderText(timestamp),
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: 'PretendardBold',
           fontSize: 14.0,
           color: Colors.black,
@@ -342,15 +395,9 @@ void dispose() {
 
   String _formatDateHeaderText(DateTime date) {
     final now = DateTime.now();
-
-    if (_isSameDay(date, now)) {
-      return '  오늘';
-    }
-
+    if (_isSameDay(date, now)) return '  오늘';
     final yesterday = now.subtract(const Duration(days: 1));
-    if (_isSameDay(date, yesterday)) {
-      return '  어제';
-    }
+    if (_isSameDay(date, yesterday)) return '  어제';
     return DateFormat('  MM월 dd일').format(date);
   }
 

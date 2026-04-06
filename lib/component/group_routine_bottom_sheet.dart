@@ -2,8 +2,11 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_item.dart';
 import 'package:extended_text_field/extended_text_field.dart';
+import 'package:intl/intl.dart' as intl;
+import 'package:ohmo/services/group_service.dart';
 
 class MentionTextSpanBuilder extends SpecialTextSpanBuilder {
   @override
@@ -26,7 +29,8 @@ class MentionText extends SpecialText {
 
   @override
   InlineSpan finishText() {
-    final String text = '$startFlag${getContent()}';
+    final String content = getContent();
+    String displayEx = content;
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
@@ -36,7 +40,10 @@ class MentionText extends SpecialText {
           color: Colors.grey[200],
           borderRadius: BorderRadius.circular(3.0),
         ),
-        child: Text(text, style: textStyle?.copyWith(color: Colors.grey[700])),
+        child: Text(
+          '@$displayEx',
+          style: textStyle?.copyWith(color: Colors.grey[700]),
+        ),
       ),
     );
   }
@@ -47,6 +54,8 @@ class GroupRoutineBottomSheet extends StatefulWidget {
   final Future<void> Function()? onRoutineAdded;
   final Future<void> Function()? onDataChanged;
   final DateTime selectedDate;
+  final int? routineIdToEdit;
+  final Routine? routineToEdit;
 
   const GroupRoutineBottomSheet({
     Key? key,
@@ -54,6 +63,8 @@ class GroupRoutineBottomSheet extends StatefulWidget {
     this.onRoutineAdded,
     this.onDataChanged,
     required this.selectedDate,
+    this.routineIdToEdit,
+    this.routineToEdit,
   }) : super(key: key);
 
   @override
@@ -62,13 +73,8 @@ class GroupRoutineBottomSheet extends StatefulWidget {
 }
 
 class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
-  final Map<String, String> _groupMembers = {
-    '모두': 'android/assets/images/clear_ohmo.png',
-    '재원(나)': 'android/assets/images/clear_ohmo.png',
-    '유진': 'android/assets/images/clear_ohmo.png',
-    '은지': 'android/assets/images/clear_ohmo.png',
-    '효진': 'android/assets/images/clear_ohmo.png',
-  };
+  late Map<String, String> _groupMembers = {};
+  Map<String, int> _memberNameToId = {};
   List<String> _filterMembers = [];
   bool _showMentionSuggestions = false;
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -76,17 +82,26 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   int? selectedCategoryId;
   List<String> selectedDays = [];
   double _mentionBoxOffsetx = 0.0;
+  String? myNickname;
 
   final TextEditingController contentController = TextEditingController();
   final FocusNode _contentFocusNode = FocusNode();
   DateTime? selectedEndDate;
   TimeOfDay? selectedTime;
   bool isChecked = false;
+  bool _isSaving = false;
+
+  final GroupService _groupService = GroupService();
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    _loadMembers().then((_) {
+      if (widget.routineIdToEdit != null) {
+        _loadRoutineDataForEdit();
+      }
+    });
     contentController.addListener(_onTextChanged);
   }
 
@@ -98,50 +113,199 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     super.dispose();
   }
 
+  String _mapEngDayToNum(dynamic englishWeeks) {
+    if (englishWeeks == null) return '';
+
+    const Map<String, String> dayMap = {
+      "MONDAY": "1",
+      "TUESDAY": "2",
+      "WEDNESDAY": "3",
+      "THURSDAY": "4",
+      "FRIDAY": "5",
+      "SATURDAY": "6",
+      "SUNDAY": "7",
+    };
+
+    if (englishWeeks is List) {
+      return englishWeeks
+          .map((e) => dayMap[e.toString().toUpperCase()] ?? '')
+          .where((e) => e.isNotEmpty)
+          .join(',');
+    } else {
+      return dayMap[englishWeeks.toString().toUpperCase()] ?? '';
+    }
+  }
+
+  Future<void> _loadRoutineDataForEdit() async {
+    final routine = widget.routineToEdit;
+    if (routine == null) return;
+
+    contentController.text = routine.content;
+
+    final Map<String, String> numToDay = {
+      '1': '월',
+      '2': '화',
+      '3': '수',
+      '4': '목',
+      '5': '금',
+      '6': '토',
+      '7': '일',
+    };
+
+    setState(() {
+      if (routine.weekDays != null && routine.weekDays!.isNotEmpty) {
+        final newDays = routine.weekDays!
+            .split(',')
+            .map((num) => numToDay[num.trim()] ?? '')
+            .where((d) => d.isNotEmpty);
+
+        selectedDays = {...selectedDays, ...newDays}.toList();
+      }
+    });
+
+    try {
+      if (routine.routineId == null) return;
+
+      final detail = await _groupService.fetchAssigneeRoutine(
+        routine.routineId!,
+      );
+
+      if (detail != null) {
+        final routineInfo = detail['routine'];
+
+        if (routineInfo != null) {
+          final dynamic weeks =
+              routineInfo['repeatWeek'] ??
+              routineInfo['week'] ??
+              routineInfo['weeks'];
+          if (weeks != null) {
+            setState(() {
+              String mappedNums = _mapEngDayToNum(weeks);
+
+              final serverDays = mappedNums
+                  .split(',')
+                  .map((n) => numToDay[n.trim()] ?? '')
+                  .where((d) => d.isNotEmpty);
+
+              selectedDays = {...selectedDays, ...serverDays}.toList();
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("상세 로드 중 오류: $e");
+    }
+  }
+
   void _onTextChanged() {
     final text = contentController.text;
     final cursorPos = contentController.selection.baseOffset;
 
+    if (cursorPos < 0 || text.isEmpty) {
+      setState(() => _showMentionSuggestions = false);
+      return;
+    }
+
     final int atIndex = text.substring(0, cursorPos).lastIndexOf('@');
+
     if (atIndex != -1) {
       final query = text.substring(atIndex + 1, cursorPos);
-      if (!query.contains(' ')) {
-        final prefixText = text.substring(0, atIndex);
 
+      if (query.contains(' ')) {
+        setState(() => _showMentionSuggestions = false);
+        return;
+      }
+
+      final filtered =
+          _groupMembers.keys
+              .where(
+                (member) => member.toLowerCase().contains(query.toLowerCase()),
+              )
+              .toList();
+
+      if (filtered.isNotEmpty) {
+        final prefixText = text.substring(0, atIndex);
         final painter = TextPainter(
           text: TextSpan(
             text: prefixText,
-            style: TextStyle(fontSize: 14, color: Colors.black),
+            style: const TextStyle(fontSize: 14, color: Colors.black),
           ),
           textDirection: TextDirection.ltr,
         );
         painter.layout();
 
-        final calculatedOffset = painter.width + 16.0;
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          setState(() {
-            _mentionBoxOffsetx = calculatedOffset;
-            _filterMembers =
-                _groupMembers.keys
-                    .where(
-                      (member) =>
-                          member.toLowerCase().contains(query.toLowerCase()),
-                    )
-                    .toList();
-            _showMentionSuggestions = _filterMembers.isNotEmpty;
-          });
-          if (_filterMembers.isNotEmpty) _contentFocusNode.requestFocus();
+        setState(() {
+          _mentionBoxOffsetx = painter.width + 16.0;
+          _filterMembers = filtered;
+          _showMentionSuggestions = true;
         });
-        return;
+      } else {
+        setState(() => _showMentionSuggestions = false);
       }
+    } else {
+      setState(() => _showMentionSuggestions = false);
     }
-    Future(() {
+  }
+
+  Future<void> _loadMembers() async {
+    if (widget.groupId == null) return;
+
+    final myEmail = await _groupService.getMyEmail();
+
+    final prefs = await SharedPreferences.getInstance();
+    String? savedNickname = prefs.getString('group_nickname_${widget.groupId}');
+
+    final allGroups = await _groupService.fetchGroups();
+    String? serverGroupNickname;
+    try {
+      final currentGroup = allGroups.firstWhere(
+        (g) => g['groupId'] == widget.groupId,
+      );
+      serverGroupNickname = currentGroup['nickname'];
+    } catch (_) {}
+
+    final memberData = await _groupService.fetchGroupMembers(widget.groupId!);
+
+    if (memberData != null && mounted) {
+      final List<dynamic> memberList =
+          memberData['memberGroupInfos'] ?? memberData['memberDtoList'] ?? [];
+
+      Map<String, String> updatedMembers = {
+        '모두': 'android/assets/images/clear_ohmo.png',
+      };
+      Map<String, int> updatedIds = {};
+
+      for (var member in memberList) {
+        final memberInfo = member['memberInfo'] ?? {};
+        final String email = memberInfo['email'] ?? '';
+
+        String? groupNickname = member['nickname']?.toString();
+        String? globalNickname = memberInfo['nickname']?.toString();
+
+        String baseName = "이름 없음";
+
+        if (email == myEmail) {
+          baseName =
+              savedNickname ??
+              serverGroupNickname ??
+              groupNickname ??
+              globalNickname ??
+              "나";
+          myNickname = baseName;
+        } else {
+          baseName = groupNickname ?? globalNickname ?? "이름 없음";
+        }
+
+        updatedMembers[baseName] = memberInfo['profileImageUrl'] ?? "";
+        updatedIds[baseName] = member['memberGroupId'] ?? 0;
+      }
+
       setState(() {
-        _showMentionSuggestions = false;
+        _groupMembers = updatedMembers;
+        _memberNameToId = updatedIds;
+        _filterMembers = _groupMembers.keys.toList();
       });
-    });
+    }
   }
 
   void _onMemberSelected(String name) {
@@ -150,27 +314,25 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     final int atIndex = text.substring(0, cursorPos).lastIndexOf('@');
 
     if (atIndex != -1) {
-      String prefix = "";
-      if (atIndex > 0 && text[atIndex - 1] != ' ') {
-        prefix = " ";
-      }
+      String prefix = (atIndex > 0 && text[atIndex - 1] != ' ') ? " " : "";
+
+      String insertName = name;
       final newText =
           text.substring(0, atIndex) +
-          '$prefix@$name ' +
+          '$prefix@$insertName ' +
           text.substring(cursorPos);
 
       contentController.value = TextEditingValue(
         text: newText,
         selection: TextSelection.fromPosition(
-          TextPosition(offset: atIndex + prefix.length + name.length + 2),
+          TextPosition(offset: atIndex + prefix.length + insertName.length + 2),
         ),
       );
       _contentFocusNode.requestFocus();
     }
-    Future(() {
-      setState(() {
-        _showMentionSuggestions = false;
-      });
+
+    setState(() {
+      _showMentionSuggestions = false;
     });
   }
 
@@ -196,6 +358,19 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
     };
     final weekNumbers = selectedDays.map((d) => dayMap[d]!.toString()).toList();
     return weekNumbers;
+  }
+
+  List<String> convertToEnglishWeek(List<String> selectedDays) {
+    const Map<String, String> dayMap = {
+      "월": "MONDAY",
+      "화": "TUESDAY",
+      "수": "WEDNESDAY",
+      "목": "THURSDAY",
+      "금": "FRIDAY",
+      "토": "SATURDAY",
+      "일": "SUNDAY",
+    };
+    return selectedDays.map((d) => dayMap[d]!).toList();
   }
 
   @override
@@ -323,8 +498,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
       borderRadius: BorderRadius.circular(6),
       elevation: 4.0,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 0),
-        width: 102,
+        constraints: const BoxConstraints(minWidth: 102, maxWidth: 120),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
@@ -347,42 +521,79 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
                 style: TextStyle(fontSize: 9, color: Colors.grey[600]),
               ),
             ),
-            ..._filterMembers.map((member) {
-              final imagePath = _groupMembers[member];
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children:
+                    _filterMembers.map((member) {
+                      final bool isMe =
+                          (member != '모두' &&
+                              myNickname != null &&
+                              member == myNickname);
+                      final String showName = isMe ? '$member(나)' : member;
 
-              return InkWell(
-                onTapDown: (_) {
-                  _onMemberSelected(member);
-                },
-                splashColor: Colors.grey[300],
-                highlightColor: Colors.grey[200],
-                child: Container(
-                  color: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 2.0,
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 9,
-                        backgroundImage:
-                            imagePath != null ? AssetImage(imagePath) : null,
-                        child:
-                            imagePath == null
-                                ? Icon(Icons.person, size: 11)
-                                : null,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        member,
-                        style: TextStyle(fontSize: 10, color: Colors.black),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+                      return InkWell(
+                        onTap: () => _onMemberSelected(member),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 6.0,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage:
+                                    (() {
+                                          final path = _groupMembers[member];
+                                          if (path == null || path.isEmpty)
+                                            return null;
+
+                                          if (path.startsWith('http')) {
+                                            return NetworkImage(path);
+                                          }
+                                          if (path.startsWith(
+                                            'android/assets',
+                                          )) {
+                                            return AssetImage(path);
+                                          }
+                                          return null;
+                                        })()
+                                        as ImageProvider?,
+                                child:
+                                    (() {
+                                      final path = _groupMembers[member];
+                                      if (path == null || path.isEmpty) {
+                                        return Icon(
+                                          Icons.person,
+                                          size: 12,
+                                          color: Colors.grey[400],
+                                        );
+                                      }
+                                      return null;
+                                    })(),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  showName,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+              ),
+            ),
           ],
         ),
       ),
@@ -390,90 +601,195 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
   }
 
   Widget _buildSaveButton() {
+    final bool isEditMode = widget.routineIdToEdit != null;
+
     return GestureDetector(
-      onTap: () async {
-        final String content = contentController.text;
+      onTap:
+          _isSaving
+              ? null
+              : () async {
+                final String content =
+                    contentController.text.replaceAll('(나)', '').trim();
 
-        if (contentController.text.isEmpty || selectedDays.isEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")));
-          return;
-        }
+                if (content.isEmpty || selectedDays.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("요일과 내용을 모두 입력해주세요.")),
+                  );
+                  return;
+                }
+                setState(() => _isSaving = true);
 
-        try {
-          final db = LocalDatabaseSingleton.instance;
-          final weekString = getRoutineWeek().join(',');
+                try {
+                  final englishWeek = convertToEnglishWeek(selectedDays);
+                  final DateTime threeMonthsLater = widget.selectedDate.add(
+                    const Duration(days: 90),
+                  );
+                  final String formattedEndDate = intl.DateFormat(
+                    'yyyy-MM-dd',
+                  ).format(threeMonthsLater);
 
-          final int newRoutineId = await db.insertRoutine(
-            RoutinesCompanion.insert(
-              groupId: drift.Value(widget.groupId),
-              content: contentController.text,
-              weekDays: drift.Value(weekString),
-              startDate: drift.Value(widget.selectedDate),
-              endDate: drift.Value(DateTime(9999, 12, 31)),
-              timeMinutes: const drift.Value(0),
-              categoryId: const drift.Value(1),
-              colorType: const drift.Value(0),
-              isDone: const drift.Value(false),
-            ),
-          );
+                  if (isEditMode) {
+                    final bool success = await _groupService.updateGroupRoutine(
+                      scheduleId: widget.routineIdToEdit!,
+                      content: content,
+                      routineWeek: englishWeek,
+                      date: formattedEndDate,
+                    );
 
-          if (content.contains('(나)') || content.contains('@모두')) {
-            final group = await db.getGroupById(widget.groupId ?? 0);
-            final groupName = group?.name ?? "현재 그룹";
-            final days = selectedDays.join(',');
+                    if (success) {
+                      final db = LocalDatabaseSingleton.instance;
+                      await db.customUpdate(
+                        'UPDATE routines SET content = ?, week_days = ? WHERE id = ?',
+                        variables: [
+                          drift.Variable<String>(content),
+                          drift.Variable<String>(getRoutineWeek().join(',')),
+                          drift.Variable<int>(widget.routineIdToEdit!),
+                        ],
+                        updates: {db.routines},
+                      );
 
-            String line1 = "'$groupName' 그룹에 새로운 할 일이 등록되었습니다.";
-            String line2 = "[Routine] $content (매주 $days)";
-            final String multiLineContent = "$line1\n$line2";
+                      if (widget.onRoutineAdded != null)
+                        await widget.onRoutineAdded!();
+                      if (mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("루틴이 수정되었습니다!")),
+                        );
+                      }
+                    } else {
+                      print("서버 수정 실패 응답 받음");
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("서버 수정에 실패했습니다.")),
+                        );
+                      }
+                    }
+                  } else {
+                    print("생성 모드 실행 - groupId: ${widget.groupId}");
 
-            await db.insertNotification(
-              NotificationsCompanion(
-                type: drift.Value('group'),
-                content: drift.Value(multiLineContent),
-                timestamp: drift.Value(DateTime.now()),
-                relatedId: drift.Value(newRoutineId),
-                isRead: drift.Value(true),
-              ),
-            );
-          }
+                    final dynamic serverResponse = await _groupService
+                        .createGroupRoutine(
+                          groupId: widget.groupId ?? 0,
+                          content: content,
+                          routineWeek: englishWeek,
+                          date: formattedEndDate,
+                        );
+                    print("서버 생성 응답: $serverResponse");
 
-          if (widget.onRoutineAdded != null) {
-            await widget.onRoutineAdded!();
-          }
+                    if (serverResponse != null) {
+                      List<int> routineIds = [];
+                      if (serverResponse is List) {
+                        routineIds = List<int>.from(serverResponse);
+                      } else if (serverResponse is int) {
+                        routineIds = [serverResponse];
+                      }
 
-          if (mounted) {
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text("루틴이 등록되었습니다!")));
-          }
-        } catch (e) {
-          print('루틴 저장 실패: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('루틴 저장에 실패했습니다.')));
-          }
-        }
-      },
+                      if (routineIds.isEmpty) {
+                        print("에러: 루틴 ID가 반환되지 않음");
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("루틴 생성 중 오류가 발생했습니다. (ID 미수신)"),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      List<int> selectedAssigneeIds = [];
+                      if (content.contains('@모두')) {
+                        _memberNameToId.forEach((name, id) {
+                          if (name != '모두' && id != 0)
+                            selectedAssigneeIds.add(id);
+                        });
+                      } else {
+                        _memberNameToId.forEach((name, id) {
+                          if (content.contains('@$name') && name != '모두') {
+                            selectedAssigneeIds.add(id);
+                          }
+                        });
+                      }
+
+                      for (int rId in routineIds) {
+                        if (selectedAssigneeIds.isNotEmpty) {
+                          await _groupService.registerAssigneeRoutine(
+                            routineId: rId,
+                            memberGroupIdList: selectedAssigneeIds,
+                          );
+                        }
+                      }
+
+                      final db = LocalDatabaseSingleton.instance;
+                      final weekString = getRoutineWeek().join(',');
+
+                      final int localRoutineId = await db.insertRoutine(
+                        RoutinesCompanion.insert(
+                          groupId: drift.Value(widget.groupId),
+                          content: content,
+                          routineId: drift.Value(
+                            routineIds.isNotEmpty ? routineIds.first : null,
+                          ),
+                          weekDays: drift.Value(weekString),
+                          startDate: drift.Value(widget.selectedDate),
+                          endDate: drift.Value(threeMonthsLater),
+                          timeMinutes: const drift.Value(0),
+                          categoryId: const drift.Value(1),
+                          colorType: const drift.Value(0),
+                          isDone: const drift.Value(false),
+                        ),
+                      );
+
+                      if (widget.onRoutineAdded != null) {
+                        await widget.onRoutineAdded!();
+                      }
+                      if (mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("3개월치 루틴이 등록되었습니다!")),
+                        );
+                      }
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("저장 중 오류가 발생했습니다.")),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() => _isSaving = false);
+                  }
+                }
+              },
       child: Container(
         width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: _isSaving ? Colors.grey : Colors.black,
           borderRadius: BorderRadius.circular(9),
         ),
-        child: const Center(
-          child: Text(
-            '저장하기',
-            style: TextStyle(
-              fontSize: 20,
-              fontFamily: 'PretendardBold',
-              color: Colors.white,
-            ),
-          ),
+        child: Center(
+          child:
+              _isSaving
+                  ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+
+                  : Text(
+                    '저장하기',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'PretendardBold',
+                      color: Colors.white,
+                    ),
+                  ),
+
         ),
       ),
     );
@@ -481,7 +797,7 @@ class _GroupRoutineBottomSheetState extends State<GroupRoutineBottomSheet> {
 
   void _loadCategories() async {
     try {
-      final localDb = LocalDatabase();
+      final localDb = LocalDatabaseSingleton.instance;
       final categoryRepo = LocalCategoryRepository(localDb);
 
       final loadedRoutines = await categoryRepo.fetchCategories(

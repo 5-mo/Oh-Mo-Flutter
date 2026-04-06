@@ -12,11 +12,13 @@ class Groups extends Table{
   IntColumn get colorType=>integer().withDefault(const Constant(0))();
   IntColumn get maxMembers=>integer().nullable()();
   TextColumn get password=>text().nullable()();
+  TextColumn get localColor=>text()();
 }
 
 class GroupMembers extends Table {
   IntColumn get groupId => integer().references(Groups, #id)();
   IntColumn get userId => integer().references(Users, #id)();
+  IntColumn get memberGroupId=> integer().nullable()();
   TextColumn get role => text().withDefault(const Constant('MEMBER'))();
 
   @override
@@ -35,20 +37,26 @@ class Notices extends Table{
 
 class Categories extends Table{
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get categoryId=>integer().nullable()();
   TextColumn get name => text()();
   TextColumn get type => text()();
   TextColumn get color => text()();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  IntColumn get serverId=>integer().nullable()();
+  BoolColumn get isSynced=>boolean().withDefault(const Constant(false))();
 }
 
 class DayLogQuestions extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get serverId => integer().nullable()();
   TextColumn get question => text()();
   TextColumn get emoji => text().withDefault(const Constant('🙂'))();
 }
 
 class Routines extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get scheduleId=>integer().nullable()();
+  IntColumn get routineId => integer().nullable()();
   IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();
@@ -60,10 +68,13 @@ class Routines extends Table {
   TextColumn get scheduleType => text().withDefault(const Constant('ROUTINE'))();
   IntColumn get categoryId => integer().nullable()();
   IntColumn get alarmMinutes => integer().nullable()();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  BoolColumn get isSynced=>boolean().withDefault(const Constant(true))();
 }
 
 class Todos extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get scheduleId=>integer().nullable()();
   IntColumn get groupId => integer().references(Groups, #id).nullable()();
   TextColumn get content => text()();
   IntColumn get colorType => integer().withDefault(const Constant(0))();
@@ -73,6 +84,9 @@ class Todos extends Table {
   IntColumn get categoryId => integer().nullable()();
   IntColumn get alarmMinutes => integer().nullable()();
   DateTimeColumn get date => dateTime()();
+  IntColumn get todoServerId=>integer().nullable()();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  BoolColumn get isSynced=>boolean().withDefault(const Constant(true))();
 }
 
 class CompletedRoutines extends Table {

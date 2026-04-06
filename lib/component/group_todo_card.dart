@@ -4,9 +4,13 @@ import 'package:ohmo/component/delete_bottom_sheet.dart';
 import 'package:ohmo/db/drift_database.dart';
 
 import '../const/colors.dart';
+import '../db/drift_database.dart' as db;
+import '../services/group_service.dart';
 
 class GroupTodoCard extends StatefulWidget {
   final Todo todo;
+  final int? todoIdForApi;
+  final int? assigneeId;
   final bool isDoneForDay;
   final DateTime selectedDate;
   final Future<void> Function()? onDataChanged;
@@ -14,10 +18,14 @@ class GroupTodoCard extends StatefulWidget {
   final int completedMemberCount;
   final bool isIndicatorVisible;
   final bool isCheckboxVisible;
+  final int? memberGroupId;
+  final String? myNickname;
+  final VoidCallback? onEditPressed;
 
   const GroupTodoCard({
     Key? key,
     required this.todo,
+    this.todoIdForApi,
     required this.isDoneForDay,
     required this.selectedDate,
     this.onDataChanged,
@@ -25,6 +33,10 @@ class GroupTodoCard extends StatefulWidget {
     required this.completedMemberCount,
     required this.isIndicatorVisible,
     required this.isCheckboxVisible,
+    this.memberGroupId,
+    this.myNickname,
+    this.onEditPressed,
+    this.assigneeId,
   }) : super(key: key);
 
   @override
@@ -61,13 +73,9 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
   Widget build(BuildContext context) {
     final String originalContent = widget.todo.content;
     final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
-    final allMentions =
-        mentionRegex
-            .allMatches(originalContent)
-            .map((m) => m.group(0)!)
-            .toList();
+
     final mainContent = originalContent.replaceAll(mentionRegex, '').trim();
-    final mentionsText = allMentions.join(' ');
+    final matches = mentionRegex.allMatches(originalContent);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -88,31 +96,45 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
           const SizedBox(width: 12.0),
 
           Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: 14.0,
-                  fontFamily: 'PretendardRegular',
-                  decoration:
-                      widget.isDoneForDay
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                  color: widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
-                  decorationColor: Middle_GREY_COLOR,
-                ),
-                children: [
-                  TextSpan(text: mainContent),
-                  TextSpan(
-                    text: ' $mentionsText',
-                    style: TextStyle(
-                      color:
-                          widget.isDoneForDay
-                              ? Middle_GREY_COLOR
-                              : Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onEditPressed,
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 14.0,
+                    fontFamily: 'PretendardRegular',
+                    decoration:
+                        widget.isDoneForDay
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                    color:
+                        widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
+                    decorationColor: Middle_GREY_COLOR,
                   ),
-                ],
+                  children: [
+                    TextSpan(text: mainContent),
+                    ...matches.map((m) {
+                      String mention = m.group(0)!;
+                      String nameOnly = mention.substring(1).trim();
+
+                      if (widget.myNickname != null &&
+                          nameOnly == widget.myNickname &&
+                          !mention.contains('(나)')) {
+                        mention = '$mention(나)';
+                      }
+
+                      return TextSpan(
+                        text: ' $mention',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[600],
+                          fontFamily: 'PretendardBold',
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -135,14 +157,49 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                       widget.isCheckboxVisible
                           ? Checkbox(
                             value: widget.isDoneForDay,
-                            onChanged: (value) async {
-                              final db = LocalDatabaseSingleton.instance;
-                              await db.toggleTodoCompletion(
-                                widget.todo.id,
-                                widget.selectedDate,
-                              );
-                              widget.onDataChanged?.call();
-                            },
+                            onChanged:
+                                (widget.todo.id == 0)
+                                    ? null
+                                    : (value) async {
+                                      final int scheduleId = widget.todo.id;
+                                      final int? realTodoId =
+                                          widget.todoIdForApi;
+                                      final int? assigneeId = widget.assigneeId;
+
+                                      final groupService = GroupService();
+                                      bool isSuccess = false;
+                                      if (assigneeId != null &&
+                                          assigneeId != 0) {
+                                        isSuccess = await groupService
+                                            .updateAssigneeStatus(assigneeId);
+                                      }
+                                      if (!isSuccess) {
+                                        isSuccess = await groupService
+                                            .updateAssigneeStatus(scheduleId);
+                                      }
+
+                                      if (!isSuccess && realTodoId != null) {
+                                        isSuccess = await groupService
+                                            .updateAssigneeStatus(realTodoId);
+                                      }
+
+                                      if (isSuccess) {
+                                        await db.LocalDatabaseSingleton.instance
+                                            .toggleRoutineCompletion(
+                                              widget.todo.id,
+                                              widget.selectedDate,
+                                            );
+                                        await widget.onDataChanged?.call();
+                                      } else {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('잠시 후 다시 시도해주세요...'),
+                                          ),
+                                        );
+                                      }
+                                    },
                             activeColor: Colors.black,
                             checkColor: Colors.white,
                             fillColor: MaterialStateProperty.all(Colors.black),
@@ -170,9 +227,40 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                         return DeleteBottomSheet(
                           showConfirmationPopup: false,
                           onDelete: () async {
-                            final db = LocalDatabaseSingleton.instance;
-                            await db.deleteTodo(widget.todo.id);
-                            widget.onDataChanged?.call();
+                            final groupService = GroupService();
+
+                            final int? serverId = widget.todoIdForApi;
+
+                            if (serverId == null || serverId == 0) {
+                              print("에러 : 유효한 서버 ID가 없습니다.");
+                              return;
+                            }
+
+                            final bool isSuccess = await groupService
+                                .deleteGroupTodo(serverId);
+
+                            if (isSuccess) {
+                              final db = LocalDatabaseSingleton.instance;
+                              await db.deleteTodo(widget.todo.id);
+                              widget.onDataChanged?.call();
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("그룹 투두가 삭제되었습니다."),
+                                  ),
+                                );
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('서버에서 투두를 삭제하는 데 실패했습니다'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                         );
                       },
@@ -182,7 +270,7 @@ class _GroupTodoCardState extends State<GroupTodoCard> {
                     color: Colors.transparent,
                     padding: const EdgeInsets.all(2.0),
                     child: SvgPicture.asset(
-                      'android/assets/images/routine_alarm.svg',
+                      'android/assets/images/todo_alarm.svg',
                     ),
                   ),
                 ),

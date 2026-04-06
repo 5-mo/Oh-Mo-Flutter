@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -8,6 +9,7 @@ import '../screen/group/group_main_screen.dart';
 import '../models/todo.dart';
 
 class MainCalendar extends StatefulWidget {
+  final LayerLink? layerLink;
   final OnDaySelected onDaySelected;
   final DateTime selectedDate;
   final List Function(DateTime day) eventLoader;
@@ -22,11 +24,14 @@ class MainCalendar extends StatefulWidget {
   final String? headerDateFormat;
   final void Function(DateTime)? onPageChanged;
   final VoidCallback? onAlarmIconPressed;
+  final VoidCallback? onGroupIconPressed;
+  final double? groupIconSize;
   final double? alarmIconSize;
   final bool hasUnread;
   final ColorType markerColor;
 
   MainCalendar({
+    this.layerLink,
     required this.onDaySelected,
     required this.selectedDate,
     required this.eventLoader,
@@ -40,6 +45,8 @@ class MainCalendar extends StatefulWidget {
     this.headerDateFormat,
     this.onPageChanged,
     this.onAlarmIconPressed,
+    this.onGroupIconPressed,
+    this.groupIconSize,
     this.alarmIconSize,
     required this.hasUnread,
     this.markerColor = ColorType.pinkLight,
@@ -95,48 +102,75 @@ class _MainCalendarState extends State<MainCalendar> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (widget.onAlarmIconPressed != null)
-                Builder(
-                  builder: (context) {
-                    final String iconPath =
-                        widget.hasUnread
-                            ? 'android/assets/images/notification_on.svg'
-                            : 'android/assets/images/notification_off.svg';
-                    return IconButton(
-                      icon: SvgPicture.asset(
-                        iconPath,
-                        width:
-                            widget.alarmIconSize ??
-                            widget.formatButtonSize ??
-                            24.0,
-                        height:
-                            widget.alarmIconSize ??
-                            widget.formatButtonSize ??
-                            24.0,
-                      ),
-
-                      onPressed: widget.onAlarmIconPressed,
-                    );
-                  },
-                ),
-
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Transform.translate(
-                    offset: widget.monthButtonOffset ?? const Offset(20, -10),
-                    child: _buildFormatButton(
-                      'android/assets/images/cal_month.svg',
-                      CalendarFormat.month,
+                  if (widget.onGroupIconPressed != null)
+                    Transform.translate(
+                      offset: const Offset(18, 0),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: widget.onGroupIconPressed,
+                        icon: Image.asset(
+                          'android/assets/images/group.png',
+                          width: widget.groupIconSize ?? 23,
+                          height: widget.groupIconSize ?? 23,
+                        ),
+                      ),
                     ),
-                  ),
-                  Transform.translate(
-                    offset: widget.weekButtonOffset ?? const Offset(0, -10),
-                    child: _buildFormatButton(
-                      'android/assets/images/cal_week.svg',
-                      CalendarFormat.week,
+                  if (widget.onAlarmIconPressed != null)
+                    Builder(
+                      builder: (context) {
+                        final String iconPath =
+                            widget.hasUnread
+                                ? 'android/assets/images/notification_on.svg'
+                                : 'android/assets/images/notification_off.svg';
+                        return IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: SvgPicture.asset(
+                            iconPath,
+                            width:
+                                widget.alarmIconSize ??
+                                widget.formatButtonSize ??
+                                29.0,
+                            height:
+                                widget.alarmIconSize ??
+                                widget.formatButtonSize ??
+                                29.0,
+                          ),
+
+                          onPressed: widget.onAlarmIconPressed,
+                        );
+                      },
                     ),
-                  ),
                 ],
+              ),
+              CompositedTransformTarget(
+                link: widget.layerLink ?? LayerLink(),
+                child: Row(
+                  children: [
+                    Transform.translate(
+                      offset: widget.monthButtonOffset ?? const Offset(20, -10),
+                      child: _buildFormatButton(
+                        _format == CalendarFormat.month
+                            ? 'android/assets/images/cal_month.svg'
+                            : 'android/assets/images/cal_month_unselected.svg',
+                        CalendarFormat.month,
+                      ),
+                    ),
+                    Transform.translate(
+                      offset: widget.weekButtonOffset ?? const Offset(0, -10),
+                      child: _buildFormatButton(
+                        _format == CalendarFormat.week
+                            ? 'android/assets/images/cal_week_selected.svg'
+                            : 'android/assets/images/cal_week.svg',
+                        CalendarFormat.week,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -149,8 +183,8 @@ class _MainCalendarState extends State<MainCalendar> {
     return IconButton(
       icon: SvgPicture.asset(
         assetPath,
-        width: widget.formatButtonSize ?? 19.0,
-        height: widget.formatButtonSize ?? 19.0,
+        width: widget.formatButtonSize ?? 22.0,
+        height: widget.formatButtonSize ?? 22.0,
       ),
       onPressed: () {
         setState(() {
@@ -230,8 +264,9 @@ class _MainCalendarState extends State<MainCalendar> {
             if (events.isNotEmpty) {
               final event = events.first;
               final bool isWeekFormat = _format == CalendarFormat.week;
+
               if (event is CalendarEvent) {
-                final double bottomPosition = isWeekFormat ? 3 : -9;
+                final double bottomPosition = isWeekFormat ? 3 : 0;
                 return Positioned(
                   left: 0,
                   right: 0,
@@ -245,6 +280,9 @@ class _MainCalendarState extends State<MainCalendar> {
                               height: 20,
                             )
                             : Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
                               width: 40.0,
                               decoration: BoxDecoration(
                                 color: ColorManager.getColor(
@@ -267,7 +305,7 @@ class _MainCalendarState extends State<MainCalendar> {
                   ),
                 );
               } else if (event is Todo) {
-                final double bottomPositionNew = isWeekFormat ? 14.0 : -2;
+                final double bottomPositionNew = isWeekFormat ? 14.0 : 0;
                 final todos = events.cast<Todo>();
                 final todosToShow = todos.take(4).toList();
                 return Positioned(

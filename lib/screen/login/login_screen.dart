@@ -1,71 +1,119 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/screen/login/password_reset_screen.dart';
 import 'package:ohmo/screen/login/signup_screen.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/profile_data_provider.dart';
 import '../../services/auth_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart';
+
+import '../password/password_email_screen.dart';
+
+final _storage = FlutterSecureStorage();
 
 class LoginScreen extends StatefulWidget {
-
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController=TextEditingController();
-  final TextEditingController _passwordController=TextEditingController();
-  final TextEditingController _nicknameController=TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _nicknameController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(height: 60),
-              Center(
-                child: Text(
-                  '로그인',
-                  style: TextStyle(
-                    fontFamily: 'PretendardSemibold',
-                    fontSize: 24.0,
-                  ),
+        child: AutofillGroup(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(height: 100),
+                Row(
+                  children: [
+                    SizedBox(width: 90),
+                    Image.asset(
+                      'android/assets/images/clear_ohmo.png',
+                      width: 53,
+                    ),
+                    SizedBox(width: 20),
+                    Center(
+                      child: Text(
+                        'OhMo',
+                        style: TextStyle(
+                          fontFamily: 'RubikSprayPaint',
+                          fontSize: 36.0,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              SizedBox(height: 60),
-              _buildTextField('이메일 주소', false,_emailController),
-              SizedBox(height: 30),
-              _buildTextField('비밀번호', true,_passwordController),
-              SizedBox(height:20),
-              _buildSignup(context),
-              SizedBox(height: 40),
-              _buildLoginButton(),
-              SizedBox(height: 100),
-              _buildGoogleLogin(),
+                SizedBox(height: 60),
+                _buildTextField('이메일 주소', false, _emailController),
+                SizedBox(height: 30),
+                _buildTextField('비밀번호', true, _passwordController),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildSignup(context),
+                    SizedBox(width: 15),
+                    _buildPasswordReset(context),
+                  ],
+                ),
+                SizedBox(height: 40),
+                _buildLoginButton(),
+                SizedBox(height: 30),
+
+                /*_buildGoogleLogin(),
               SizedBox(height: 13),
               _buildNaverLogin(),
               SizedBox(height: 13),
               _buildKakaoLogin(),
-              SizedBox(height: 13),
-
-            ],
+              SizedBox(height: 13),*/
+                _buildGuestMode(context),
+                SizedBox(height: 100),
+                Text(
+                  '로그인 시 개인정보 처리방침을 읽었으며, 이용약관에 동의하신 것으로 간주합니다.',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'PretendardMedium',
+                    color: Color(0xFFC2C2C2),
+                  ),
+                ),
+                SizedBox(height: 200),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTextField(String hint, bool obscure,TextEditingController controller) {
+  Widget _buildTextField(
+    String hint,
+    bool obscure,
+    TextEditingController controller,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: TextField(
         controller: controller,
         obscureText: obscure,
+        autofillHints:
+            obscure ? [AutofillHints.password] : [AutofillHints.email],
+        keyboardType:
+            obscure
+                ? TextInputType.visiblePassword
+                : TextInputType.emailAddress,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
@@ -199,6 +247,25 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildPasswordReset(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PasswordEmailScreen()),
+        );
+      },
+      child: Text(
+        '비밀번호 재설정',
+        style: TextStyle(
+          fontSize: 14,
+          fontFamily: 'PretendardRegular',
+          decoration: TextDecoration.underline,
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoginButton() {
     return GestureDetector(
       onTap: () async {
@@ -207,26 +274,73 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (email.isEmpty || password.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('이메일과 비밀번호를 모두 입력해주세요.')),
+            const SnackBar(content: Text('이메일과 비밀번호를 모두 입력해주세요.')),
           );
           return;
         }
-        final response=await AuthService.login(email,password);
 
-        if(response!=null){
+        final response = await AuthService.login(email, password);
+
+        if (response != null) {
+          try {
+            await _storage.write(key: 'userEmail', value: email);
+            await _storage.write(key: 'userPassword', value: password);
+
+            TextInput.finishAutofillContext();
+          } catch (e) {
+            print('Keychain 저장 에러 : $e');
+          }
           print('로그인 성공');
 
-          final profile=Provider.of<ProfileData>(context,listen:false);
+          final prefs = await SharedPreferences.getInstance();
+
+          String? accessToken;
+          if (response['token'] != null && response['token'] is Map) {
+            accessToken = response['token']['accessToken'];
+          }
+
+          if (accessToken != null) {
+            await prefs.setString('accessToken', accessToken);
+            await prefs.setString('userEmail', email);
+            print('토큰 저장 완료: $accessToken');
+          } else {
+            print('경고: 응답 데이터에서 accessToken을 찾을 수 없습니다.');
+          }
+
+          final profile = Provider.of<ProfileData>(context, listen: false);
+
+          profile.setGeustMode(false);
           profile.updateProfile(
             updateEmail: email,
             updateNickname: response['nickname'],
           );
-          Navigator.push(context, MaterialPageRoute(builder: (context)=>HomeScreen()),
-          );
-        }else{
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('로그인에 실패했습니다.')),
-          );
+
+          final db = LocalDatabaseSingleton.instance;
+
+          try {
+            await db.syncCategoriesToServer();
+
+            await Future.delayed(const Duration(milliseconds: 500));
+
+            await db.syncTodosToServer();
+            await db.syncRoutinesToServer();
+            await db.syncDayLogsToServer();
+
+            print('모든 데이터 동기화 완료');
+          } catch (e) {
+            print("동기화 도중 에러 발생 : $e");
+          }
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomeScreen()),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('로그인에 실패했습니다.')));
         }
       },
       child: Container(
@@ -245,6 +359,26 @@ class _LoginScreenState extends State<LoginScreen> {
               color: Colors.white,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestMode(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Provider.of<ProfileData>(context, listen: false).setGeustMode(true);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      },
+      child: Text(
+        '둘러보기',
+        style: TextStyle(
+          fontSize: 13,
+          fontFamily: 'PretendardRegular',
+          color: Color(0xFF808080),
         ),
       ),
     );

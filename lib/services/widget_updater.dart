@@ -8,6 +8,7 @@ import '../const/colors.dart';
 
 class WidgetUpdater {
   static Future<void> update() async {
+    await HomeWidget.setAppGroupId('group.ohmo');
     final database = db.LocalDatabaseSingleton.instance;
     final today = DateTime.now();
 

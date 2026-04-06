@@ -8,7 +8,11 @@ import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/component/routine_bottom_sheet.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
 import 'package:ohmo/models/routine.dart';
+import 'package:ohmo/services/day_log_service.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../customize_category.dart';
+import '../models/profile_data_provider.dart';
 import '../models/todo.dart';
 import '../db/drift_database.dart' as db;
 import 'home_screen.dart';
@@ -20,6 +24,7 @@ class DaylogScreen extends StatefulWidget {
   final Function(int) onTabChange;
   final ValueNotifier<DateTime> selectedDateNotifier;
   final bool showTodoSheet;
+  final VoidCallback? onTodoSheetShown;
   final DateTime selectedDate;
   final List<Routine> routines;
   final List<Todo> todos;
@@ -29,6 +34,7 @@ class DaylogScreen extends StatefulWidget {
     this.date,
     required this.selectedDateNotifier,
     this.showTodoSheet = false,
+    this.onTodoSheetShown,
     required this.selectedDate,
     required this.routines,
     required this.todos,
@@ -39,6 +45,9 @@ class DaylogScreen extends StatefulWidget {
 }
 
 class _DaylogScreenState extends State<DaylogScreen> {
+  final LayerLink _emojiLayerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+
   bool isPressed = false;
   String? selectedQuestion;
   String? answer = '';
@@ -87,11 +96,34 @@ class _DaylogScreenState extends State<DaylogScreen> {
     });
   }
 
+  Future<Map<int, double>>? _monthlyProgressFuture;
+
   @override
   void initState() {
     super.initState();
 
-    _focusedDay = widget.selectedDateNotifier.value;
+    if (widget.showTodoSheet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onTodoSheetShown?.call();
+
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          isDismissible: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(59),
+              topLeft: Radius.circular(59),
+            ),
+          ),
+          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
+        );
+      });
+    }
+
+    _monthlyProgressFuture = _calculateMonthlyProgress();
+    _focusedDay = widget.selectedDate;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logWeeklyData(_focusedDay);
@@ -104,7 +136,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
     todos = widget.todos;
 
     _filterTodosForSelectedDate();
-
     _loadRoutineDeletionStatus();
     _loadTodoDeletionStatus();
     _loadQuestionDeletionStatus();
@@ -114,73 +145,167 @@ class _DaylogScreenState extends State<DaylogScreen> {
     _repository = LocalCategoryRepository(database);
 
     _loadAndInitializeQuestions();
-
     _loadDayLogData(_focusedDay);
 
     _answerFocusNode.addListener(_onAnswerFocusChange);
     _diaryFocusNode.addListener(_onDiaryFocusChange);
 
-    if (widget.showTodoSheet) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          isDismissible: true,
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(59),
-              topLeft: Radius.circular(59),
-            ),
-          ),
-          builder: (_) => TodoBottomSheet(selectedDate: _focusedDay),
-        );
-      });
-    }
     widget.selectedDateNotifier.addListener(() {
       if (!mounted) return;
       if (_focusedDay != widget.selectedDateNotifier.value) {
         _updateFocusedDay(widget.selectedDateNotifier.value);
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTooltipStatus();
+    });
+  }
+
+  Future<void> _checkTooltipStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool hasSeen = prefs.getBool('has_seen_emoji_tooltip') ?? false;
+
+    if (!hasSeen && mounted) {
+      _showEmojiTooltip();
+    }
+  }
+
+  Future<void> _onTooltipConfirm() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_emoji_tooltip', true);
+    _hideEmojiTooltip();
+  }
+
+  void _showEmojiTooltip() {
+    _overlayEntry = _createEmojiOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideEmojiTooltip() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  OverlayEntry _createEmojiOverlayEntry() {
+    return OverlayEntry(
+      builder:
+          (context) => Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                CompositedTransformFollower(
+                  link: _emojiLayerLink,
+                  showWhenUnlinked: false,
+                  offset: const Offset(-120, 110),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        CustomPaint(
+                          size: const Size(8, 10),
+                          painter: TrianglePainter(
+                            color: const Color(0xFF4E4E4E),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4E4E4E),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "오늘의 기분은 어떤가요?\n이모지를 눌러주세요!",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  height: 1.2,
+                                  fontFamily: 'PretendardMedium',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: _onTooltipConfirm,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2A2A2A),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: const Text(
+                                    "확인",
+                                    style: TextStyle(
+                                      color: Color(0xFFE6E6E6),
+                                      fontSize: 12,
+                                      fontFamily: 'PretendardMedium',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
   }
 
   Future<void> _loadAndInitializeQuestions() async {
-    List<DayLogQuestionItem> fetchedQuestions =
-        await _repository.fetchDayLogQuestions();
-    if (fetchedQuestions.isEmpty) {
-      await _insertDefaultQuestions();
-      fetchedQuestions = await _repository.fetchDayLogQuestions();
+    final dayLogService = DayLogService();
+    final profile = Provider.of<ProfileData>(context, listen: false);
+
+    final localQuestions = await _repository.fetchDayLogQuestions();
+
+    if (localQuestions.isEmpty) {
+      await _repository.insertDayLogQuestion('오늘의 소비는?', '💰');
+      await _repository.insertDayLogQuestion('오늘의 내가 감사했던 일은?', '😊');
+      final updatedLocal = await _repository.fetchDayLogQuestions();
+      if (mounted) setState(() => _dbQuestions = updatedLocal);
+    } else {
+      if (mounted) setState(() => _dbQuestions = localQuestions);
     }
 
-    if (mounted) {
-      setState(() {
-        _dbQuestions = fetchedQuestions;
-      });
-    }
-  }
+    if (profile.isGuest) return;
 
-  Future<void> _insertDefaultQuestions() async {
-    final defaultQuestions = [
-      {'emoji': '💰', 'text': '오늘의 소비는?'},
-      {'emoji': '😊', 'text': '오늘의 내가 감사했던 일은?'},
-    ];
-    final database = db.LocalDatabaseSingleton.instance;
+    try {
+      final serverQuestions = await dayLogService.getQuestions();
+      if (serverQuestions != null) {
+        final Set<String> localContents =
+            _dbQuestions.map((q) => q.question.trim()).toSet();
 
-    for (var item in defaultQuestions) {
-      await database
-          .into(database.dayLogQuestions)
-          .insert(
-            db.DayLogQuestionsCompanion(
-              question: Value(item['text']!),
-              emoji: Value(item['emoji']!),
-            ),
-          );
+        for (var sq in serverQuestions) {
+          final String qText = (sq['questionContent'] ?? '').trim();
+          if (!localContents.contains(qText)) {
+            await _repository.insertDayLogQuestion(qText, sq['emoji'] ?? '');
+          }
+        }
+
+        final finalLocal = await _repository.fetchDayLogQuestions();
+        if (mounted) setState(() => _dbQuestions = finalLocal);
+      }
+    } catch (e) {
+      print("서버 질문 동기화 실패: $e");
     }
   }
 
   @override
   void dispose() {
+    _hideEmojiTooltip();
     _answerController.dispose();
     _diaryController.dispose();
 
@@ -212,12 +337,14 @@ class _DaylogScreenState extends State<DaylogScreen> {
   void didUpdateWidget(DaylogScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.routines != oldWidget.routines ||
-        widget.todos != oldWidget.todos) {
+        widget.todos != oldWidget.todos ||
+        widget.selectedDate != oldWidget.selectedDate) {
       setState(() {
         routines = widget.routines;
         todos = widget.todos;
         _filterTodosForSelectedDate();
       });
+      logWeeklyData(_focusedDay);
     }
   }
 
@@ -234,37 +361,72 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Future<void> _loadDayLogData(DateTime date) async {
+    final dateString = DateFormat('yyyy-MM-dd').format(date);
     final database = db.LocalDatabaseSingleton.instance;
     final dateOnly = DateTime(date.year, date.month, date.day);
+    final dayLogService = DayLogService();
+
     final existingLog = await database.getDayLog(dateOnly);
 
-    if (existingLog != null) {
-      _diaryController.text = existingLog.diary ?? '';
-      _setSelectedEmotion(existingLog.emotion);
-
-      if (existingLog.answerMapJson != null) {
-        try {
-          _dailyAnswers = Map<String, String>.from(
-            jsonDecode(existingLog.answerMapJson!),
-          );
-        } catch (e) {
-          _dailyAnswers = {};
+    if (mounted) {
+      setState(() {
+        if (existingLog != null) {
+          _diaryController.text = existingLog.diary ?? '';
+          _setSelectedEmotion(existingLog.emotion);
+          if (existingLog.answerMapJson != null) {
+            _dailyAnswers = Map<String, String>.from(
+              jsonDecode(existingLog.answerMapJson!),
+            );
+          } else {
+            _dailyAnswers = {};
+          }
+        } else {
+          _diaryController.clear();
+          _resetIconState();
+          _dailyAnswers.clear();
         }
-      } else {
-        _dailyAnswers = {};
-      }
-
-      setState(() {
-        selectedQuestion = null;
-        _answerController.clear();
       });
+    }
+
+    final serverData = await dayLogService.getQuestionAnswers(dateString);
+
+    if (!mounted) return;
+
+    if (serverData == null) {
+      print('[서버] 에러: 서버로부터 응답을 받지 못했거나 에러가 발생했습니다.');
     } else {
-      _diaryController.clear();
-      _dailyAnswers = {};
-      _answerController.clear();
       setState(() {
-        selectedQuestion = null;
-        _resetIconState();
+        for (var item in serverData) {
+          String qContent = (item['questionContent'] ?? '').trim();
+          String emoji = item['emoji'] ?? '';
+          String fullKey = emoji.isNotEmpty ? '$emoji $qContent' : qContent;
+
+          var answerList = item['answerList'] as List;
+
+          if (answerList.isNotEmpty) {
+            String serverAnswer = answerList[0]['answer'] ?? '';
+            _dailyAnswers[fullKey] = serverAnswer;
+          }
+        }
+        if (selectedQuestion != null &&
+            _dailyAnswers.containsKey(selectedQuestion)) {
+          _answerController.text = _dailyAnswers[selectedQuestion!] ?? '';
+        }
+      });
+    }
+    final serverDiary = await dayLogService.getDiary(dateString);
+    if (!mounted) return;
+    if (serverDiary != null && serverDiary['content'] != null) {
+      setState(() {
+        _diaryController.text = serverDiary['content'];
+      });
+    }
+
+    final serverEmoji = await dayLogService.getEmoji(dateString);
+    if (!mounted) return;
+    if (serverEmoji != null && mounted) {
+      setState(() {
+        _setSelectedEmotion(serverEmoji);
       });
     }
   }
@@ -272,36 +434,48 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Future<void> _updateFocusedDay(DateTime newDate) async {
     setState(() {
       _focusedDay = newDate;
-      if (widget.selectedDateNotifier.value != newDate) {
-        widget.selectedDateNotifier.value = newDate;
-      }
+      _answerController.clear();
+      _diaryController.clear();
+      _dailyAnswers.clear();
+      selectedQuestion = null;
+      _resetIconState();
     });
+
+    if (widget.selectedDateNotifier.value != newDate) {
+      widget.selectedDateNotifier.value = newDate;
+    }
 
     _filterTodosForSelectedDate();
     await logWeeklyData(newDate);
     await _loadDayLogData(newDate);
+
+    if (mounted) {
+      setState(() {
+        _monthlyProgressFuture = _calculateMonthlyProgress();
+      });
+    }
   }
 
   Future<void> logWeeklyData(DateTime date) async {
-    final year = date.year;
-    final month = date.month;
-    final daysInMonth = DateTime(year, month + 1, 0).day;
-    final weekday = date.weekday;
-    final weekStartDay = max(date.day - (weekday - 1), 1);
-    final weekEndDay = min(weekStartDay + 6, daysInMonth);
+    final localDate = date.toLocal();
+    final pureDate = DateTime(localDate.year, localDate.month, localDate.day);
+
+    final weekday = localDate.weekday;
+
+    final mondayOfThisWeek = pureDate.subtract(Duration(days: weekday - 1));
 
     List<Routine> fetchedWeeklyRoutines = [];
 
-    for (int day = weekStartDay; day <= weekEndDay; day++) {
-      final currentDate = DateTime(year, month, day);
-
+    for (int i = 0; i < 7; i++) {
+      final currentDate = mondayOfThisWeek.add(Duration(days: i));
       final dailyRoutines = await fetchRoutines(currentDate);
-      final visibleRoutines =
-          dailyRoutines
-              .where((r) => isRoutineVisibleOnDate(r, currentDate))
-              .toList();
 
-      fetchedWeeklyRoutines.addAll(visibleRoutines);
+      final scheduledForThisWeek =
+          dailyRoutines.where((r) {
+            return r.daysOfWeek.contains(currentDate.weekday);
+          }).toList();
+
+      fetchedWeeklyRoutines.addAll(scheduledForThisWeek);
     }
 
     if (mounted) {
@@ -325,6 +499,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       selectedDate.month,
       selectedDate.day,
     );
+
     final start = DateTime(
       routine.startDate!.year,
       routine.startDate!.month,
@@ -335,24 +510,32 @@ class _DaylogScreenState extends State<DaylogScreen> {
       routine.endDate.month,
       routine.endDate.day,
     );
-    return !dateOnly.isBefore(start) &&
-        !dateOnly.isAfter(end) &&
-        routine.daysOfWeek.contains(dateOnly.weekday);
+
+    final isInRange = !dateOnly.isBefore(start) && !dateOnly.isAfter(end);
+
+    final isRightDay = routine.daysOfWeek.contains(dateOnly.weekday);
+
+    return isInRange && isRightDay;
   }
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {
     final database = db.LocalDatabaseSingleton.instance;
-    final allRoutines = await database.getAllRoutines();
-    final completedIds = await database.getCompletedRoutineIds(date);
 
-    return allRoutines.map((r) {
+    final allRoutines = await database.getAllRoutines();
+    final personalRoutinesOnly =
+        allRoutines.where((r) => r.groupId == null).toList();
+
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final completedIds = await database.getCompletedRoutineIds(dateOnly);
+
+    return personalRoutinesOnly.map((r) {
       return Routine(
         id: r.id,
         content: r.content,
         colorType: ColorType.values[r.colorType],
         isDone: completedIds.contains(r.id),
-        startDate: r.startDate ?? DateTime.now(),
-        endDate: r.endDate ?? DateTime.now(),
+        startDate: r.startDate ?? DateTime(2000, 1, 1),
+        endDate: r.endDate ?? DateTime(2100, 12, 31),
         daysOfWeek: parseWeekDays(r.weekDays),
         time: convertMinutesToTime(r.timeMinutes),
         alarm: false,
@@ -566,42 +749,45 @@ class _DaylogScreenState extends State<DaylogScreen> {
               ),
             ],
           ),
-          Column(
-            children: [
-              Transform.translate(
-                offset: Offset(-20, 0),
-                child: GestureDetector(
-                  onTap: () => _onIconPressed('happy_unselected'),
-                  child: SvgPicture.asset(
-                    'android/assets/images/happy_unselected.svg',
-                    color: _happyActive ? Colors.black : Colors.grey,
-                    height: 35.0,
+          CompositedTransformTarget(
+            link: _emojiLayerLink,
+            child: Column(
+              children: [
+                Transform.translate(
+                  offset: Offset(-20, 0),
+                  child: GestureDetector(
+                    onTap: () => _onIconPressed('happy_unselected'),
+                    child: SvgPicture.asset(
+                      'android/assets/images/happy_unselected.svg',
+                      color: _happyActive ? Colors.black : Colors.grey,
+                      height: 35.0,
+                    ),
                   ),
                 ),
-              ),
-              Transform.translate(
-                offset: Offset(-20, 0),
-                child: GestureDetector(
-                  onTap: () => _onIconPressed('soso_unselected'),
-                  child: SvgPicture.asset(
-                    'android/assets/images/soso_unselected.svg',
-                    color: _sosoActive ? Colors.black : Colors.grey,
-                    height: 35.0,
+                Transform.translate(
+                  offset: Offset(-20, 0),
+                  child: GestureDetector(
+                    onTap: () => _onIconPressed('soso_unselected'),
+                    child: SvgPicture.asset(
+                      'android/assets/images/soso_unselected.svg',
+                      color: _sosoActive ? Colors.black : Colors.grey,
+                      height: 35.0,
+                    ),
                   ),
                 ),
-              ),
-              Transform.translate(
-                offset: Offset(-20, 0),
-                child: GestureDetector(
-                  onTap: () => _onIconPressed('bad_unselected'),
-                  child: SvgPicture.asset(
-                    'android/assets/images/bad_unselected.svg',
-                    color: _badActive ? Colors.black : Colors.grey,
-                    height: 35.0,
+                Transform.translate(
+                  offset: Offset(-20, 0),
+                  child: GestureDetector(
+                    onTap: () => _onIconPressed('bad_unselected'),
+                    child: SvgPicture.asset(
+                      'android/assets/images/bad_unselected.svg',
+                      color: _badActive ? Colors.black : Colors.grey,
+                      height: 35.0,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           IconButton(
             onPressed: _onRightChevronPressed,
@@ -628,7 +814,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   Widget _buildRoutineSection() {
     final Map<String, List<Routine>> groupedRoutines = {};
-
     for (var routine in weeklyRoutines) {
       if (groupedRoutines.containsKey(routine.content)) {
         groupedRoutines[routine.content]!.add(routine);
@@ -636,13 +821,17 @@ class _DaylogScreenState extends State<DaylogScreen> {
         groupedRoutines[routine.content] = [routine];
       }
     }
+
+    final Set<String> todayVisibleNames =
+        weeklyRoutines
+            .where((r) => isRoutineVisibleOnDate(r, _focusedDay))
+            .map((r) => r.content)
+            .toSet();
+
     final todaysRoutineEntries =
-        groupedRoutines.entries.where((entry) {
-          return entry.value.any(
-            (routineInstance) =>
-                isRoutineVisibleOnDate(routineInstance, _focusedDay),
-          );
-        }).toList();
+        groupedRoutines.entries
+            .where((entry) => todayVisibleNames.contains(entry.key))
+            .toList();
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 33.0),
@@ -654,7 +843,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               child: Text(
                 "이번 주 루틴 현황을 보여드립니다.",
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontFamily: 'PretendardSemiBold',
                   color: DARK_GREY_COLOR,
                 ),
@@ -675,7 +864,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               children:
                   todaysRoutineEntries.map((entry) {
                     final routineContent = entry.key;
-                    final routineInstances = groupedRoutines[routineContent]!;
+                    final routineInstances = entry.value;
 
                     final totalCount = routineInstances.length;
                     final completedCount =
@@ -772,7 +961,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       },
       child: Container(
         width: 87,
-        height: 18,
+        height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           color: Colors.white,
@@ -785,7 +974,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
           child: Center(
             child: Text(
               '루틴 만들기',
-              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+              style: TextStyle(fontSize: 12, fontFamily: 'PretendardRegular'),
             ),
           ),
         ),
@@ -819,7 +1008,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
               child: Text(
                 "오늘 끝낸 to-do 리스트를 보여드립니다.",
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontFamily: 'PretendardSemiBold',
                   color: DARK_GREY_COLOR,
                 ),
@@ -896,7 +1085,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
       },
       child: Container(
         width: 87,
-        height: 18,
+        height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           color: Colors.white,
@@ -909,7 +1098,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
           child: Center(
             child: Text(
               '투두 만들기',
-              style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+              style: TextStyle(fontSize: 12, fontFamily: 'PretendardRegular'),
             ),
           ),
         ),
@@ -977,10 +1166,13 @@ class _DaylogScreenState extends State<DaylogScreen> {
   }
 
   Widget _buildProgressSection() {
+    if (_monthlyProgressFuture == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 40.0),
       child: FutureBuilder<Map<int, double>>(
-        future: _calculateMonthlyProgress(),
+        future: _monthlyProgressFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Container(
@@ -1047,7 +1239,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
                             "이번 달 to-do 달성률을 보여드립니다.\n퍼센트에 따라 색깔을 달리 표현합니다.",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               fontFamily: 'PretendardSemiBold',
                               color: DARK_GREY_COLOR,
                             ),
@@ -1076,8 +1268,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
         );
       },
       child: Container(
-        width: 87,
-        height: 18,
+        width: 100,
+        height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           color: Colors.white,
@@ -1089,7 +1281,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         child: Center(
           child: Text(
             '캘린더 보러 가기',
-            style: TextStyle(fontSize: 10, fontFamily: 'PretendardRegular'),
+            style: TextStyle(fontSize: 12, fontFamily: 'PretendardRegular'),
           ),
         ),
       ),
@@ -1219,7 +1411,10 @@ class _DaylogScreenState extends State<DaylogScreen> {
                     child: TextField(
                       controller: _answerController,
                       focusNode: _answerFocusNode,
-                      decoration: InputDecoration(border: InputBorder.none),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.only(bottom: 6.0),
+                      ),
                       onChanged: (value) {
                         setState(() {
                           answer = value;
@@ -1275,9 +1470,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
             ),
           ),
           onChanged: (value) {
-            setState(() {
-              diary = value;
-            });
+            diary = value;
           },
         ),
       ),
@@ -1286,32 +1479,89 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
   void _saveDaylogData({bool showSnackbar = true}) async {
     final database = db.LocalDatabaseSingleton.instance;
+    final profile = Provider.of<ProfileData>(context, listen: false);
+
     final dateOnly = DateTime(
       _focusedDay.year,
       _focusedDay.month,
       _focusedDay.day,
     );
+    final dateString = DateFormat('yyyy-MM-dd').format(_focusedDay);
 
-    if (selectedQuestion != null && _answerFocusNode.hasFocus) {
+    if (selectedQuestion != null) {
       _dailyAnswers[selectedQuestion!] = _answerController.text;
     }
 
     final String? answerMapString =
         _dailyAnswers.isEmpty ? null : jsonEncode(_dailyAnswers);
 
-    final entry = db.DayLogsCompanion(
-      date: Value(dateOnly),
-      emotion: Value(_getSelectedEmotion()),
-      diary: Value(_diaryController.text),
-      answerMapJson: Value(answerMapString),
+    await database.upsertDayLog(
+      db.DayLogsCompanion(
+        date: Value(dateOnly),
+        emotion: Value(_getSelectedEmotion()),
+        diary: Value(_diaryController.text),
+        answerMapJson: Value(answerMapString),
+      ),
     );
 
-    await database.upsertDayLog(entry);
+    if (profile.isGuest) {
+      if (mounted && showSnackbar) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('게스트 모드로 저장되었습니다.')));
+      }
+      return;
+    }
+
+    final dayLogService = DayLogService();
+
+    String? emotion = _getSelectedEmotion();
+    if (emotion != null) {
+      await dayLogService.registerEmoji(date: dateString, emoji: emotion);
+    }
+
+    if (_diaryController.text.isNotEmpty) {
+      await dayLogService.registerDiary(
+        content: _diaryController.text,
+        date: dateString,
+      );
+    }
+
+    if (_dailyAnswers.isNotEmpty) {
+      for (var entry in _dailyAnswers.entries) {
+        final questionKey = entry.key;
+        final answerText = entry.value.trim();
+        if (answerText.isEmpty) continue;
+
+        try {
+          final targetQuestion = _dbQuestions.firstWhere((q) {
+            final fullKey =
+                q.emoji.isNotEmpty ? '${q.emoji} ${q.question}' : q.question;
+            return fullKey == questionKey;
+          });
+
+          await dayLogService.registerAnswer(
+            questionId: targetQuestion.id,
+            answer: answerText,
+            date: dateString,
+          );
+        } catch (e) {
+          print('[저장 오류]: $questionKey');
+        }
+      }
+    }
+
+    await _loadDayLogData(_focusedDay);
+
+    if (!mounted) return;
+    setState(() {
+      _monthlyProgressFuture = _calculateMonthlyProgress();
+    });
 
     if (mounted && showSnackbar) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('데이로그가 저장되었습니다.')));
+      ).showSnackBar(const SnackBar(content: Text('오늘 하루 기록 완료!')));
     }
   }
 
@@ -1327,7 +1577,7 @@ class _DaylogScreenState extends State<DaylogScreen> {
         ),
         child: Center(
           child: Text(
-            '일기 저장하기',
+            '저장하기',
             style: TextStyle(
               fontSize: 20,
               fontFamily: 'PretendardBold',

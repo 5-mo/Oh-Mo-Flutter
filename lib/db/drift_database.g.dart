@@ -4,14 +4,16 @@ part of 'drift_database.dart';
 
 // ignore_for_file: type=lint
 class $CategoriesTable extends Categories
-    with TableInfo<$CategoriesTable, Category> {
+    with drift.TableInfo<$CategoriesTable, Category> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $CategoriesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -22,64 +24,120 @@ class $CategoriesTable extends Categories
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  static const drift.VerificationMeta _categoryIdMeta =
+      const drift.VerificationMeta('categoryId');
   @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+  late final drift.GeneratedColumn<int> categoryId = drift.GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const drift.VerificationMeta _nameMeta = const drift.VerificationMeta(
+    'name',
+  );
+  @override
+  late final drift.GeneratedColumn<String> name = drift.GeneratedColumn<String>(
     'name',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  static const drift.VerificationMeta _typeMeta = const drift.VerificationMeta(
+    'type',
+  );
   @override
-  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+  late final drift.GeneratedColumn<String> type = drift.GeneratedColumn<String>(
     'type',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _colorMeta = const VerificationMeta('color');
-  @override
-  late final GeneratedColumn<String> color = GeneratedColumn<String>(
+  static const drift.VerificationMeta _colorMeta = const drift.VerificationMeta(
     'color',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
-    'isDeleted',
   );
   @override
-  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
-    'is_deleted',
+  late final drift.GeneratedColumn<String> color =
+      drift.GeneratedColumn<String>(
+        'color',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _isDeletedMeta =
+      const drift.VerificationMeta('isDeleted');
+  @override
+  late final drift.GeneratedColumn<bool> isDeleted =
+      drift.GeneratedColumn<bool>(
+        'is_deleted',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_deleted" IN (0, 1))',
+        ),
+        defaultValue: const drift.Constant(false),
+      );
+  static const drift.VerificationMeta _serverIdMeta =
+      const drift.VerificationMeta('serverId');
+  @override
+  late final drift.GeneratedColumn<int> serverId = drift.GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const drift.VerificationMeta _isSyncedMeta =
+      const drift.VerificationMeta('isSynced');
+  @override
+  late final drift.GeneratedColumn<bool> isSynced = drift.GeneratedColumn<bool>(
+    'is_synced',
     aliasedName,
     false,
     type: DriftSqlType.bool,
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_deleted" IN (0, 1))',
+      'CHECK ("is_synced" IN (0, 1))',
     ),
-    defaultValue: const Constant(false),
+    defaultValue: const drift.Constant(false),
   );
   @override
-  List<GeneratedColumn> get $columns => [id, name, type, color, isDeleted];
+  List<drift.GeneratedColumn> get $columns => [
+    id,
+    categoryId,
+    name,
+    type,
+    color,
+    isDeleted,
+    serverId,
+    isSynced,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'categories';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Category> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<Category> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -111,11 +169,23 @@ class $CategoriesTable extends Categories
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
     return context;
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   Category map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -125,6 +195,10 @@ class $CategoriesTable extends Categories
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      ),
       name:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -145,6 +219,15 @@ class $CategoriesTable extends Categories
             DriftSqlType.bool,
             data['${effectivePrefix}is_deleted'],
           )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      isSynced:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_synced'],
+          )!,
     );
   }
 
@@ -154,37 +237,59 @@ class $CategoriesTable extends Categories
   }
 }
 
-class Category extends DataClass implements Insertable<Category> {
+class Category extends drift.DataClass implements drift.Insertable<Category> {
   final int id;
+  final int? categoryId;
   final String name;
   final String type;
   final String color;
   final bool isDeleted;
+  final int? serverId;
+  final bool isSynced;
   const Category({
     required this.id,
+    this.categoryId,
     required this.name,
     required this.type,
     required this.color,
     required this.isDeleted,
+    this.serverId,
+    required this.isSynced,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['name'] = Variable<String>(name);
-    map['type'] = Variable<String>(type);
-    map['color'] = Variable<String>(color);
-    map['is_deleted'] = Variable<bool>(isDeleted);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = drift.Variable<int>(categoryId);
+    }
+    map['name'] = drift.Variable<String>(name);
+    map['type'] = drift.Variable<String>(type);
+    map['color'] = drift.Variable<String>(color);
+    map['is_deleted'] = drift.Variable<bool>(isDeleted);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = drift.Variable<int>(serverId);
+    }
+    map['is_synced'] = drift.Variable<bool>(isSynced);
     return map;
   }
 
   CategoriesCompanion toCompanion(bool nullToAbsent) {
     return CategoriesCompanion(
-      id: Value(id),
-      name: Value(name),
-      type: Value(type),
-      color: Value(color),
-      isDeleted: Value(isDeleted),
+      id: drift.Value(id),
+      categoryId:
+          categoryId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(categoryId),
+      name: drift.Value(name),
+      type: drift.Value(type),
+      color: drift.Value(color),
+      isDeleted: drift.Value(isDeleted),
+      serverId:
+          serverId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(serverId),
+      isSynced: drift.Value(isSynced),
     );
   }
 
@@ -192,47 +297,63 @@ class Category extends DataClass implements Insertable<Category> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return Category(
       id: serializer.fromJson<int>(json['id']),
+      categoryId: serializer.fromJson<int?>(json['categoryId']),
       name: serializer.fromJson<String>(json['name']),
       type: serializer.fromJson<String>(json['type']),
       color: serializer.fromJson<String>(json['color']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'categoryId': serializer.toJson<int?>(categoryId),
       'name': serializer.toJson<String>(name),
       'type': serializer.toJson<String>(type),
       'color': serializer.toJson<String>(color),
       'isDeleted': serializer.toJson<bool>(isDeleted),
+      'serverId': serializer.toJson<int?>(serverId),
+      'isSynced': serializer.toJson<bool>(isSynced),
     };
   }
 
   Category copyWith({
     int? id,
+    drift.Value<int?> categoryId = const drift.Value.absent(),
     String? name,
     String? type,
     String? color,
     bool? isDeleted,
+    drift.Value<int?> serverId = const drift.Value.absent(),
+    bool? isSynced,
   }) => Category(
     id: id ?? this.id,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
     name: name ?? this.name,
     type: type ?? this.type,
     color: color ?? this.color,
     isDeleted: isDeleted ?? this.isDeleted,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    isSynced: isSynced ?? this.isSynced,
   );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
       id: data.id.present ? data.id.value : this.id,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
       name: data.name.present ? data.name.value : this.name,
       type: data.type.present ? data.type.value : this.type,
       color: data.color.present ? data.color.value : this.color,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
   }
 
@@ -240,98 +361,143 @@ class Category extends DataClass implements Insertable<Category> {
   String toString() {
     return (StringBuffer('Category(')
           ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('color: $color, ')
-          ..write('isDeleted: $isDeleted')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('serverId: $serverId, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, type, color, isDeleted);
+  int get hashCode => Object.hash(
+    id,
+    categoryId,
+    name,
+    type,
+    color,
+    isDeleted,
+    serverId,
+    isSynced,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Category &&
           other.id == this.id &&
+          other.categoryId == this.categoryId &&
           other.name == this.name &&
           other.type == this.type &&
           other.color == this.color &&
-          other.isDeleted == this.isDeleted);
+          other.isDeleted == this.isDeleted &&
+          other.serverId == this.serverId &&
+          other.isSynced == this.isSynced);
 }
 
-class CategoriesCompanion extends UpdateCompanion<Category> {
-  final Value<int> id;
-  final Value<String> name;
-  final Value<String> type;
-  final Value<String> color;
-  final Value<bool> isDeleted;
+class CategoriesCompanion extends drift.UpdateCompanion<Category> {
+  final drift.Value<int> id;
+  final drift.Value<int?> categoryId;
+  final drift.Value<String> name;
+  final drift.Value<String> type;
+  final drift.Value<String> color;
+  final drift.Value<bool> isDeleted;
+  final drift.Value<int?> serverId;
+  final drift.Value<bool> isSynced;
   const CategoriesCompanion({
-    this.id = const Value.absent(),
-    this.name = const Value.absent(),
-    this.type = const Value.absent(),
-    this.color = const Value.absent(),
-    this.isDeleted = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.categoryId = const drift.Value.absent(),
+    this.name = const drift.Value.absent(),
+    this.type = const drift.Value.absent(),
+    this.color = const drift.Value.absent(),
+    this.isDeleted = const drift.Value.absent(),
+    this.serverId = const drift.Value.absent(),
+    this.isSynced = const drift.Value.absent(),
   });
   CategoriesCompanion.insert({
-    this.id = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.categoryId = const drift.Value.absent(),
     required String name,
     required String type,
     required String color,
-    this.isDeleted = const Value.absent(),
-  }) : name = Value(name),
-       type = Value(type),
-       color = Value(color);
-  static Insertable<Category> custom({
-    Expression<int>? id,
-    Expression<String>? name,
-    Expression<String>? type,
-    Expression<String>? color,
-    Expression<bool>? isDeleted,
+    this.isDeleted = const drift.Value.absent(),
+    this.serverId = const drift.Value.absent(),
+    this.isSynced = const drift.Value.absent(),
+  }) : name = drift.Value(name),
+       type = drift.Value(type),
+       color = drift.Value(color);
+  static drift.Insertable<Category> custom({
+    drift.Expression<int>? id,
+    drift.Expression<int>? categoryId,
+    drift.Expression<String>? name,
+    drift.Expression<String>? type,
+    drift.Expression<String>? color,
+    drift.Expression<bool>? isDeleted,
+    drift.Expression<int>? serverId,
+    drift.Expression<bool>? isSynced,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
+      if (categoryId != null) 'category_id': categoryId,
       if (name != null) 'name': name,
       if (type != null) 'type': type,
       if (color != null) 'color': color,
       if (isDeleted != null) 'is_deleted': isDeleted,
+      if (serverId != null) 'server_id': serverId,
+      if (isSynced != null) 'is_synced': isSynced,
     });
   }
 
   CategoriesCompanion copyWith({
-    Value<int>? id,
-    Value<String>? name,
-    Value<String>? type,
-    Value<String>? color,
-    Value<bool>? isDeleted,
+    drift.Value<int>? id,
+    drift.Value<int?>? categoryId,
+    drift.Value<String>? name,
+    drift.Value<String>? type,
+    drift.Value<String>? color,
+    drift.Value<bool>? isDeleted,
+    drift.Value<int?>? serverId,
+    drift.Value<bool>? isSynced,
   }) {
     return CategoriesCompanion(
       id: id ?? this.id,
+      categoryId: categoryId ?? this.categoryId,
       name: name ?? this.name,
       type: type ?? this.type,
       color: color ?? this.color,
       isDeleted: isDeleted ?? this.isDeleted,
+      serverId: serverId ?? this.serverId,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = drift.Variable<int>(categoryId.value);
     }
     if (name.present) {
-      map['name'] = Variable<String>(name.value);
+      map['name'] = drift.Variable<String>(name.value);
     }
     if (type.present) {
-      map['type'] = Variable<String>(type.value);
+      map['type'] = drift.Variable<String>(type.value);
     }
     if (color.present) {
-      map['color'] = Variable<String>(color.value);
+      map['color'] = drift.Variable<String>(color.value);
     }
     if (isDeleted.present) {
-      map['is_deleted'] = Variable<bool>(isDeleted.value);
+      map['is_deleted'] = drift.Variable<bool>(isDeleted.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = drift.Variable<int>(serverId.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = drift.Variable<bool>(isSynced.value);
     }
     return map;
   }
@@ -340,24 +506,29 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   String toString() {
     return (StringBuffer('CategoriesCompanion(')
           ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('color: $color, ')
-          ..write('isDeleted: $isDeleted')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('serverId: $serverId, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
 }
 
 class $DayLogQuestionsTable extends DayLogQuestions
-    with TableInfo<$DayLogQuestionsTable, DayLogQuestion> {
+    with drift.TableInfo<$DayLogQuestionsTable, DayLogQuestion> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $DayLogQuestionsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -368,43 +539,62 @@ class $DayLogQuestionsTable extends DayLogQuestions
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _questionMeta = const VerificationMeta(
-    'question',
-  );
+  static const drift.VerificationMeta _serverIdMeta =
+      const drift.VerificationMeta('serverId');
   @override
-  late final GeneratedColumn<String> question = GeneratedColumn<String>(
-    'question',
+  late final drift.GeneratedColumn<int> serverId = drift.GeneratedColumn<int>(
+    'server_id',
     aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _emojiMeta = const VerificationMeta('emoji');
-  @override
-  late final GeneratedColumn<String> emoji = GeneratedColumn<String>(
-    'emoji',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
+    true,
+    type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant('🙂'),
+  );
+  static const drift.VerificationMeta _questionMeta =
+      const drift.VerificationMeta('question');
+  @override
+  late final drift.GeneratedColumn<String> question =
+      drift.GeneratedColumn<String>(
+        'question',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _emojiMeta = const drift.VerificationMeta(
+    'emoji',
   );
   @override
-  List<GeneratedColumn> get $columns => [id, question, emoji];
+  late final drift.GeneratedColumn<String> emoji =
+      drift.GeneratedColumn<String>(
+        'emoji',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const drift.Constant('🙂'),
+      );
+  @override
+  List<drift.GeneratedColumn> get $columns => [id, serverId, question, emoji];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'day_log_questions';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<DayLogQuestion> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<DayLogQuestion> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
     }
     if (data.containsKey('question')) {
       context.handle(
@@ -424,7 +614,7 @@ class $DayLogQuestionsTable extends DayLogQuestions
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   DayLogQuestion map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -434,6 +624,10 @@ class $DayLogQuestionsTable extends DayLogQuestions
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
       question:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -453,29 +647,39 @@ class $DayLogQuestionsTable extends DayLogQuestions
   }
 }
 
-class DayLogQuestion extends DataClass implements Insertable<DayLogQuestion> {
+class DayLogQuestion extends drift.DataClass
+    implements drift.Insertable<DayLogQuestion> {
   final int id;
+  final int? serverId;
   final String question;
   final String emoji;
   const DayLogQuestion({
     required this.id,
+    this.serverId,
     required this.question,
     required this.emoji,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['question'] = Variable<String>(question);
-    map['emoji'] = Variable<String>(emoji);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = drift.Variable<int>(serverId);
+    }
+    map['question'] = drift.Variable<String>(question);
+    map['emoji'] = drift.Variable<String>(emoji);
     return map;
   }
 
   DayLogQuestionsCompanion toCompanion(bool nullToAbsent) {
     return DayLogQuestionsCompanion(
-      id: Value(id),
-      question: Value(question),
-      emoji: Value(emoji),
+      id: drift.Value(id),
+      serverId:
+          serverId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(serverId),
+      question: drift.Value(question),
+      emoji: drift.Value(emoji),
     );
   }
 
@@ -483,32 +687,40 @@ class DayLogQuestion extends DataClass implements Insertable<DayLogQuestion> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return DayLogQuestion(
       id: serializer.fromJson<int>(json['id']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
       question: serializer.fromJson<String>(json['question']),
       emoji: serializer.fromJson<String>(json['emoji']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'serverId': serializer.toJson<int?>(serverId),
       'question': serializer.toJson<String>(question),
       'emoji': serializer.toJson<String>(emoji),
     };
   }
 
-  DayLogQuestion copyWith({int? id, String? question, String? emoji}) =>
-      DayLogQuestion(
-        id: id ?? this.id,
-        question: question ?? this.question,
-        emoji: emoji ?? this.emoji,
-      );
+  DayLogQuestion copyWith({
+    int? id,
+    drift.Value<int?> serverId = const drift.Value.absent(),
+    String? question,
+    String? emoji,
+  }) => DayLogQuestion(
+    id: id ?? this.id,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    question: question ?? this.question,
+    emoji: emoji ?? this.emoji,
+  );
   DayLogQuestion copyWithCompanion(DayLogQuestionsCompanion data) {
     return DayLogQuestion(
       id: data.id.present ? data.id.value : this.id,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
       question: data.question.present ? data.question.value : this.question,
       emoji: data.emoji.present ? data.emoji.value : this.emoji,
     );
@@ -518,6 +730,7 @@ class DayLogQuestion extends DataClass implements Insertable<DayLogQuestion> {
   String toString() {
     return (StringBuffer('DayLogQuestion(')
           ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
           ..write('question: $question, ')
           ..write('emoji: $emoji')
           ..write(')'))
@@ -525,65 +738,76 @@ class DayLogQuestion extends DataClass implements Insertable<DayLogQuestion> {
   }
 
   @override
-  int get hashCode => Object.hash(id, question, emoji);
+  int get hashCode => Object.hash(id, serverId, question, emoji);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DayLogQuestion &&
           other.id == this.id &&
+          other.serverId == this.serverId &&
           other.question == this.question &&
           other.emoji == this.emoji);
 }
 
-class DayLogQuestionsCompanion extends UpdateCompanion<DayLogQuestion> {
-  final Value<int> id;
-  final Value<String> question;
-  final Value<String> emoji;
+class DayLogQuestionsCompanion extends drift.UpdateCompanion<DayLogQuestion> {
+  final drift.Value<int> id;
+  final drift.Value<int?> serverId;
+  final drift.Value<String> question;
+  final drift.Value<String> emoji;
   const DayLogQuestionsCompanion({
-    this.id = const Value.absent(),
-    this.question = const Value.absent(),
-    this.emoji = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.serverId = const drift.Value.absent(),
+    this.question = const drift.Value.absent(),
+    this.emoji = const drift.Value.absent(),
   });
   DayLogQuestionsCompanion.insert({
-    this.id = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.serverId = const drift.Value.absent(),
     required String question,
-    this.emoji = const Value.absent(),
-  }) : question = Value(question);
-  static Insertable<DayLogQuestion> custom({
-    Expression<int>? id,
-    Expression<String>? question,
-    Expression<String>? emoji,
+    this.emoji = const drift.Value.absent(),
+  }) : question = drift.Value(question);
+  static drift.Insertable<DayLogQuestion> custom({
+    drift.Expression<int>? id,
+    drift.Expression<int>? serverId,
+    drift.Expression<String>? question,
+    drift.Expression<String>? emoji,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
+      if (serverId != null) 'server_id': serverId,
       if (question != null) 'question': question,
       if (emoji != null) 'emoji': emoji,
     });
   }
 
   DayLogQuestionsCompanion copyWith({
-    Value<int>? id,
-    Value<String>? question,
-    Value<String>? emoji,
+    drift.Value<int>? id,
+    drift.Value<int?>? serverId,
+    drift.Value<String>? question,
+    drift.Value<String>? emoji,
   }) {
     return DayLogQuestionsCompanion(
       id: id ?? this.id,
+      serverId: serverId ?? this.serverId,
       question: question ?? this.question,
       emoji: emoji ?? this.emoji,
     );
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = drift.Variable<int>(serverId.value);
     }
     if (question.present) {
-      map['question'] = Variable<String>(question.value);
+      map['question'] = drift.Variable<String>(question.value);
     }
     if (emoji.present) {
-      map['emoji'] = Variable<String>(emoji.value);
+      map['emoji'] = drift.Variable<String>(emoji.value);
     }
     return map;
   }
@@ -592,6 +816,7 @@ class DayLogQuestionsCompanion extends UpdateCompanion<DayLogQuestion> {
   String toString() {
     return (StringBuffer('DayLogQuestionsCompanion(')
           ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
           ..write('question: $question, ')
           ..write('emoji: $emoji')
           ..write(')'))
@@ -599,14 +824,16 @@ class DayLogQuestionsCompanion extends UpdateCompanion<DayLogQuestion> {
   }
 }
 
-class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
+class $GroupsTable extends Groups with drift.TableInfo<$GroupsTable, Group> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $GroupsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -617,68 +844,80 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  static const drift.VerificationMeta _nameMeta = const drift.VerificationMeta(
+    'name',
+  );
   @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+  late final drift.GeneratedColumn<String> name = drift.GeneratedColumn<String>(
     'name',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _descriptionMeta = const VerificationMeta(
-    'description',
-  );
+  static const drift.VerificationMeta _descriptionMeta =
+      const drift.VerificationMeta('description');
   @override
-  late final GeneratedColumn<String> description = GeneratedColumn<String>(
-    'description',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _colorTypeMeta = const VerificationMeta(
-    'colorType',
-  );
+  late final drift.GeneratedColumn<String> description =
+      drift.GeneratedColumn<String>(
+        'description',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _colorTypeMeta =
+      const drift.VerificationMeta('colorType');
   @override
-  late final GeneratedColumn<int> colorType = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> colorType = drift.GeneratedColumn<int>(
     'color_type',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const drift.Constant(0),
   );
-  static const VerificationMeta _maxMembersMeta = const VerificationMeta(
-    'maxMembers',
-  );
+  static const drift.VerificationMeta _maxMembersMeta =
+      const drift.VerificationMeta('maxMembers');
   @override
-  late final GeneratedColumn<int> maxMembers = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> maxMembers = drift.GeneratedColumn<int>(
     'max_members',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _passwordMeta = const VerificationMeta(
-    'password',
-  );
+  static const drift.VerificationMeta _passwordMeta =
+      const drift.VerificationMeta('password');
   @override
-  late final GeneratedColumn<String> password = GeneratedColumn<String>(
-    'password',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
+  late final drift.GeneratedColumn<String> password =
+      drift.GeneratedColumn<String>(
+        'password',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _localColorMeta =
+      const drift.VerificationMeta('localColor');
   @override
-  List<GeneratedColumn> get $columns => [
+  late final drift.GeneratedColumn<String> localColor =
+      drift.GeneratedColumn<String>(
+        'local_color',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<drift.GeneratedColumn> get $columns => [
     id,
     name,
     description,
     colorType,
     maxMembers,
     password,
+    localColor,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -686,11 +925,11 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
   String get actualTableName => $name;
   static const String $name = 'groups';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Group> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<Group> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
@@ -730,11 +969,19 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
       );
     }
+    if (data.containsKey('local_color')) {
+      context.handle(
+        _localColorMeta,
+        localColor.isAcceptableOrUnknown(data['local_color']!, _localColorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localColorMeta);
+    }
     return context;
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   Group map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -766,6 +1013,11 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         DriftSqlType.string,
         data['${effectivePrefix}password'],
       ),
+      localColor:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}local_color'],
+          )!,
     );
   }
 
@@ -775,13 +1027,14 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
   }
 }
 
-class Group extends DataClass implements Insertable<Group> {
+class Group extends drift.DataClass implements drift.Insertable<Group> {
   final int id;
   final String name;
   final String? description;
   final int colorType;
   final int? maxMembers;
   final String? password;
+  final String localColor;
   const Group({
     required this.id,
     required this.name,
@@ -789,42 +1042,45 @@ class Group extends DataClass implements Insertable<Group> {
     required this.colorType,
     this.maxMembers,
     this.password,
+    required this.localColor,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['name'] = Variable<String>(name);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    map['name'] = drift.Variable<String>(name);
     if (!nullToAbsent || description != null) {
-      map['description'] = Variable<String>(description);
+      map['description'] = drift.Variable<String>(description);
     }
-    map['color_type'] = Variable<int>(colorType);
+    map['color_type'] = drift.Variable<int>(colorType);
     if (!nullToAbsent || maxMembers != null) {
-      map['max_members'] = Variable<int>(maxMembers);
+      map['max_members'] = drift.Variable<int>(maxMembers);
     }
     if (!nullToAbsent || password != null) {
-      map['password'] = Variable<String>(password);
+      map['password'] = drift.Variable<String>(password);
     }
+    map['local_color'] = drift.Variable<String>(localColor);
     return map;
   }
 
   GroupsCompanion toCompanion(bool nullToAbsent) {
     return GroupsCompanion(
-      id: Value(id),
-      name: Value(name),
+      id: drift.Value(id),
+      name: drift.Value(name),
       description:
           description == null && nullToAbsent
-              ? const Value.absent()
-              : Value(description),
-      colorType: Value(colorType),
+              ? const drift.Value.absent()
+              : drift.Value(description),
+      colorType: drift.Value(colorType),
       maxMembers:
           maxMembers == null && nullToAbsent
-              ? const Value.absent()
-              : Value(maxMembers),
+              ? const drift.Value.absent()
+              : drift.Value(maxMembers),
       password:
           password == null && nullToAbsent
-              ? const Value.absent()
-              : Value(password),
+              ? const drift.Value.absent()
+              : drift.Value(password),
+      localColor: drift.Value(localColor),
     );
   }
 
@@ -832,7 +1088,7 @@ class Group extends DataClass implements Insertable<Group> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return Group(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
@@ -840,11 +1096,12 @@ class Group extends DataClass implements Insertable<Group> {
       colorType: serializer.fromJson<int>(json['colorType']),
       maxMembers: serializer.fromJson<int?>(json['maxMembers']),
       password: serializer.fromJson<String?>(json['password']),
+      localColor: serializer.fromJson<String>(json['localColor']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
@@ -852,16 +1109,18 @@ class Group extends DataClass implements Insertable<Group> {
       'colorType': serializer.toJson<int>(colorType),
       'maxMembers': serializer.toJson<int?>(maxMembers),
       'password': serializer.toJson<String?>(password),
+      'localColor': serializer.toJson<String>(localColor),
     };
   }
 
   Group copyWith({
     int? id,
     String? name,
-    Value<String?> description = const Value.absent(),
+    drift.Value<String?> description = const drift.Value.absent(),
     int? colorType,
-    Value<int?> maxMembers = const Value.absent(),
-    Value<String?> password = const Value.absent(),
+    drift.Value<int?> maxMembers = const drift.Value.absent(),
+    drift.Value<String?> password = const drift.Value.absent(),
+    String? localColor,
   }) => Group(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -869,6 +1128,7 @@ class Group extends DataClass implements Insertable<Group> {
     colorType: colorType ?? this.colorType,
     maxMembers: maxMembers.present ? maxMembers.value : this.maxMembers,
     password: password.present ? password.value : this.password,
+    localColor: localColor ?? this.localColor,
   );
   Group copyWithCompanion(GroupsCompanion data) {
     return Group(
@@ -880,6 +1140,8 @@ class Group extends DataClass implements Insertable<Group> {
       maxMembers:
           data.maxMembers.present ? data.maxMembers.value : this.maxMembers,
       password: data.password.present ? data.password.value : this.password,
+      localColor:
+          data.localColor.present ? data.localColor.value : this.localColor,
     );
   }
 
@@ -891,14 +1153,22 @@ class Group extends DataClass implements Insertable<Group> {
           ..write('description: $description, ')
           ..write('colorType: $colorType, ')
           ..write('maxMembers: $maxMembers, ')
-          ..write('password: $password')
+          ..write('password: $password, ')
+          ..write('localColor: $localColor')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, description, colorType, maxMembers, password);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    description,
+    colorType,
+    maxMembers,
+    password,
+    localColor,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -908,57 +1178,65 @@ class Group extends DataClass implements Insertable<Group> {
           other.description == this.description &&
           other.colorType == this.colorType &&
           other.maxMembers == this.maxMembers &&
-          other.password == this.password);
+          other.password == this.password &&
+          other.localColor == this.localColor);
 }
 
-class GroupsCompanion extends UpdateCompanion<Group> {
-  final Value<int> id;
-  final Value<String> name;
-  final Value<String?> description;
-  final Value<int> colorType;
-  final Value<int?> maxMembers;
-  final Value<String?> password;
+class GroupsCompanion extends drift.UpdateCompanion<Group> {
+  final drift.Value<int> id;
+  final drift.Value<String> name;
+  final drift.Value<String?> description;
+  final drift.Value<int> colorType;
+  final drift.Value<int?> maxMembers;
+  final drift.Value<String?> password;
+  final drift.Value<String> localColor;
   const GroupsCompanion({
-    this.id = const Value.absent(),
-    this.name = const Value.absent(),
-    this.description = const Value.absent(),
-    this.colorType = const Value.absent(),
-    this.maxMembers = const Value.absent(),
-    this.password = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.name = const drift.Value.absent(),
+    this.description = const drift.Value.absent(),
+    this.colorType = const drift.Value.absent(),
+    this.maxMembers = const drift.Value.absent(),
+    this.password = const drift.Value.absent(),
+    this.localColor = const drift.Value.absent(),
   });
   GroupsCompanion.insert({
-    this.id = const Value.absent(),
+    this.id = const drift.Value.absent(),
     required String name,
-    this.description = const Value.absent(),
-    this.colorType = const Value.absent(),
-    this.maxMembers = const Value.absent(),
-    this.password = const Value.absent(),
-  }) : name = Value(name);
-  static Insertable<Group> custom({
-    Expression<int>? id,
-    Expression<String>? name,
-    Expression<String>? description,
-    Expression<int>? colorType,
-    Expression<int>? maxMembers,
-    Expression<String>? password,
+    this.description = const drift.Value.absent(),
+    this.colorType = const drift.Value.absent(),
+    this.maxMembers = const drift.Value.absent(),
+    this.password = const drift.Value.absent(),
+    required String localColor,
+  }) : name = drift.Value(name),
+       localColor = drift.Value(localColor);
+  static drift.Insertable<Group> custom({
+    drift.Expression<int>? id,
+    drift.Expression<String>? name,
+    drift.Expression<String>? description,
+    drift.Expression<int>? colorType,
+    drift.Expression<int>? maxMembers,
+    drift.Expression<String>? password,
+    drift.Expression<String>? localColor,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (colorType != null) 'color_type': colorType,
       if (maxMembers != null) 'max_members': maxMembers,
       if (password != null) 'password': password,
+      if (localColor != null) 'local_color': localColor,
     });
   }
 
   GroupsCompanion copyWith({
-    Value<int>? id,
-    Value<String>? name,
-    Value<String?>? description,
-    Value<int>? colorType,
-    Value<int?>? maxMembers,
-    Value<String?>? password,
+    drift.Value<int>? id,
+    drift.Value<String>? name,
+    drift.Value<String?>? description,
+    drift.Value<int>? colorType,
+    drift.Value<int?>? maxMembers,
+    drift.Value<String?>? password,
+    drift.Value<String>? localColor,
   }) {
     return GroupsCompanion(
       id: id ?? this.id,
@@ -967,29 +1245,33 @@ class GroupsCompanion extends UpdateCompanion<Group> {
       colorType: colorType ?? this.colorType,
       maxMembers: maxMembers ?? this.maxMembers,
       password: password ?? this.password,
+      localColor: localColor ?? this.localColor,
     );
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
     }
     if (name.present) {
-      map['name'] = Variable<String>(name.value);
+      map['name'] = drift.Variable<String>(name.value);
     }
     if (description.present) {
-      map['description'] = Variable<String>(description.value);
+      map['description'] = drift.Variable<String>(description.value);
     }
     if (colorType.present) {
-      map['color_type'] = Variable<int>(colorType.value);
+      map['color_type'] = drift.Variable<int>(colorType.value);
     }
     if (maxMembers.present) {
-      map['max_members'] = Variable<int>(maxMembers.value);
+      map['max_members'] = drift.Variable<int>(maxMembers.value);
     }
     if (password.present) {
-      map['password'] = Variable<String>(password.value);
+      map['password'] = drift.Variable<String>(password.value);
+    }
+    if (localColor.present) {
+      map['local_color'] = drift.Variable<String>(localColor.value);
     }
     return map;
   }
@@ -1002,20 +1284,24 @@ class GroupsCompanion extends UpdateCompanion<Group> {
           ..write('description: $description, ')
           ..write('colorType: $colorType, ')
           ..write('maxMembers: $maxMembers, ')
-          ..write('password: $password')
+          ..write('password: $password, ')
+          ..write('localColor: $localColor')
           ..write(')'))
         .toString();
   }
 }
 
-class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
+class $RoutinesTable extends Routines
+    with drift.TableInfo<$RoutinesTable, Routine> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $RoutinesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -1026,11 +1312,30 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _groupIdMeta = const VerificationMeta(
-    'groupId',
-  );
+  static const drift.VerificationMeta _scheduleIdMeta =
+      const drift.VerificationMeta('scheduleId');
   @override
-  late final GeneratedColumn<int> groupId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> scheduleId = drift.GeneratedColumn<int>(
+    'schedule_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const drift.VerificationMeta _routineIdMeta =
+      const drift.VerificationMeta('routineId');
+  @override
+  late final drift.GeneratedColumn<int> routineId = drift.GeneratedColumn<int>(
+    'routine_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const drift.VerificationMeta _groupIdMeta =
+      const drift.VerificationMeta('groupId');
+  @override
+  late final drift.GeneratedColumn<int> groupId = drift.GeneratedColumn<int>(
     'group_id',
     aliasedName,
     true,
@@ -1040,32 +1345,32 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
       'REFERENCES "groups" (id)',
     ),
   );
-  static const VerificationMeta _contentMeta = const VerificationMeta(
-    'content',
-  );
+  static const drift.VerificationMeta _contentMeta =
+      const drift.VerificationMeta('content');
   @override
-  late final GeneratedColumn<String> content = GeneratedColumn<String>(
-    'content',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _colorTypeMeta = const VerificationMeta(
-    'colorType',
-  );
+  late final drift.GeneratedColumn<String> content =
+      drift.GeneratedColumn<String>(
+        'content',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _colorTypeMeta =
+      const drift.VerificationMeta('colorType');
   @override
-  late final GeneratedColumn<int> colorType = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> colorType = drift.GeneratedColumn<int>(
     'color_type',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const drift.Constant(0),
   );
-  static const VerificationMeta _isDoneMeta = const VerificationMeta('isDone');
+  static const drift.VerificationMeta _isDoneMeta =
+      const drift.VerificationMeta('isDone');
   @override
-  late final GeneratedColumn<bool> isDone = GeneratedColumn<bool>(
+  late final drift.GeneratedColumn<bool> isDone = drift.GeneratedColumn<bool>(
     'is_done',
     aliasedName,
     false,
@@ -1074,89 +1379,119 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("is_done" IN (0, 1))',
     ),
-    defaultValue: const Constant(false),
+    defaultValue: const drift.Constant(false),
   );
-  static const VerificationMeta _startDateMeta = const VerificationMeta(
-    'startDate',
-  );
+  static const drift.VerificationMeta _startDateMeta =
+      const drift.VerificationMeta('startDate');
   @override
-  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
-    'start_date',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _endDateMeta = const VerificationMeta(
-    'endDate',
-  );
+  late final drift.GeneratedColumn<DateTime> startDate =
+      drift.GeneratedColumn<DateTime>(
+        'start_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _endDateMeta =
+      const drift.VerificationMeta('endDate');
   @override
-  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
-    'end_date',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _timeMinutesMeta = const VerificationMeta(
-    'timeMinutes',
-  );
+  late final drift.GeneratedColumn<DateTime> endDate =
+      drift.GeneratedColumn<DateTime>(
+        'end_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _timeMinutesMeta =
+      const drift.VerificationMeta('timeMinutes');
   @override
-  late final GeneratedColumn<int> timeMinutes = GeneratedColumn<int>(
-    'time_minutes',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _weekDaysMeta = const VerificationMeta(
-    'weekDays',
-  );
+  late final drift.GeneratedColumn<int> timeMinutes =
+      drift.GeneratedColumn<int>(
+        'time_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _weekDaysMeta =
+      const drift.VerificationMeta('weekDays');
   @override
-  late final GeneratedColumn<String> weekDays = GeneratedColumn<String>(
-    'week_days',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _scheduleTypeMeta = const VerificationMeta(
-    'scheduleType',
-  );
+  late final drift.GeneratedColumn<String> weekDays =
+      drift.GeneratedColumn<String>(
+        'week_days',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _scheduleTypeMeta =
+      const drift.VerificationMeta('scheduleType');
   @override
-  late final GeneratedColumn<String> scheduleType = GeneratedColumn<String>(
-    'schedule_type',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('ROUTINE'),
-  );
-  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
-    'categoryId',
-  );
+  late final drift.GeneratedColumn<String> scheduleType =
+      drift.GeneratedColumn<String>(
+        'schedule_type',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const drift.Constant('ROUTINE'),
+      );
+  static const drift.VerificationMeta _categoryIdMeta =
+      const drift.VerificationMeta('categoryId');
   @override
-  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> categoryId = drift.GeneratedColumn<int>(
     'category_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _alarmMinutesMeta = const VerificationMeta(
-    'alarmMinutes',
-  );
+  static const drift.VerificationMeta _alarmMinutesMeta =
+      const drift.VerificationMeta('alarmMinutes');
   @override
-  late final GeneratedColumn<int> alarmMinutes = GeneratedColumn<int>(
-    'alarm_minutes',
+  late final drift.GeneratedColumn<int> alarmMinutes =
+      drift.GeneratedColumn<int>(
+        'alarm_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _isDeletedMeta =
+      const drift.VerificationMeta('isDeleted');
+  @override
+  late final drift.GeneratedColumn<bool> isDeleted =
+      drift.GeneratedColumn<bool>(
+        'is_deleted',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_deleted" IN (0, 1))',
+        ),
+        defaultValue: const drift.Constant(false),
+      );
+  static const drift.VerificationMeta _isSyncedMeta =
+      const drift.VerificationMeta('isSynced');
+  @override
+  late final drift.GeneratedColumn<bool> isSynced = drift.GeneratedColumn<bool>(
+    'is_synced',
     aliasedName,
-    true,
-    type: DriftSqlType.int,
+    false,
+    type: DriftSqlType.bool,
     requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const drift.Constant(true),
   );
   @override
-  List<GeneratedColumn> get $columns => [
+  List<drift.GeneratedColumn> get $columns => [
     id,
+    scheduleId,
+    routineId,
     groupId,
     content,
     colorType,
@@ -1168,6 +1503,8 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     scheduleType,
     categoryId,
     alarmMinutes,
+    isDeleted,
+    isSynced,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1175,14 +1512,26 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
   String get actualTableName => $name;
   static const String $name = 'routines';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Routine> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<Routine> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('schedule_id')) {
+      context.handle(
+        _scheduleIdMeta,
+        scheduleId.isAcceptableOrUnknown(data['schedule_id']!, _scheduleIdMeta),
+      );
+    }
+    if (data.containsKey('routine_id')) {
+      context.handle(
+        _routineIdMeta,
+        routineId.isAcceptableOrUnknown(data['routine_id']!, _routineIdMeta),
+      );
     }
     if (data.containsKey('group_id')) {
       context.handle(
@@ -1261,11 +1610,23 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
         ),
       );
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
     return context;
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   Routine map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -1275,6 +1636,14 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      scheduleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}schedule_id'],
+      ),
+      routineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}routine_id'],
+      ),
       groupId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}group_id'],
@@ -1323,6 +1692,16 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
         DriftSqlType.int,
         data['${effectivePrefix}alarm_minutes'],
       ),
+      isDeleted:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_deleted'],
+          )!,
+      isSynced:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_synced'],
+          )!,
     );
   }
 
@@ -1332,8 +1711,10 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
   }
 }
 
-class Routine extends DataClass implements Insertable<Routine> {
+class Routine extends drift.DataClass implements drift.Insertable<Routine> {
   final int id;
+  final int? scheduleId;
+  final int? routineId;
   final int? groupId;
   final String content;
   final int colorType;
@@ -1345,8 +1726,12 @@ class Routine extends DataClass implements Insertable<Routine> {
   final String scheduleType;
   final int? categoryId;
   final int? alarmMinutes;
+  final bool isDeleted;
+  final bool isSynced;
   const Routine({
     required this.id,
+    this.scheduleId,
+    this.routineId,
     this.groupId,
     required this.content,
     required this.colorType,
@@ -1358,74 +1743,94 @@ class Routine extends DataClass implements Insertable<Routine> {
     required this.scheduleType,
     this.categoryId,
     this.alarmMinutes,
+    required this.isDeleted,
+    required this.isSynced,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    if (!nullToAbsent || groupId != null) {
-      map['group_id'] = Variable<int>(groupId);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    if (!nullToAbsent || scheduleId != null) {
+      map['schedule_id'] = drift.Variable<int>(scheduleId);
     }
-    map['content'] = Variable<String>(content);
-    map['color_type'] = Variable<int>(colorType);
-    map['is_done'] = Variable<bool>(isDone);
+    if (!nullToAbsent || routineId != null) {
+      map['routine_id'] = drift.Variable<int>(routineId);
+    }
+    if (!nullToAbsent || groupId != null) {
+      map['group_id'] = drift.Variable<int>(groupId);
+    }
+    map['content'] = drift.Variable<String>(content);
+    map['color_type'] = drift.Variable<int>(colorType);
+    map['is_done'] = drift.Variable<bool>(isDone);
     if (!nullToAbsent || startDate != null) {
-      map['start_date'] = Variable<DateTime>(startDate);
+      map['start_date'] = drift.Variable<DateTime>(startDate);
     }
     if (!nullToAbsent || endDate != null) {
-      map['end_date'] = Variable<DateTime>(endDate);
+      map['end_date'] = drift.Variable<DateTime>(endDate);
     }
     if (!nullToAbsent || timeMinutes != null) {
-      map['time_minutes'] = Variable<int>(timeMinutes);
+      map['time_minutes'] = drift.Variable<int>(timeMinutes);
     }
     if (!nullToAbsent || weekDays != null) {
-      map['week_days'] = Variable<String>(weekDays);
+      map['week_days'] = drift.Variable<String>(weekDays);
     }
-    map['schedule_type'] = Variable<String>(scheduleType);
+    map['schedule_type'] = drift.Variable<String>(scheduleType);
     if (!nullToAbsent || categoryId != null) {
-      map['category_id'] = Variable<int>(categoryId);
+      map['category_id'] = drift.Variable<int>(categoryId);
     }
     if (!nullToAbsent || alarmMinutes != null) {
-      map['alarm_minutes'] = Variable<int>(alarmMinutes);
+      map['alarm_minutes'] = drift.Variable<int>(alarmMinutes);
     }
+    map['is_deleted'] = drift.Variable<bool>(isDeleted);
+    map['is_synced'] = drift.Variable<bool>(isSynced);
     return map;
   }
 
   RoutinesCompanion toCompanion(bool nullToAbsent) {
     return RoutinesCompanion(
-      id: Value(id),
+      id: drift.Value(id),
+      scheduleId:
+          scheduleId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(scheduleId),
+      routineId:
+          routineId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(routineId),
       groupId:
           groupId == null && nullToAbsent
-              ? const Value.absent()
-              : Value(groupId),
-      content: Value(content),
-      colorType: Value(colorType),
-      isDone: Value(isDone),
+              ? const drift.Value.absent()
+              : drift.Value(groupId),
+      content: drift.Value(content),
+      colorType: drift.Value(colorType),
+      isDone: drift.Value(isDone),
       startDate:
           startDate == null && nullToAbsent
-              ? const Value.absent()
-              : Value(startDate),
+              ? const drift.Value.absent()
+              : drift.Value(startDate),
       endDate:
           endDate == null && nullToAbsent
-              ? const Value.absent()
-              : Value(endDate),
+              ? const drift.Value.absent()
+              : drift.Value(endDate),
       timeMinutes:
           timeMinutes == null && nullToAbsent
-              ? const Value.absent()
-              : Value(timeMinutes),
+              ? const drift.Value.absent()
+              : drift.Value(timeMinutes),
       weekDays:
           weekDays == null && nullToAbsent
-              ? const Value.absent()
-              : Value(weekDays),
-      scheduleType: Value(scheduleType),
+              ? const drift.Value.absent()
+              : drift.Value(weekDays),
+      scheduleType: drift.Value(scheduleType),
       categoryId:
           categoryId == null && nullToAbsent
-              ? const Value.absent()
-              : Value(categoryId),
+              ? const drift.Value.absent()
+              : drift.Value(categoryId),
       alarmMinutes:
           alarmMinutes == null && nullToAbsent
-              ? const Value.absent()
-              : Value(alarmMinutes),
+              ? const drift.Value.absent()
+              : drift.Value(alarmMinutes),
+      isDeleted: drift.Value(isDeleted),
+      isSynced: drift.Value(isSynced),
     );
   }
 
@@ -1433,9 +1838,11 @@ class Routine extends DataClass implements Insertable<Routine> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return Routine(
       id: serializer.fromJson<int>(json['id']),
+      scheduleId: serializer.fromJson<int?>(json['scheduleId']),
+      routineId: serializer.fromJson<int?>(json['routineId']),
       groupId: serializer.fromJson<int?>(json['groupId']),
       content: serializer.fromJson<String>(json['content']),
       colorType: serializer.fromJson<int>(json['colorType']),
@@ -1447,13 +1854,17 @@ class Routine extends DataClass implements Insertable<Routine> {
       scheduleType: serializer.fromJson<String>(json['scheduleType']),
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       alarmMinutes: serializer.fromJson<int?>(json['alarmMinutes']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'scheduleId': serializer.toJson<int?>(scheduleId),
+      'routineId': serializer.toJson<int?>(routineId),
       'groupId': serializer.toJson<int?>(groupId),
       'content': serializer.toJson<String>(content),
       'colorType': serializer.toJson<int>(colorType),
@@ -1465,24 +1876,32 @@ class Routine extends DataClass implements Insertable<Routine> {
       'scheduleType': serializer.toJson<String>(scheduleType),
       'categoryId': serializer.toJson<int?>(categoryId),
       'alarmMinutes': serializer.toJson<int?>(alarmMinutes),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'isSynced': serializer.toJson<bool>(isSynced),
     };
   }
 
   Routine copyWith({
     int? id,
-    Value<int?> groupId = const Value.absent(),
+    drift.Value<int?> scheduleId = const drift.Value.absent(),
+    drift.Value<int?> routineId = const drift.Value.absent(),
+    drift.Value<int?> groupId = const drift.Value.absent(),
     String? content,
     int? colorType,
     bool? isDone,
-    Value<DateTime?> startDate = const Value.absent(),
-    Value<DateTime?> endDate = const Value.absent(),
-    Value<int?> timeMinutes = const Value.absent(),
-    Value<String?> weekDays = const Value.absent(),
+    drift.Value<DateTime?> startDate = const drift.Value.absent(),
+    drift.Value<DateTime?> endDate = const drift.Value.absent(),
+    drift.Value<int?> timeMinutes = const drift.Value.absent(),
+    drift.Value<String?> weekDays = const drift.Value.absent(),
     String? scheduleType,
-    Value<int?> categoryId = const Value.absent(),
-    Value<int?> alarmMinutes = const Value.absent(),
+    drift.Value<int?> categoryId = const drift.Value.absent(),
+    drift.Value<int?> alarmMinutes = const drift.Value.absent(),
+    bool? isDeleted,
+    bool? isSynced,
   }) => Routine(
     id: id ?? this.id,
+    scheduleId: scheduleId.present ? scheduleId.value : this.scheduleId,
+    routineId: routineId.present ? routineId.value : this.routineId,
     groupId: groupId.present ? groupId.value : this.groupId,
     content: content ?? this.content,
     colorType: colorType ?? this.colorType,
@@ -1494,10 +1913,15 @@ class Routine extends DataClass implements Insertable<Routine> {
     scheduleType: scheduleType ?? this.scheduleType,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     alarmMinutes: alarmMinutes.present ? alarmMinutes.value : this.alarmMinutes,
+    isDeleted: isDeleted ?? this.isDeleted,
+    isSynced: isSynced ?? this.isSynced,
   );
   Routine copyWithCompanion(RoutinesCompanion data) {
     return Routine(
       id: data.id.present ? data.id.value : this.id,
+      scheduleId:
+          data.scheduleId.present ? data.scheduleId.value : this.scheduleId,
+      routineId: data.routineId.present ? data.routineId.value : this.routineId,
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       content: data.content.present ? data.content.value : this.content,
       colorType: data.colorType.present ? data.colorType.value : this.colorType,
@@ -1517,6 +1941,8 @@ class Routine extends DataClass implements Insertable<Routine> {
           data.alarmMinutes.present
               ? data.alarmMinutes.value
               : this.alarmMinutes,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
   }
 
@@ -1524,6 +1950,8 @@ class Routine extends DataClass implements Insertable<Routine> {
   String toString() {
     return (StringBuffer('Routine(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
+          ..write('routineId: $routineId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -1534,7 +1962,9 @@ class Routine extends DataClass implements Insertable<Routine> {
           ..write('weekDays: $weekDays, ')
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
-          ..write('alarmMinutes: $alarmMinutes')
+          ..write('alarmMinutes: $alarmMinutes, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
@@ -1542,6 +1972,8 @@ class Routine extends DataClass implements Insertable<Routine> {
   @override
   int get hashCode => Object.hash(
     id,
+    scheduleId,
+    routineId,
     groupId,
     content,
     colorType,
@@ -1553,12 +1985,16 @@ class Routine extends DataClass implements Insertable<Routine> {
     scheduleType,
     categoryId,
     alarmMinutes,
+    isDeleted,
+    isSynced,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Routine &&
           other.id == this.id &&
+          other.scheduleId == this.scheduleId &&
+          other.routineId == this.routineId &&
           other.groupId == this.groupId &&
           other.content == this.content &&
           other.colorType == this.colorType &&
@@ -1569,66 +2005,86 @@ class Routine extends DataClass implements Insertable<Routine> {
           other.weekDays == this.weekDays &&
           other.scheduleType == this.scheduleType &&
           other.categoryId == this.categoryId &&
-          other.alarmMinutes == this.alarmMinutes);
+          other.alarmMinutes == this.alarmMinutes &&
+          other.isDeleted == this.isDeleted &&
+          other.isSynced == this.isSynced);
 }
 
-class RoutinesCompanion extends UpdateCompanion<Routine> {
-  final Value<int> id;
-  final Value<int?> groupId;
-  final Value<String> content;
-  final Value<int> colorType;
-  final Value<bool> isDone;
-  final Value<DateTime?> startDate;
-  final Value<DateTime?> endDate;
-  final Value<int?> timeMinutes;
-  final Value<String?> weekDays;
-  final Value<String> scheduleType;
-  final Value<int?> categoryId;
-  final Value<int?> alarmMinutes;
+class RoutinesCompanion extends drift.UpdateCompanion<Routine> {
+  final drift.Value<int> id;
+  final drift.Value<int?> scheduleId;
+  final drift.Value<int?> routineId;
+  final drift.Value<int?> groupId;
+  final drift.Value<String> content;
+  final drift.Value<int> colorType;
+  final drift.Value<bool> isDone;
+  final drift.Value<DateTime?> startDate;
+  final drift.Value<DateTime?> endDate;
+  final drift.Value<int?> timeMinutes;
+  final drift.Value<String?> weekDays;
+  final drift.Value<String> scheduleType;
+  final drift.Value<int?> categoryId;
+  final drift.Value<int?> alarmMinutes;
+  final drift.Value<bool> isDeleted;
+  final drift.Value<bool> isSynced;
   const RoutinesCompanion({
-    this.id = const Value.absent(),
-    this.groupId = const Value.absent(),
-    this.content = const Value.absent(),
-    this.colorType = const Value.absent(),
-    this.isDone = const Value.absent(),
-    this.startDate = const Value.absent(),
-    this.endDate = const Value.absent(),
-    this.timeMinutes = const Value.absent(),
-    this.weekDays = const Value.absent(),
-    this.scheduleType = const Value.absent(),
-    this.categoryId = const Value.absent(),
-    this.alarmMinutes = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.scheduleId = const drift.Value.absent(),
+    this.routineId = const drift.Value.absent(),
+    this.groupId = const drift.Value.absent(),
+    this.content = const drift.Value.absent(),
+    this.colorType = const drift.Value.absent(),
+    this.isDone = const drift.Value.absent(),
+    this.startDate = const drift.Value.absent(),
+    this.endDate = const drift.Value.absent(),
+    this.timeMinutes = const drift.Value.absent(),
+    this.weekDays = const drift.Value.absent(),
+    this.scheduleType = const drift.Value.absent(),
+    this.categoryId = const drift.Value.absent(),
+    this.alarmMinutes = const drift.Value.absent(),
+    this.isDeleted = const drift.Value.absent(),
+    this.isSynced = const drift.Value.absent(),
   });
   RoutinesCompanion.insert({
-    this.id = const Value.absent(),
-    this.groupId = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.scheduleId = const drift.Value.absent(),
+    this.routineId = const drift.Value.absent(),
+    this.groupId = const drift.Value.absent(),
     required String content,
-    this.colorType = const Value.absent(),
-    this.isDone = const Value.absent(),
-    this.startDate = const Value.absent(),
-    this.endDate = const Value.absent(),
-    this.timeMinutes = const Value.absent(),
-    this.weekDays = const Value.absent(),
-    this.scheduleType = const Value.absent(),
-    this.categoryId = const Value.absent(),
-    this.alarmMinutes = const Value.absent(),
-  }) : content = Value(content);
-  static Insertable<Routine> custom({
-    Expression<int>? id,
-    Expression<int>? groupId,
-    Expression<String>? content,
-    Expression<int>? colorType,
-    Expression<bool>? isDone,
-    Expression<DateTime>? startDate,
-    Expression<DateTime>? endDate,
-    Expression<int>? timeMinutes,
-    Expression<String>? weekDays,
-    Expression<String>? scheduleType,
-    Expression<int>? categoryId,
-    Expression<int>? alarmMinutes,
+    this.colorType = const drift.Value.absent(),
+    this.isDone = const drift.Value.absent(),
+    this.startDate = const drift.Value.absent(),
+    this.endDate = const drift.Value.absent(),
+    this.timeMinutes = const drift.Value.absent(),
+    this.weekDays = const drift.Value.absent(),
+    this.scheduleType = const drift.Value.absent(),
+    this.categoryId = const drift.Value.absent(),
+    this.alarmMinutes = const drift.Value.absent(),
+    this.isDeleted = const drift.Value.absent(),
+    this.isSynced = const drift.Value.absent(),
+  }) : content = drift.Value(content);
+  static drift.Insertable<Routine> custom({
+    drift.Expression<int>? id,
+    drift.Expression<int>? scheduleId,
+    drift.Expression<int>? routineId,
+    drift.Expression<int>? groupId,
+    drift.Expression<String>? content,
+    drift.Expression<int>? colorType,
+    drift.Expression<bool>? isDone,
+    drift.Expression<DateTime>? startDate,
+    drift.Expression<DateTime>? endDate,
+    drift.Expression<int>? timeMinutes,
+    drift.Expression<String>? weekDays,
+    drift.Expression<String>? scheduleType,
+    drift.Expression<int>? categoryId,
+    drift.Expression<int>? alarmMinutes,
+    drift.Expression<bool>? isDeleted,
+    drift.Expression<bool>? isSynced,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
+      if (scheduleId != null) 'schedule_id': scheduleId,
+      if (routineId != null) 'routine_id': routineId,
       if (groupId != null) 'group_id': groupId,
       if (content != null) 'content': content,
       if (colorType != null) 'color_type': colorType,
@@ -1640,25 +2096,33 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       if (scheduleType != null) 'schedule_type': scheduleType,
       if (categoryId != null) 'category_id': categoryId,
       if (alarmMinutes != null) 'alarm_minutes': alarmMinutes,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (isSynced != null) 'is_synced': isSynced,
     });
   }
 
   RoutinesCompanion copyWith({
-    Value<int>? id,
-    Value<int?>? groupId,
-    Value<String>? content,
-    Value<int>? colorType,
-    Value<bool>? isDone,
-    Value<DateTime?>? startDate,
-    Value<DateTime?>? endDate,
-    Value<int?>? timeMinutes,
-    Value<String?>? weekDays,
-    Value<String>? scheduleType,
-    Value<int?>? categoryId,
-    Value<int?>? alarmMinutes,
+    drift.Value<int>? id,
+    drift.Value<int?>? scheduleId,
+    drift.Value<int?>? routineId,
+    drift.Value<int?>? groupId,
+    drift.Value<String>? content,
+    drift.Value<int>? colorType,
+    drift.Value<bool>? isDone,
+    drift.Value<DateTime?>? startDate,
+    drift.Value<DateTime?>? endDate,
+    drift.Value<int?>? timeMinutes,
+    drift.Value<String?>? weekDays,
+    drift.Value<String>? scheduleType,
+    drift.Value<int?>? categoryId,
+    drift.Value<int?>? alarmMinutes,
+    drift.Value<bool>? isDeleted,
+    drift.Value<bool>? isSynced,
   }) {
     return RoutinesCompanion(
       id: id ?? this.id,
+      scheduleId: scheduleId ?? this.scheduleId,
+      routineId: routineId ?? this.routineId,
       groupId: groupId ?? this.groupId,
       content: content ?? this.content,
       colorType: colorType ?? this.colorType,
@@ -1670,47 +2134,61 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       scheduleType: scheduleType ?? this.scheduleType,
       categoryId: categoryId ?? this.categoryId,
       alarmMinutes: alarmMinutes ?? this.alarmMinutes,
+      isDeleted: isDeleted ?? this.isDeleted,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
+    }
+    if (scheduleId.present) {
+      map['schedule_id'] = drift.Variable<int>(scheduleId.value);
+    }
+    if (routineId.present) {
+      map['routine_id'] = drift.Variable<int>(routineId.value);
     }
     if (groupId.present) {
-      map['group_id'] = Variable<int>(groupId.value);
+      map['group_id'] = drift.Variable<int>(groupId.value);
     }
     if (content.present) {
-      map['content'] = Variable<String>(content.value);
+      map['content'] = drift.Variable<String>(content.value);
     }
     if (colorType.present) {
-      map['color_type'] = Variable<int>(colorType.value);
+      map['color_type'] = drift.Variable<int>(colorType.value);
     }
     if (isDone.present) {
-      map['is_done'] = Variable<bool>(isDone.value);
+      map['is_done'] = drift.Variable<bool>(isDone.value);
     }
     if (startDate.present) {
-      map['start_date'] = Variable<DateTime>(startDate.value);
+      map['start_date'] = drift.Variable<DateTime>(startDate.value);
     }
     if (endDate.present) {
-      map['end_date'] = Variable<DateTime>(endDate.value);
+      map['end_date'] = drift.Variable<DateTime>(endDate.value);
     }
     if (timeMinutes.present) {
-      map['time_minutes'] = Variable<int>(timeMinutes.value);
+      map['time_minutes'] = drift.Variable<int>(timeMinutes.value);
     }
     if (weekDays.present) {
-      map['week_days'] = Variable<String>(weekDays.value);
+      map['week_days'] = drift.Variable<String>(weekDays.value);
     }
     if (scheduleType.present) {
-      map['schedule_type'] = Variable<String>(scheduleType.value);
+      map['schedule_type'] = drift.Variable<String>(scheduleType.value);
     }
     if (categoryId.present) {
-      map['category_id'] = Variable<int>(categoryId.value);
+      map['category_id'] = drift.Variable<int>(categoryId.value);
     }
     if (alarmMinutes.present) {
-      map['alarm_minutes'] = Variable<int>(alarmMinutes.value);
+      map['alarm_minutes'] = drift.Variable<int>(alarmMinutes.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = drift.Variable<bool>(isDeleted.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = drift.Variable<bool>(isSynced.value);
     }
     return map;
   }
@@ -1719,6 +2197,8 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   String toString() {
     return (StringBuffer('RoutinesCompanion(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
+          ..write('routineId: $routineId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -1729,20 +2209,24 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
           ..write('weekDays: $weekDays, ')
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
-          ..write('alarmMinutes: $alarmMinutes')
+          ..write('alarmMinutes: $alarmMinutes, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
 }
 
-class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
+class $TodosTable extends Todos with drift.TableInfo<$TodosTable, Todo> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $TodosTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -1753,11 +2237,20 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _groupIdMeta = const VerificationMeta(
-    'groupId',
-  );
+  static const drift.VerificationMeta _scheduleIdMeta =
+      const drift.VerificationMeta('scheduleId');
   @override
-  late final GeneratedColumn<int> groupId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> scheduleId = drift.GeneratedColumn<int>(
+    'schedule_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const drift.VerificationMeta _groupIdMeta =
+      const drift.VerificationMeta('groupId');
+  @override
+  late final drift.GeneratedColumn<int> groupId = drift.GeneratedColumn<int>(
     'group_id',
     aliasedName,
     true,
@@ -1767,32 +2260,32 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
       'REFERENCES "groups" (id)',
     ),
   );
-  static const VerificationMeta _contentMeta = const VerificationMeta(
-    'content',
-  );
+  static const drift.VerificationMeta _contentMeta =
+      const drift.VerificationMeta('content');
   @override
-  late final GeneratedColumn<String> content = GeneratedColumn<String>(
-    'content',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _colorTypeMeta = const VerificationMeta(
-    'colorType',
-  );
+  late final drift.GeneratedColumn<String> content =
+      drift.GeneratedColumn<String>(
+        'content',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _colorTypeMeta =
+      const drift.VerificationMeta('colorType');
   @override
-  late final GeneratedColumn<int> colorType = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> colorType = drift.GeneratedColumn<int>(
     'color_type',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const drift.Constant(0),
   );
-  static const VerificationMeta _isDoneMeta = const VerificationMeta('isDone');
+  static const drift.VerificationMeta _isDoneMeta =
+      const drift.VerificationMeta('isDone');
   @override
-  late final GeneratedColumn<bool> isDone = GeneratedColumn<bool>(
+  late final drift.GeneratedColumn<bool> isDone = drift.GeneratedColumn<bool>(
     'is_done',
     aliasedName,
     false,
@@ -1801,65 +2294,108 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("is_done" IN (0, 1))',
     ),
-    defaultValue: const Constant(false),
+    defaultValue: const drift.Constant(false),
   );
-  static const VerificationMeta _timeMinutesMeta = const VerificationMeta(
-    'timeMinutes',
-  );
+  static const drift.VerificationMeta _timeMinutesMeta =
+      const drift.VerificationMeta('timeMinutes');
   @override
-  late final GeneratedColumn<int> timeMinutes = GeneratedColumn<int>(
-    'time_minutes',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _scheduleTypeMeta = const VerificationMeta(
-    'scheduleType',
-  );
+  late final drift.GeneratedColumn<int> timeMinutes =
+      drift.GeneratedColumn<int>(
+        'time_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _scheduleTypeMeta =
+      const drift.VerificationMeta('scheduleType');
   @override
-  late final GeneratedColumn<String> scheduleType = GeneratedColumn<String>(
-    'schedule_type',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('TO_DO'),
-  );
-  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
-    'categoryId',
-  );
+  late final drift.GeneratedColumn<String> scheduleType =
+      drift.GeneratedColumn<String>(
+        'schedule_type',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const drift.Constant('TO_DO'),
+      );
+  static const drift.VerificationMeta _categoryIdMeta =
+      const drift.VerificationMeta('categoryId');
   @override
-  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> categoryId = drift.GeneratedColumn<int>(
     'category_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _alarmMinutesMeta = const VerificationMeta(
-    'alarmMinutes',
-  );
+  static const drift.VerificationMeta _alarmMinutesMeta =
+      const drift.VerificationMeta('alarmMinutes');
   @override
-  late final GeneratedColumn<int> alarmMinutes = GeneratedColumn<int>(
-    'alarm_minutes',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _dateMeta = const VerificationMeta('date');
-  @override
-  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+  late final drift.GeneratedColumn<int> alarmMinutes =
+      drift.GeneratedColumn<int>(
+        'alarm_minutes',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _dateMeta = const drift.VerificationMeta(
     'date',
+  );
+  @override
+  late final drift.GeneratedColumn<DateTime> date =
+      drift.GeneratedColumn<DateTime>(
+        'date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _todoServerIdMeta =
+      const drift.VerificationMeta('todoServerId');
+  @override
+  late final drift.GeneratedColumn<int> todoServerId =
+      drift.GeneratedColumn<int>(
+        'todo_server_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _isDeletedMeta =
+      const drift.VerificationMeta('isDeleted');
+  @override
+  late final drift.GeneratedColumn<bool> isDeleted =
+      drift.GeneratedColumn<bool>(
+        'is_deleted',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_deleted" IN (0, 1))',
+        ),
+        defaultValue: const drift.Constant(false),
+      );
+  static const drift.VerificationMeta _isSyncedMeta =
+      const drift.VerificationMeta('isSynced');
+  @override
+  late final drift.GeneratedColumn<bool> isSynced = drift.GeneratedColumn<bool>(
+    'is_synced',
     aliasedName,
     false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const drift.Constant(true),
   );
   @override
-  List<GeneratedColumn> get $columns => [
+  List<drift.GeneratedColumn> get $columns => [
     id,
+    scheduleId,
     groupId,
     content,
     colorType,
@@ -1869,6 +2405,9 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     categoryId,
     alarmMinutes,
     date,
+    todoServerId,
+    isDeleted,
+    isSynced,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1876,14 +2415,20 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
   String get actualTableName => $name;
   static const String $name = 'todos';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Todo> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<Todo> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('schedule_id')) {
+      context.handle(
+        _scheduleIdMeta,
+        scheduleId.isAcceptableOrUnknown(data['schedule_id']!, _scheduleIdMeta),
+      );
     }
     if (data.containsKey('group_id')) {
       context.handle(
@@ -1952,11 +2497,32 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
+    if (data.containsKey('todo_server_id')) {
+      context.handle(
+        _todoServerIdMeta,
+        todoServerId.isAcceptableOrUnknown(
+          data['todo_server_id']!,
+          _todoServerIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
     return context;
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   Todo map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -1966,6 +2532,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      scheduleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}schedule_id'],
+      ),
       groupId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}group_id'],
@@ -2007,6 +2577,20 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
             DriftSqlType.dateTime,
             data['${effectivePrefix}date'],
           )!,
+      todoServerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}todo_server_id'],
+      ),
+      isDeleted:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_deleted'],
+          )!,
+      isSynced:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_synced'],
+          )!,
     );
   }
 
@@ -2016,8 +2600,9 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
   }
 }
 
-class Todo extends DataClass implements Insertable<Todo> {
+class Todo extends drift.DataClass implements drift.Insertable<Todo> {
   final int id;
+  final int? scheduleId;
   final int? groupId;
   final String content;
   final int colorType;
@@ -2027,8 +2612,12 @@ class Todo extends DataClass implements Insertable<Todo> {
   final int? categoryId;
   final int? alarmMinutes;
   final DateTime date;
+  final int? todoServerId;
+  final bool isDeleted;
+  final bool isSynced;
   const Todo({
     required this.id,
+    this.scheduleId,
     this.groupId,
     required this.content,
     required this.colorType,
@@ -2038,55 +2627,76 @@ class Todo extends DataClass implements Insertable<Todo> {
     this.categoryId,
     this.alarmMinutes,
     required this.date,
+    this.todoServerId,
+    required this.isDeleted,
+    required this.isSynced,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    if (!nullToAbsent || scheduleId != null) {
+      map['schedule_id'] = drift.Variable<int>(scheduleId);
+    }
     if (!nullToAbsent || groupId != null) {
-      map['group_id'] = Variable<int>(groupId);
+      map['group_id'] = drift.Variable<int>(groupId);
     }
-    map['content'] = Variable<String>(content);
-    map['color_type'] = Variable<int>(colorType);
-    map['is_done'] = Variable<bool>(isDone);
+    map['content'] = drift.Variable<String>(content);
+    map['color_type'] = drift.Variable<int>(colorType);
+    map['is_done'] = drift.Variable<bool>(isDone);
     if (!nullToAbsent || timeMinutes != null) {
-      map['time_minutes'] = Variable<int>(timeMinutes);
+      map['time_minutes'] = drift.Variable<int>(timeMinutes);
     }
-    map['schedule_type'] = Variable<String>(scheduleType);
+    map['schedule_type'] = drift.Variable<String>(scheduleType);
     if (!nullToAbsent || categoryId != null) {
-      map['category_id'] = Variable<int>(categoryId);
+      map['category_id'] = drift.Variable<int>(categoryId);
     }
     if (!nullToAbsent || alarmMinutes != null) {
-      map['alarm_minutes'] = Variable<int>(alarmMinutes);
+      map['alarm_minutes'] = drift.Variable<int>(alarmMinutes);
     }
-    map['date'] = Variable<DateTime>(date);
+    map['date'] = drift.Variable<DateTime>(date);
+    if (!nullToAbsent || todoServerId != null) {
+      map['todo_server_id'] = drift.Variable<int>(todoServerId);
+    }
+    map['is_deleted'] = drift.Variable<bool>(isDeleted);
+    map['is_synced'] = drift.Variable<bool>(isSynced);
     return map;
   }
 
   TodosCompanion toCompanion(bool nullToAbsent) {
     return TodosCompanion(
-      id: Value(id),
+      id: drift.Value(id),
+      scheduleId:
+          scheduleId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(scheduleId),
       groupId:
           groupId == null && nullToAbsent
-              ? const Value.absent()
-              : Value(groupId),
-      content: Value(content),
-      colorType: Value(colorType),
-      isDone: Value(isDone),
+              ? const drift.Value.absent()
+              : drift.Value(groupId),
+      content: drift.Value(content),
+      colorType: drift.Value(colorType),
+      isDone: drift.Value(isDone),
       timeMinutes:
           timeMinutes == null && nullToAbsent
-              ? const Value.absent()
-              : Value(timeMinutes),
-      scheduleType: Value(scheduleType),
+              ? const drift.Value.absent()
+              : drift.Value(timeMinutes),
+      scheduleType: drift.Value(scheduleType),
       categoryId:
           categoryId == null && nullToAbsent
-              ? const Value.absent()
-              : Value(categoryId),
+              ? const drift.Value.absent()
+              : drift.Value(categoryId),
       alarmMinutes:
           alarmMinutes == null && nullToAbsent
-              ? const Value.absent()
-              : Value(alarmMinutes),
-      date: Value(date),
+              ? const drift.Value.absent()
+              : drift.Value(alarmMinutes),
+      date: drift.Value(date),
+      todoServerId:
+          todoServerId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(todoServerId),
+      isDeleted: drift.Value(isDeleted),
+      isSynced: drift.Value(isSynced),
     );
   }
 
@@ -2094,9 +2704,10 @@ class Todo extends DataClass implements Insertable<Todo> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return Todo(
       id: serializer.fromJson<int>(json['id']),
+      scheduleId: serializer.fromJson<int?>(json['scheduleId']),
       groupId: serializer.fromJson<int?>(json['groupId']),
       content: serializer.fromJson<String>(json['content']),
       colorType: serializer.fromJson<int>(json['colorType']),
@@ -2106,13 +2717,17 @@ class Todo extends DataClass implements Insertable<Todo> {
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       alarmMinutes: serializer.fromJson<int?>(json['alarmMinutes']),
       date: serializer.fromJson<DateTime>(json['date']),
+      todoServerId: serializer.fromJson<int?>(json['todoServerId']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'scheduleId': serializer.toJson<int?>(scheduleId),
       'groupId': serializer.toJson<int?>(groupId),
       'content': serializer.toJson<String>(content),
       'colorType': serializer.toJson<int>(colorType),
@@ -2122,22 +2737,30 @@ class Todo extends DataClass implements Insertable<Todo> {
       'categoryId': serializer.toJson<int?>(categoryId),
       'alarmMinutes': serializer.toJson<int?>(alarmMinutes),
       'date': serializer.toJson<DateTime>(date),
+      'todoServerId': serializer.toJson<int?>(todoServerId),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'isSynced': serializer.toJson<bool>(isSynced),
     };
   }
 
   Todo copyWith({
     int? id,
-    Value<int?> groupId = const Value.absent(),
+    drift.Value<int?> scheduleId = const drift.Value.absent(),
+    drift.Value<int?> groupId = const drift.Value.absent(),
     String? content,
     int? colorType,
     bool? isDone,
-    Value<int?> timeMinutes = const Value.absent(),
+    drift.Value<int?> timeMinutes = const drift.Value.absent(),
     String? scheduleType,
-    Value<int?> categoryId = const Value.absent(),
-    Value<int?> alarmMinutes = const Value.absent(),
+    drift.Value<int?> categoryId = const drift.Value.absent(),
+    drift.Value<int?> alarmMinutes = const drift.Value.absent(),
     DateTime? date,
+    drift.Value<int?> todoServerId = const drift.Value.absent(),
+    bool? isDeleted,
+    bool? isSynced,
   }) => Todo(
     id: id ?? this.id,
+    scheduleId: scheduleId.present ? scheduleId.value : this.scheduleId,
     groupId: groupId.present ? groupId.value : this.groupId,
     content: content ?? this.content,
     colorType: colorType ?? this.colorType,
@@ -2147,10 +2770,15 @@ class Todo extends DataClass implements Insertable<Todo> {
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     alarmMinutes: alarmMinutes.present ? alarmMinutes.value : this.alarmMinutes,
     date: date ?? this.date,
+    todoServerId: todoServerId.present ? todoServerId.value : this.todoServerId,
+    isDeleted: isDeleted ?? this.isDeleted,
+    isSynced: isSynced ?? this.isSynced,
   );
   Todo copyWithCompanion(TodosCompanion data) {
     return Todo(
       id: data.id.present ? data.id.value : this.id,
+      scheduleId:
+          data.scheduleId.present ? data.scheduleId.value : this.scheduleId,
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       content: data.content.present ? data.content.value : this.content,
       colorType: data.colorType.present ? data.colorType.value : this.colorType,
@@ -2168,6 +2796,12 @@ class Todo extends DataClass implements Insertable<Todo> {
               ? data.alarmMinutes.value
               : this.alarmMinutes,
       date: data.date.present ? data.date.value : this.date,
+      todoServerId:
+          data.todoServerId.present
+              ? data.todoServerId.value
+              : this.todoServerId,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
   }
 
@@ -2175,6 +2809,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   String toString() {
     return (StringBuffer('Todo(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -2183,7 +2818,10 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
           ..write('alarmMinutes: $alarmMinutes, ')
-          ..write('date: $date')
+          ..write('date: $date, ')
+          ..write('todoServerId: $todoServerId, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
@@ -2191,6 +2829,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   @override
   int get hashCode => Object.hash(
     id,
+    scheduleId,
     groupId,
     content,
     colorType,
@@ -2200,12 +2839,16 @@ class Todo extends DataClass implements Insertable<Todo> {
     categoryId,
     alarmMinutes,
     date,
+    todoServerId,
+    isDeleted,
+    isSynced,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Todo &&
           other.id == this.id &&
+          other.scheduleId == this.scheduleId &&
           other.groupId == this.groupId &&
           other.content == this.content &&
           other.colorType == this.colorType &&
@@ -2214,59 +2857,79 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.scheduleType == this.scheduleType &&
           other.categoryId == this.categoryId &&
           other.alarmMinutes == this.alarmMinutes &&
-          other.date == this.date);
+          other.date == this.date &&
+          other.todoServerId == this.todoServerId &&
+          other.isDeleted == this.isDeleted &&
+          other.isSynced == this.isSynced);
 }
 
-class TodosCompanion extends UpdateCompanion<Todo> {
-  final Value<int> id;
-  final Value<int?> groupId;
-  final Value<String> content;
-  final Value<int> colorType;
-  final Value<bool> isDone;
-  final Value<int?> timeMinutes;
-  final Value<String> scheduleType;
-  final Value<int?> categoryId;
-  final Value<int?> alarmMinutes;
-  final Value<DateTime> date;
+class TodosCompanion extends drift.UpdateCompanion<Todo> {
+  final drift.Value<int> id;
+  final drift.Value<int?> scheduleId;
+  final drift.Value<int?> groupId;
+  final drift.Value<String> content;
+  final drift.Value<int> colorType;
+  final drift.Value<bool> isDone;
+  final drift.Value<int?> timeMinutes;
+  final drift.Value<String> scheduleType;
+  final drift.Value<int?> categoryId;
+  final drift.Value<int?> alarmMinutes;
+  final drift.Value<DateTime> date;
+  final drift.Value<int?> todoServerId;
+  final drift.Value<bool> isDeleted;
+  final drift.Value<bool> isSynced;
   const TodosCompanion({
-    this.id = const Value.absent(),
-    this.groupId = const Value.absent(),
-    this.content = const Value.absent(),
-    this.colorType = const Value.absent(),
-    this.isDone = const Value.absent(),
-    this.timeMinutes = const Value.absent(),
-    this.scheduleType = const Value.absent(),
-    this.categoryId = const Value.absent(),
-    this.alarmMinutes = const Value.absent(),
-    this.date = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.scheduleId = const drift.Value.absent(),
+    this.groupId = const drift.Value.absent(),
+    this.content = const drift.Value.absent(),
+    this.colorType = const drift.Value.absent(),
+    this.isDone = const drift.Value.absent(),
+    this.timeMinutes = const drift.Value.absent(),
+    this.scheduleType = const drift.Value.absent(),
+    this.categoryId = const drift.Value.absent(),
+    this.alarmMinutes = const drift.Value.absent(),
+    this.date = const drift.Value.absent(),
+    this.todoServerId = const drift.Value.absent(),
+    this.isDeleted = const drift.Value.absent(),
+    this.isSynced = const drift.Value.absent(),
   });
   TodosCompanion.insert({
-    this.id = const Value.absent(),
-    this.groupId = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.scheduleId = const drift.Value.absent(),
+    this.groupId = const drift.Value.absent(),
     required String content,
-    this.colorType = const Value.absent(),
-    this.isDone = const Value.absent(),
-    this.timeMinutes = const Value.absent(),
-    this.scheduleType = const Value.absent(),
-    this.categoryId = const Value.absent(),
-    this.alarmMinutes = const Value.absent(),
+    this.colorType = const drift.Value.absent(),
+    this.isDone = const drift.Value.absent(),
+    this.timeMinutes = const drift.Value.absent(),
+    this.scheduleType = const drift.Value.absent(),
+    this.categoryId = const drift.Value.absent(),
+    this.alarmMinutes = const drift.Value.absent(),
     required DateTime date,
-  }) : content = Value(content),
-       date = Value(date);
-  static Insertable<Todo> custom({
-    Expression<int>? id,
-    Expression<int>? groupId,
-    Expression<String>? content,
-    Expression<int>? colorType,
-    Expression<bool>? isDone,
-    Expression<int>? timeMinutes,
-    Expression<String>? scheduleType,
-    Expression<int>? categoryId,
-    Expression<int>? alarmMinutes,
-    Expression<DateTime>? date,
+    this.todoServerId = const drift.Value.absent(),
+    this.isDeleted = const drift.Value.absent(),
+    this.isSynced = const drift.Value.absent(),
+  }) : content = drift.Value(content),
+       date = drift.Value(date);
+  static drift.Insertable<Todo> custom({
+    drift.Expression<int>? id,
+    drift.Expression<int>? scheduleId,
+    drift.Expression<int>? groupId,
+    drift.Expression<String>? content,
+    drift.Expression<int>? colorType,
+    drift.Expression<bool>? isDone,
+    drift.Expression<int>? timeMinutes,
+    drift.Expression<String>? scheduleType,
+    drift.Expression<int>? categoryId,
+    drift.Expression<int>? alarmMinutes,
+    drift.Expression<DateTime>? date,
+    drift.Expression<int>? todoServerId,
+    drift.Expression<bool>? isDeleted,
+    drift.Expression<bool>? isSynced,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
+      if (scheduleId != null) 'schedule_id': scheduleId,
       if (groupId != null) 'group_id': groupId,
       if (content != null) 'content': content,
       if (colorType != null) 'color_type': colorType,
@@ -2276,23 +2939,31 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (categoryId != null) 'category_id': categoryId,
       if (alarmMinutes != null) 'alarm_minutes': alarmMinutes,
       if (date != null) 'date': date,
+      if (todoServerId != null) 'todo_server_id': todoServerId,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (isSynced != null) 'is_synced': isSynced,
     });
   }
 
   TodosCompanion copyWith({
-    Value<int>? id,
-    Value<int?>? groupId,
-    Value<String>? content,
-    Value<int>? colorType,
-    Value<bool>? isDone,
-    Value<int?>? timeMinutes,
-    Value<String>? scheduleType,
-    Value<int?>? categoryId,
-    Value<int?>? alarmMinutes,
-    Value<DateTime>? date,
+    drift.Value<int>? id,
+    drift.Value<int?>? scheduleId,
+    drift.Value<int?>? groupId,
+    drift.Value<String>? content,
+    drift.Value<int>? colorType,
+    drift.Value<bool>? isDone,
+    drift.Value<int?>? timeMinutes,
+    drift.Value<String>? scheduleType,
+    drift.Value<int?>? categoryId,
+    drift.Value<int?>? alarmMinutes,
+    drift.Value<DateTime>? date,
+    drift.Value<int?>? todoServerId,
+    drift.Value<bool>? isDeleted,
+    drift.Value<bool>? isSynced,
   }) {
     return TodosCompanion(
       id: id ?? this.id,
+      scheduleId: scheduleId ?? this.scheduleId,
       groupId: groupId ?? this.groupId,
       content: content ?? this.content,
       colorType: colorType ?? this.colorType,
@@ -2302,41 +2973,56 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       categoryId: categoryId ?? this.categoryId,
       alarmMinutes: alarmMinutes ?? this.alarmMinutes,
       date: date ?? this.date,
+      todoServerId: todoServerId ?? this.todoServerId,
+      isDeleted: isDeleted ?? this.isDeleted,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
+    }
+    if (scheduleId.present) {
+      map['schedule_id'] = drift.Variable<int>(scheduleId.value);
     }
     if (groupId.present) {
-      map['group_id'] = Variable<int>(groupId.value);
+      map['group_id'] = drift.Variable<int>(groupId.value);
     }
     if (content.present) {
-      map['content'] = Variable<String>(content.value);
+      map['content'] = drift.Variable<String>(content.value);
     }
     if (colorType.present) {
-      map['color_type'] = Variable<int>(colorType.value);
+      map['color_type'] = drift.Variable<int>(colorType.value);
     }
     if (isDone.present) {
-      map['is_done'] = Variable<bool>(isDone.value);
+      map['is_done'] = drift.Variable<bool>(isDone.value);
     }
     if (timeMinutes.present) {
-      map['time_minutes'] = Variable<int>(timeMinutes.value);
+      map['time_minutes'] = drift.Variable<int>(timeMinutes.value);
     }
     if (scheduleType.present) {
-      map['schedule_type'] = Variable<String>(scheduleType.value);
+      map['schedule_type'] = drift.Variable<String>(scheduleType.value);
     }
     if (categoryId.present) {
-      map['category_id'] = Variable<int>(categoryId.value);
+      map['category_id'] = drift.Variable<int>(categoryId.value);
     }
     if (alarmMinutes.present) {
-      map['alarm_minutes'] = Variable<int>(alarmMinutes.value);
+      map['alarm_minutes'] = drift.Variable<int>(alarmMinutes.value);
     }
     if (date.present) {
-      map['date'] = Variable<DateTime>(date.value);
+      map['date'] = drift.Variable<DateTime>(date.value);
+    }
+    if (todoServerId.present) {
+      map['todo_server_id'] = drift.Variable<int>(todoServerId.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = drift.Variable<bool>(isDeleted.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = drift.Variable<bool>(isSynced.value);
     }
     return map;
   }
@@ -2345,6 +3031,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   String toString() {
     return (StringBuffer('TodosCompanion(')
           ..write('id: $id, ')
+          ..write('scheduleId: $scheduleId, ')
           ..write('groupId: $groupId, ')
           ..write('content: $content, ')
           ..write('colorType: $colorType, ')
@@ -2353,21 +3040,26 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('scheduleType: $scheduleType, ')
           ..write('categoryId: $categoryId, ')
           ..write('alarmMinutes: $alarmMinutes, ')
-          ..write('date: $date')
+          ..write('date: $date, ')
+          ..write('todoServerId: $todoServerId, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
 }
 
 class $CompletedRoutinesTable extends CompletedRoutines
-    with TableInfo<$CompletedRoutinesTable, CompletedRoutine> {
+    with drift.TableInfo<$CompletedRoutinesTable, CompletedRoutine> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $CompletedRoutinesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -2378,39 +3070,41 @@ class $CompletedRoutinesTable extends CompletedRoutines
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _routineIdMeta = const VerificationMeta(
-    'routineId',
-  );
+  static const drift.VerificationMeta _routineIdMeta =
+      const drift.VerificationMeta('routineId');
   @override
-  late final GeneratedColumn<int> routineId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> routineId = drift.GeneratedColumn<int>(
     'routine_id',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _dateMeta = const VerificationMeta('date');
-  @override
-  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+  static const drift.VerificationMeta _dateMeta = const drift.VerificationMeta(
     'date',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, routineId, date];
+  late final drift.GeneratedColumn<DateTime> date =
+      drift.GeneratedColumn<DateTime>(
+        'date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<drift.GeneratedColumn> get $columns => [id, routineId, date];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'completed_routines';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<CompletedRoutine> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<CompletedRoutine> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
@@ -2435,7 +3129,7 @@ class $CompletedRoutinesTable extends CompletedRoutines
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   CompletedRoutine map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -2464,8 +3158,8 @@ class $CompletedRoutinesTable extends CompletedRoutines
   }
 }
 
-class CompletedRoutine extends DataClass
-    implements Insertable<CompletedRoutine> {
+class CompletedRoutine extends drift.DataClass
+    implements drift.Insertable<CompletedRoutine> {
   final int id;
   final int routineId;
   final DateTime date;
@@ -2475,19 +3169,19 @@ class CompletedRoutine extends DataClass
     required this.date,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['routine_id'] = Variable<int>(routineId);
-    map['date'] = Variable<DateTime>(date);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    map['routine_id'] = drift.Variable<int>(routineId);
+    map['date'] = drift.Variable<DateTime>(date);
     return map;
   }
 
   CompletedRoutinesCompanion toCompanion(bool nullToAbsent) {
     return CompletedRoutinesCompanion(
-      id: Value(id),
-      routineId: Value(routineId),
-      date: Value(date),
+      id: drift.Value(id),
+      routineId: drift.Value(routineId),
+      date: drift.Value(date),
     );
   }
 
@@ -2495,7 +3189,7 @@ class CompletedRoutine extends DataClass
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return CompletedRoutine(
       id: serializer.fromJson<int>(json['id']),
       routineId: serializer.fromJson<int>(json['routineId']),
@@ -2504,7 +3198,7 @@ class CompletedRoutine extends DataClass
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'routineId': serializer.toJson<int>(routineId),
@@ -2547,27 +3241,28 @@ class CompletedRoutine extends DataClass
           other.date == this.date);
 }
 
-class CompletedRoutinesCompanion extends UpdateCompanion<CompletedRoutine> {
-  final Value<int> id;
-  final Value<int> routineId;
-  final Value<DateTime> date;
+class CompletedRoutinesCompanion
+    extends drift.UpdateCompanion<CompletedRoutine> {
+  final drift.Value<int> id;
+  final drift.Value<int> routineId;
+  final drift.Value<DateTime> date;
   const CompletedRoutinesCompanion({
-    this.id = const Value.absent(),
-    this.routineId = const Value.absent(),
-    this.date = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.routineId = const drift.Value.absent(),
+    this.date = const drift.Value.absent(),
   });
   CompletedRoutinesCompanion.insert({
-    this.id = const Value.absent(),
+    this.id = const drift.Value.absent(),
     required int routineId,
     required DateTime date,
-  }) : routineId = Value(routineId),
-       date = Value(date);
-  static Insertable<CompletedRoutine> custom({
-    Expression<int>? id,
-    Expression<int>? routineId,
-    Expression<DateTime>? date,
+  }) : routineId = drift.Value(routineId),
+       date = drift.Value(date);
+  static drift.Insertable<CompletedRoutine> custom({
+    drift.Expression<int>? id,
+    drift.Expression<int>? routineId,
+    drift.Expression<DateTime>? date,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
       if (routineId != null) 'routine_id': routineId,
       if (date != null) 'date': date,
@@ -2575,9 +3270,9 @@ class CompletedRoutinesCompanion extends UpdateCompanion<CompletedRoutine> {
   }
 
   CompletedRoutinesCompanion copyWith({
-    Value<int>? id,
-    Value<int>? routineId,
-    Value<DateTime>? date,
+    drift.Value<int>? id,
+    drift.Value<int>? routineId,
+    drift.Value<DateTime>? date,
   }) {
     return CompletedRoutinesCompanion(
       id: id ?? this.id,
@@ -2587,16 +3282,16 @@ class CompletedRoutinesCompanion extends UpdateCompanion<CompletedRoutine> {
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
     }
     if (routineId.present) {
-      map['routine_id'] = Variable<int>(routineId.value);
+      map['routine_id'] = drift.Variable<int>(routineId.value);
     }
     if (date.present) {
-      map['date'] = Variable<DateTime>(date.value);
+      map['date'] = drift.Variable<DateTime>(date.value);
     }
     return map;
   }
@@ -2613,14 +3308,16 @@ class CompletedRoutinesCompanion extends UpdateCompanion<CompletedRoutine> {
 }
 
 class $CompletedTodosTable extends CompletedTodos
-    with TableInfo<$CompletedTodosTable, CompletedTodo> {
+    with drift.TableInfo<$CompletedTodosTable, CompletedTodo> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $CompletedTodosTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -2631,37 +3328,41 @@ class $CompletedTodosTable extends CompletedTodos
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _todoIdMeta = const VerificationMeta('todoId');
+  static const drift.VerificationMeta _todoIdMeta =
+      const drift.VerificationMeta('todoId');
   @override
-  late final GeneratedColumn<int> todoId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> todoId = drift.GeneratedColumn<int>(
     'todo_id',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _dateMeta = const VerificationMeta('date');
-  @override
-  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+  static const drift.VerificationMeta _dateMeta = const drift.VerificationMeta(
     'date',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, todoId, date];
+  late final drift.GeneratedColumn<DateTime> date =
+      drift.GeneratedColumn<DateTime>(
+        'date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<drift.GeneratedColumn> get $columns => [id, todoId, date];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'completed_todos';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<CompletedTodo> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<CompletedTodo> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
@@ -2686,7 +3387,7 @@ class $CompletedTodosTable extends CompletedTodos
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   CompletedTodo map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -2715,7 +3416,8 @@ class $CompletedTodosTable extends CompletedTodos
   }
 }
 
-class CompletedTodo extends DataClass implements Insertable<CompletedTodo> {
+class CompletedTodo extends drift.DataClass
+    implements drift.Insertable<CompletedTodo> {
   final int id;
   final int todoId;
   final DateTime date;
@@ -2725,19 +3427,19 @@ class CompletedTodo extends DataClass implements Insertable<CompletedTodo> {
     required this.date,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['todo_id'] = Variable<int>(todoId);
-    map['date'] = Variable<DateTime>(date);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    map['todo_id'] = drift.Variable<int>(todoId);
+    map['date'] = drift.Variable<DateTime>(date);
     return map;
   }
 
   CompletedTodosCompanion toCompanion(bool nullToAbsent) {
     return CompletedTodosCompanion(
-      id: Value(id),
-      todoId: Value(todoId),
-      date: Value(date),
+      id: drift.Value(id),
+      todoId: drift.Value(todoId),
+      date: drift.Value(date),
     );
   }
 
@@ -2745,7 +3447,7 @@ class CompletedTodo extends DataClass implements Insertable<CompletedTodo> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return CompletedTodo(
       id: serializer.fromJson<int>(json['id']),
       todoId: serializer.fromJson<int>(json['todoId']),
@@ -2754,7 +3456,7 @@ class CompletedTodo extends DataClass implements Insertable<CompletedTodo> {
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'todoId': serializer.toJson<int>(todoId),
@@ -2797,27 +3499,27 @@ class CompletedTodo extends DataClass implements Insertable<CompletedTodo> {
           other.date == this.date);
 }
 
-class CompletedTodosCompanion extends UpdateCompanion<CompletedTodo> {
-  final Value<int> id;
-  final Value<int> todoId;
-  final Value<DateTime> date;
+class CompletedTodosCompanion extends drift.UpdateCompanion<CompletedTodo> {
+  final drift.Value<int> id;
+  final drift.Value<int> todoId;
+  final drift.Value<DateTime> date;
   const CompletedTodosCompanion({
-    this.id = const Value.absent(),
-    this.todoId = const Value.absent(),
-    this.date = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.todoId = const drift.Value.absent(),
+    this.date = const drift.Value.absent(),
   });
   CompletedTodosCompanion.insert({
-    this.id = const Value.absent(),
+    this.id = const drift.Value.absent(),
     required int todoId,
     required DateTime date,
-  }) : todoId = Value(todoId),
-       date = Value(date);
-  static Insertable<CompletedTodo> custom({
-    Expression<int>? id,
-    Expression<int>? todoId,
-    Expression<DateTime>? date,
+  }) : todoId = drift.Value(todoId),
+       date = drift.Value(date);
+  static drift.Insertable<CompletedTodo> custom({
+    drift.Expression<int>? id,
+    drift.Expression<int>? todoId,
+    drift.Expression<DateTime>? date,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
       if (todoId != null) 'todo_id': todoId,
       if (date != null) 'date': date,
@@ -2825,9 +3527,9 @@ class CompletedTodosCompanion extends UpdateCompanion<CompletedTodo> {
   }
 
   CompletedTodosCompanion copyWith({
-    Value<int>? id,
-    Value<int>? todoId,
-    Value<DateTime>? date,
+    drift.Value<int>? id,
+    drift.Value<int>? todoId,
+    drift.Value<DateTime>? date,
   }) {
     return CompletedTodosCompanion(
       id: id ?? this.id,
@@ -2837,16 +3539,16 @@ class CompletedTodosCompanion extends UpdateCompanion<CompletedTodo> {
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
     }
     if (todoId.present) {
-      map['todo_id'] = Variable<int>(todoId.value);
+      map['todo_id'] = drift.Variable<int>(todoId.value);
     }
     if (date.present) {
-      map['date'] = Variable<DateTime>(date.value);
+      map['date'] = drift.Variable<DateTime>(date.value);
     }
     return map;
   }
@@ -2862,64 +3564,76 @@ class CompletedTodosCompanion extends UpdateCompanion<CompletedTodo> {
   }
 }
 
-class $DayLogsTable extends DayLogs with TableInfo<$DayLogsTable, DayLog> {
+class $DayLogsTable extends DayLogs
+    with drift.TableInfo<$DayLogsTable, DayLog> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $DayLogsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _dateMeta = const VerificationMeta('date');
-  @override
-  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+  static const drift.VerificationMeta _dateMeta = const drift.VerificationMeta(
     'date',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _emotionMeta = const VerificationMeta(
-    'emotion',
   );
   @override
-  late final GeneratedColumn<String> emotion = GeneratedColumn<String>(
-    'emotion',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _answerMapJsonMeta = const VerificationMeta(
-    'answerMapJson',
-  );
+  late final drift.GeneratedColumn<DateTime> date =
+      drift.GeneratedColumn<DateTime>(
+        'date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _emotionMeta =
+      const drift.VerificationMeta('emotion');
   @override
-  late final GeneratedColumn<String> answerMapJson = GeneratedColumn<String>(
-    'answer_map_json',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _diaryMeta = const VerificationMeta('diary');
+  late final drift.GeneratedColumn<String> emotion =
+      drift.GeneratedColumn<String>(
+        'emotion',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _answerMapJsonMeta =
+      const drift.VerificationMeta('answerMapJson');
   @override
-  late final GeneratedColumn<String> diary = GeneratedColumn<String>(
+  late final drift.GeneratedColumn<String> answerMapJson =
+      drift.GeneratedColumn<String>(
+        'answer_map_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _diaryMeta = const drift.VerificationMeta(
     'diary',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
   );
   @override
-  List<GeneratedColumn> get $columns => [date, emotion, answerMapJson, diary];
+  late final drift.GeneratedColumn<String> diary =
+      drift.GeneratedColumn<String>(
+        'diary',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<drift.GeneratedColumn> get $columns => [
+    date,
+    emotion,
+    answerMapJson,
+    diary,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'day_logs';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<DayLog> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<DayLog> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('date')) {
       context.handle(
@@ -2954,7 +3668,7 @@ class $DayLogsTable extends DayLogs with TableInfo<$DayLogsTable, DayLog> {
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {date};
+  Set<drift.GeneratedColumn> get $primaryKey => {date};
   @override
   DayLog map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -2985,7 +3699,7 @@ class $DayLogsTable extends DayLogs with TableInfo<$DayLogsTable, DayLog> {
   }
 }
 
-class DayLog extends DataClass implements Insertable<DayLog> {
+class DayLog extends drift.DataClass implements drift.Insertable<DayLog> {
   final DateTime date;
   final String? emotion;
   final String? answerMapJson;
@@ -2997,34 +3711,36 @@ class DayLog extends DataClass implements Insertable<DayLog> {
     this.diary,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['date'] = Variable<DateTime>(date);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['date'] = drift.Variable<DateTime>(date);
     if (!nullToAbsent || emotion != null) {
-      map['emotion'] = Variable<String>(emotion);
+      map['emotion'] = drift.Variable<String>(emotion);
     }
     if (!nullToAbsent || answerMapJson != null) {
-      map['answer_map_json'] = Variable<String>(answerMapJson);
+      map['answer_map_json'] = drift.Variable<String>(answerMapJson);
     }
     if (!nullToAbsent || diary != null) {
-      map['diary'] = Variable<String>(diary);
+      map['diary'] = drift.Variable<String>(diary);
     }
     return map;
   }
 
   DayLogsCompanion toCompanion(bool nullToAbsent) {
     return DayLogsCompanion(
-      date: Value(date),
+      date: drift.Value(date),
       emotion:
           emotion == null && nullToAbsent
-              ? const Value.absent()
-              : Value(emotion),
+              ? const drift.Value.absent()
+              : drift.Value(emotion),
       answerMapJson:
           answerMapJson == null && nullToAbsent
-              ? const Value.absent()
-              : Value(answerMapJson),
+              ? const drift.Value.absent()
+              : drift.Value(answerMapJson),
       diary:
-          diary == null && nullToAbsent ? const Value.absent() : Value(diary),
+          diary == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(diary),
     );
   }
 
@@ -3032,7 +3748,7 @@ class DayLog extends DataClass implements Insertable<DayLog> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return DayLog(
       date: serializer.fromJson<DateTime>(json['date']),
       emotion: serializer.fromJson<String?>(json['emotion']),
@@ -3042,7 +3758,7 @@ class DayLog extends DataClass implements Insertable<DayLog> {
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'date': serializer.toJson<DateTime>(date),
       'emotion': serializer.toJson<String?>(emotion),
@@ -3053,9 +3769,9 @@ class DayLog extends DataClass implements Insertable<DayLog> {
 
   DayLog copyWith({
     DateTime? date,
-    Value<String?> emotion = const Value.absent(),
-    Value<String?> answerMapJson = const Value.absent(),
-    Value<String?> diary = const Value.absent(),
+    drift.Value<String?> emotion = const drift.Value.absent(),
+    drift.Value<String?> answerMapJson = const drift.Value.absent(),
+    drift.Value<String?> diary = const drift.Value.absent(),
   }) => DayLog(
     date: date ?? this.date,
     emotion: emotion.present ? emotion.value : this.emotion,
@@ -3098,34 +3814,34 @@ class DayLog extends DataClass implements Insertable<DayLog> {
           other.diary == this.diary);
 }
 
-class DayLogsCompanion extends UpdateCompanion<DayLog> {
-  final Value<DateTime> date;
-  final Value<String?> emotion;
-  final Value<String?> answerMapJson;
-  final Value<String?> diary;
-  final Value<int> rowid;
+class DayLogsCompanion extends drift.UpdateCompanion<DayLog> {
+  final drift.Value<DateTime> date;
+  final drift.Value<String?> emotion;
+  final drift.Value<String?> answerMapJson;
+  final drift.Value<String?> diary;
+  final drift.Value<int> rowid;
   const DayLogsCompanion({
-    this.date = const Value.absent(),
-    this.emotion = const Value.absent(),
-    this.answerMapJson = const Value.absent(),
-    this.diary = const Value.absent(),
-    this.rowid = const Value.absent(),
+    this.date = const drift.Value.absent(),
+    this.emotion = const drift.Value.absent(),
+    this.answerMapJson = const drift.Value.absent(),
+    this.diary = const drift.Value.absent(),
+    this.rowid = const drift.Value.absent(),
   });
   DayLogsCompanion.insert({
     required DateTime date,
-    this.emotion = const Value.absent(),
-    this.answerMapJson = const Value.absent(),
-    this.diary = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : date = Value(date);
-  static Insertable<DayLog> custom({
-    Expression<DateTime>? date,
-    Expression<String>? emotion,
-    Expression<String>? answerMapJson,
-    Expression<String>? diary,
-    Expression<int>? rowid,
+    this.emotion = const drift.Value.absent(),
+    this.answerMapJson = const drift.Value.absent(),
+    this.diary = const drift.Value.absent(),
+    this.rowid = const drift.Value.absent(),
+  }) : date = drift.Value(date);
+  static drift.Insertable<DayLog> custom({
+    drift.Expression<DateTime>? date,
+    drift.Expression<String>? emotion,
+    drift.Expression<String>? answerMapJson,
+    drift.Expression<String>? diary,
+    drift.Expression<int>? rowid,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (date != null) 'date': date,
       if (emotion != null) 'emotion': emotion,
       if (answerMapJson != null) 'answer_map_json': answerMapJson,
@@ -3135,11 +3851,11 @@ class DayLogsCompanion extends UpdateCompanion<DayLog> {
   }
 
   DayLogsCompanion copyWith({
-    Value<DateTime>? date,
-    Value<String?>? emotion,
-    Value<String?>? answerMapJson,
-    Value<String?>? diary,
-    Value<int>? rowid,
+    drift.Value<DateTime>? date,
+    drift.Value<String?>? emotion,
+    drift.Value<String?>? answerMapJson,
+    drift.Value<String?>? diary,
+    drift.Value<int>? rowid,
   }) {
     return DayLogsCompanion(
       date: date ?? this.date,
@@ -3151,22 +3867,22 @@ class DayLogsCompanion extends UpdateCompanion<DayLog> {
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (date.present) {
-      map['date'] = Variable<DateTime>(date.value);
+      map['date'] = drift.Variable<DateTime>(date.value);
     }
     if (emotion.present) {
-      map['emotion'] = Variable<String>(emotion.value);
+      map['emotion'] = drift.Variable<String>(emotion.value);
     }
     if (answerMapJson.present) {
-      map['answer_map_json'] = Variable<String>(answerMapJson.value);
+      map['answer_map_json'] = drift.Variable<String>(answerMapJson.value);
     }
     if (diary.present) {
-      map['diary'] = Variable<String>(diary.value);
+      map['diary'] = drift.Variable<String>(diary.value);
     }
     if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
+      map['rowid'] = drift.Variable<int>(rowid.value);
     }
     return map;
   }
@@ -3184,16 +3900,16 @@ class DayLogsCompanion extends UpdateCompanion<DayLog> {
   }
 }
 
-class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
+class $NoticesTable extends Notices
+    with drift.TableInfo<$NoticesTable, Notice> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $NoticesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _groupIdMeta = const VerificationMeta(
-    'groupId',
-  );
+  static const drift.VerificationMeta _groupIdMeta =
+      const drift.VerificationMeta('groupId');
   @override
-  late final GeneratedColumn<int> groupId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> groupId = drift.GeneratedColumn<int>(
     'group_id',
     aliasedName,
     true,
@@ -3203,9 +3919,11 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
       'REFERENCES "groups" (id)',
     ),
   );
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -3216,67 +3934,67 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _contentMeta = const VerificationMeta(
-    'content',
-  );
+  static const drift.VerificationMeta _contentMeta =
+      const drift.VerificationMeta('content');
   @override
-  late final GeneratedColumn<String> content = GeneratedColumn<String>(
-    'content',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
+  late final drift.GeneratedColumn<String> content =
+      drift.GeneratedColumn<String>(
+        'content',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _createdAtMeta =
+      const drift.VerificationMeta('createdAt');
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _authorNameMeta = const VerificationMeta(
-    'authorName',
-  );
+  late final drift.GeneratedColumn<DateTime> createdAt =
+      drift.GeneratedColumn<DateTime>(
+        'created_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _authorNameMeta =
+      const drift.VerificationMeta('authorName');
   @override
-  late final GeneratedColumn<String> authorName = GeneratedColumn<String>(
-    'author_name',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
-    'isDeleted',
-  );
+  late final drift.GeneratedColumn<String> authorName =
+      drift.GeneratedColumn<String>(
+        'author_name',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _isDeletedMeta =
+      const drift.VerificationMeta('isDeleted');
   @override
-  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
-    'is_deleted',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_deleted" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _noticeDateMeta = const VerificationMeta(
-    'noticeDate',
-  );
+  late final drift.GeneratedColumn<bool> isDeleted =
+      drift.GeneratedColumn<bool>(
+        'is_deleted',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_deleted" IN (0, 1))',
+        ),
+        defaultValue: const drift.Constant(false),
+      );
+  static const drift.VerificationMeta _noticeDateMeta =
+      const drift.VerificationMeta('noticeDate');
   @override
-  late final GeneratedColumn<DateTime> noticeDate = GeneratedColumn<DateTime>(
-    'notice_date',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
+  late final drift.GeneratedColumn<DateTime> noticeDate =
+      drift.GeneratedColumn<DateTime>(
+        'notice_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
   @override
-  List<GeneratedColumn> get $columns => [
+  List<drift.GeneratedColumn> get $columns => [
     groupId,
     id,
     content,
@@ -3291,11 +4009,11 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
   String get actualTableName => $name;
   static const String $name = 'notices';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Notice> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<Notice> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('group_id')) {
       context.handle(
@@ -3346,7 +4064,7 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   Notice map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -3393,7 +4111,7 @@ class $NoticesTable extends Notices with TableInfo<$NoticesTable, Notice> {
   }
 }
 
-class Notice extends DataClass implements Insertable<Notice> {
+class Notice extends drift.DataClass implements drift.Insertable<Notice> {
   final int? groupId;
   final int id;
   final String content;
@@ -3411,19 +4129,19 @@ class Notice extends DataClass implements Insertable<Notice> {
     required this.noticeDate,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (!nullToAbsent || groupId != null) {
-      map['group_id'] = Variable<int>(groupId);
+      map['group_id'] = drift.Variable<int>(groupId);
     }
-    map['id'] = Variable<int>(id);
-    map['content'] = Variable<String>(content);
-    map['created_at'] = Variable<DateTime>(createdAt);
+    map['id'] = drift.Variable<int>(id);
+    map['content'] = drift.Variable<String>(content);
+    map['created_at'] = drift.Variable<DateTime>(createdAt);
     if (!nullToAbsent || authorName != null) {
-      map['author_name'] = Variable<String>(authorName);
+      map['author_name'] = drift.Variable<String>(authorName);
     }
-    map['is_deleted'] = Variable<bool>(isDeleted);
-    map['notice_date'] = Variable<DateTime>(noticeDate);
+    map['is_deleted'] = drift.Variable<bool>(isDeleted);
+    map['notice_date'] = drift.Variable<DateTime>(noticeDate);
     return map;
   }
 
@@ -3431,17 +4149,17 @@ class Notice extends DataClass implements Insertable<Notice> {
     return NoticesCompanion(
       groupId:
           groupId == null && nullToAbsent
-              ? const Value.absent()
-              : Value(groupId),
-      id: Value(id),
-      content: Value(content),
-      createdAt: Value(createdAt),
+              ? const drift.Value.absent()
+              : drift.Value(groupId),
+      id: drift.Value(id),
+      content: drift.Value(content),
+      createdAt: drift.Value(createdAt),
       authorName:
           authorName == null && nullToAbsent
-              ? const Value.absent()
-              : Value(authorName),
-      isDeleted: Value(isDeleted),
-      noticeDate: Value(noticeDate),
+              ? const drift.Value.absent()
+              : drift.Value(authorName),
+      isDeleted: drift.Value(isDeleted),
+      noticeDate: drift.Value(noticeDate),
     );
   }
 
@@ -3449,7 +4167,7 @@ class Notice extends DataClass implements Insertable<Notice> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return Notice(
       groupId: serializer.fromJson<int?>(json['groupId']),
       id: serializer.fromJson<int>(json['id']),
@@ -3462,7 +4180,7 @@ class Notice extends DataClass implements Insertable<Notice> {
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'groupId': serializer.toJson<int?>(groupId),
       'id': serializer.toJson<int>(id),
@@ -3475,11 +4193,11 @@ class Notice extends DataClass implements Insertable<Notice> {
   }
 
   Notice copyWith({
-    Value<int?> groupId = const Value.absent(),
+    drift.Value<int?> groupId = const drift.Value.absent(),
     int? id,
     String? content,
     DateTime? createdAt,
-    Value<String?> authorName = const Value.absent(),
+    drift.Value<String?> authorName = const drift.Value.absent(),
     bool? isDeleted,
     DateTime? noticeDate,
   }) => Notice(
@@ -3542,44 +4260,44 @@ class Notice extends DataClass implements Insertable<Notice> {
           other.noticeDate == this.noticeDate);
 }
 
-class NoticesCompanion extends UpdateCompanion<Notice> {
-  final Value<int?> groupId;
-  final Value<int> id;
-  final Value<String> content;
-  final Value<DateTime> createdAt;
-  final Value<String?> authorName;
-  final Value<bool> isDeleted;
-  final Value<DateTime> noticeDate;
+class NoticesCompanion extends drift.UpdateCompanion<Notice> {
+  final drift.Value<int?> groupId;
+  final drift.Value<int> id;
+  final drift.Value<String> content;
+  final drift.Value<DateTime> createdAt;
+  final drift.Value<String?> authorName;
+  final drift.Value<bool> isDeleted;
+  final drift.Value<DateTime> noticeDate;
   const NoticesCompanion({
-    this.groupId = const Value.absent(),
-    this.id = const Value.absent(),
-    this.content = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.authorName = const Value.absent(),
-    this.isDeleted = const Value.absent(),
-    this.noticeDate = const Value.absent(),
+    this.groupId = const drift.Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.content = const drift.Value.absent(),
+    this.createdAt = const drift.Value.absent(),
+    this.authorName = const drift.Value.absent(),
+    this.isDeleted = const drift.Value.absent(),
+    this.noticeDate = const drift.Value.absent(),
   });
   NoticesCompanion.insert({
-    this.groupId = const Value.absent(),
-    this.id = const Value.absent(),
+    this.groupId = const drift.Value.absent(),
+    this.id = const drift.Value.absent(),
     required String content,
     required DateTime createdAt,
-    this.authorName = const Value.absent(),
-    this.isDeleted = const Value.absent(),
+    this.authorName = const drift.Value.absent(),
+    this.isDeleted = const drift.Value.absent(),
     required DateTime noticeDate,
-  }) : content = Value(content),
-       createdAt = Value(createdAt),
-       noticeDate = Value(noticeDate);
-  static Insertable<Notice> custom({
-    Expression<int>? groupId,
-    Expression<int>? id,
-    Expression<String>? content,
-    Expression<DateTime>? createdAt,
-    Expression<String>? authorName,
-    Expression<bool>? isDeleted,
-    Expression<DateTime>? noticeDate,
+  }) : content = drift.Value(content),
+       createdAt = drift.Value(createdAt),
+       noticeDate = drift.Value(noticeDate);
+  static drift.Insertable<Notice> custom({
+    drift.Expression<int>? groupId,
+    drift.Expression<int>? id,
+    drift.Expression<String>? content,
+    drift.Expression<DateTime>? createdAt,
+    drift.Expression<String>? authorName,
+    drift.Expression<bool>? isDeleted,
+    drift.Expression<DateTime>? noticeDate,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (groupId != null) 'group_id': groupId,
       if (id != null) 'id': id,
       if (content != null) 'content': content,
@@ -3591,13 +4309,13 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
   }
 
   NoticesCompanion copyWith({
-    Value<int?>? groupId,
-    Value<int>? id,
-    Value<String>? content,
-    Value<DateTime>? createdAt,
-    Value<String?>? authorName,
-    Value<bool>? isDeleted,
-    Value<DateTime>? noticeDate,
+    drift.Value<int?>? groupId,
+    drift.Value<int>? id,
+    drift.Value<String>? content,
+    drift.Value<DateTime>? createdAt,
+    drift.Value<String?>? authorName,
+    drift.Value<bool>? isDeleted,
+    drift.Value<DateTime>? noticeDate,
   }) {
     return NoticesCompanion(
       groupId: groupId ?? this.groupId,
@@ -3611,28 +4329,28 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (groupId.present) {
-      map['group_id'] = Variable<int>(groupId.value);
+      map['group_id'] = drift.Variable<int>(groupId.value);
     }
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
     }
     if (content.present) {
-      map['content'] = Variable<String>(content.value);
+      map['content'] = drift.Variable<String>(content.value);
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = drift.Variable<DateTime>(createdAt.value);
     }
     if (authorName.present) {
-      map['author_name'] = Variable<String>(authorName.value);
+      map['author_name'] = drift.Variable<String>(authorName.value);
     }
     if (isDeleted.present) {
-      map['is_deleted'] = Variable<bool>(isDeleted.value);
+      map['is_deleted'] = drift.Variable<bool>(isDeleted.value);
     }
     if (noticeDate.present) {
-      map['notice_date'] = Variable<DateTime>(noticeDate.value);
+      map['notice_date'] = drift.Variable<DateTime>(noticeDate.value);
     }
     return map;
   }
@@ -3652,14 +4370,16 @@ class NoticesCompanion extends UpdateCompanion<Notice> {
   }
 }
 
-class $UsersTable extends Users with TableInfo<$UsersTable, User> {
+class $UsersTable extends Users with drift.TableInfo<$UsersTable, User> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $UsersTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -3670,30 +4390,30 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _nicknameMeta = const VerificationMeta(
-    'nickname',
-  );
+  static const drift.VerificationMeta _nicknameMeta =
+      const drift.VerificationMeta('nickname');
   @override
-  late final GeneratedColumn<String> nickname = GeneratedColumn<String>(
-    'nickname',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final drift.GeneratedColumn<String> nickname =
+      drift.GeneratedColumn<String>(
+        'nickname',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
   @override
-  List<GeneratedColumn> get $columns => [id, nickname];
+  List<drift.GeneratedColumn> get $columns => [id, nickname];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'users';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<User> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<User> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
@@ -3710,7 +4430,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   User map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -3734,27 +4454,27 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   }
 }
 
-class User extends DataClass implements Insertable<User> {
+class User extends drift.DataClass implements drift.Insertable<User> {
   final int id;
   final String nickname;
   const User({required this.id, required this.nickname});
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['nickname'] = Variable<String>(nickname);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    map['nickname'] = drift.Variable<String>(nickname);
     return map;
   }
 
   UsersCompanion toCompanion(bool nullToAbsent) {
-    return UsersCompanion(id: Value(id), nickname: Value(nickname));
+    return UsersCompanion(id: drift.Value(id), nickname: drift.Value(nickname));
   }
 
   factory User.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return User(
       id: serializer.fromJson<int>(json['id']),
       nickname: serializer.fromJson<String>(json['nickname']),
@@ -3762,7 +4482,7 @@ class User extends DataClass implements Insertable<User> {
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'nickname': serializer.toJson<String>(nickname),
@@ -3795,28 +4515,31 @@ class User extends DataClass implements Insertable<User> {
       (other is User && other.id == this.id && other.nickname == this.nickname);
 }
 
-class UsersCompanion extends UpdateCompanion<User> {
-  final Value<int> id;
-  final Value<String> nickname;
+class UsersCompanion extends drift.UpdateCompanion<User> {
+  final drift.Value<int> id;
+  final drift.Value<String> nickname;
   const UsersCompanion({
-    this.id = const Value.absent(),
-    this.nickname = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.nickname = const drift.Value.absent(),
   });
   UsersCompanion.insert({
-    this.id = const Value.absent(),
+    this.id = const drift.Value.absent(),
     required String nickname,
-  }) : nickname = Value(nickname);
-  static Insertable<User> custom({
-    Expression<int>? id,
-    Expression<String>? nickname,
+  }) : nickname = drift.Value(nickname);
+  static drift.Insertable<User> custom({
+    drift.Expression<int>? id,
+    drift.Expression<String>? nickname,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
       if (nickname != null) 'nickname': nickname,
     });
   }
 
-  UsersCompanion copyWith({Value<int>? id, Value<String>? nickname}) {
+  UsersCompanion copyWith({
+    drift.Value<int>? id,
+    drift.Value<String>? nickname,
+  }) {
     return UsersCompanion(
       id: id ?? this.id,
       nickname: nickname ?? this.nickname,
@@ -3824,13 +4547,13 @@ class UsersCompanion extends UpdateCompanion<User> {
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
     }
     if (nickname.present) {
-      map['nickname'] = Variable<String>(nickname.value);
+      map['nickname'] = drift.Variable<String>(nickname.value);
     }
     return map;
   }
@@ -3846,16 +4569,15 @@ class UsersCompanion extends UpdateCompanion<User> {
 }
 
 class $GroupMembersTable extends GroupMembers
-    with TableInfo<$GroupMembersTable, GroupMember> {
+    with drift.TableInfo<$GroupMembersTable, GroupMember> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $GroupMembersTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _groupIdMeta = const VerificationMeta(
-    'groupId',
-  );
+  static const drift.VerificationMeta _groupIdMeta =
+      const drift.VerificationMeta('groupId');
   @override
-  late final GeneratedColumn<int> groupId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> groupId = drift.GeneratedColumn<int>(
     'group_id',
     aliasedName,
     false,
@@ -3865,9 +4587,10 @@ class $GroupMembersTable extends GroupMembers
       'REFERENCES "groups" (id)',
     ),
   );
-  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  static const drift.VerificationMeta _userIdMeta =
+      const drift.VerificationMeta('userId');
   @override
-  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> userId = drift.GeneratedColumn<int>(
     'user_id',
     aliasedName,
     false,
@@ -3877,29 +4600,47 @@ class $GroupMembersTable extends GroupMembers
       'REFERENCES users (id)',
     ),
   );
-  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  static const drift.VerificationMeta _memberGroupIdMeta =
+      const drift.VerificationMeta('memberGroupId');
   @override
-  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+  late final drift.GeneratedColumn<int> memberGroupId =
+      drift.GeneratedColumn<int>(
+        'member_group_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const drift.VerificationMeta _roleMeta = const drift.VerificationMeta(
+    'role',
+  );
+  @override
+  late final drift.GeneratedColumn<String> role = drift.GeneratedColumn<String>(
     'role',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('MEMBER'),
+    defaultValue: const drift.Constant('MEMBER'),
   );
   @override
-  List<GeneratedColumn> get $columns => [groupId, userId, role];
+  List<drift.GeneratedColumn> get $columns => [
+    groupId,
+    userId,
+    memberGroupId,
+    role,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'group_members';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<GroupMember> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<GroupMember> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('group_id')) {
       context.handle(
@@ -3917,6 +4658,15 @@ class $GroupMembersTable extends GroupMembers
     } else if (isInserting) {
       context.missing(_userIdMeta);
     }
+    if (data.containsKey('member_group_id')) {
+      context.handle(
+        _memberGroupIdMeta,
+        memberGroupId.isAcceptableOrUnknown(
+          data['member_group_id']!,
+          _memberGroupIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('role')) {
       context.handle(
         _roleMeta,
@@ -3927,7 +4677,7 @@ class $GroupMembersTable extends GroupMembers
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {groupId, userId};
+  Set<drift.GeneratedColumn> get $primaryKey => {groupId, userId};
   @override
   GroupMember map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -3942,6 +4692,10 @@ class $GroupMembersTable extends GroupMembers
             DriftSqlType.int,
             data['${effectivePrefix}user_id'],
           )!,
+      memberGroupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}member_group_id'],
+      ),
       role:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -3956,29 +4710,39 @@ class $GroupMembersTable extends GroupMembers
   }
 }
 
-class GroupMember extends DataClass implements Insertable<GroupMember> {
+class GroupMember extends drift.DataClass
+    implements drift.Insertable<GroupMember> {
   final int groupId;
   final int userId;
+  final int? memberGroupId;
   final String role;
   const GroupMember({
     required this.groupId,
     required this.userId,
+    this.memberGroupId,
     required this.role,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['group_id'] = Variable<int>(groupId);
-    map['user_id'] = Variable<int>(userId);
-    map['role'] = Variable<String>(role);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['group_id'] = drift.Variable<int>(groupId);
+    map['user_id'] = drift.Variable<int>(userId);
+    if (!nullToAbsent || memberGroupId != null) {
+      map['member_group_id'] = drift.Variable<int>(memberGroupId);
+    }
+    map['role'] = drift.Variable<String>(role);
     return map;
   }
 
   GroupMembersCompanion toCompanion(bool nullToAbsent) {
     return GroupMembersCompanion(
-      groupId: Value(groupId),
-      userId: Value(userId),
-      role: Value(role),
+      groupId: drift.Value(groupId),
+      userId: drift.Value(userId),
+      memberGroupId:
+          memberGroupId == null && nullToAbsent
+              ? const drift.Value.absent()
+              : drift.Value(memberGroupId),
+      role: drift.Value(role),
     );
   }
 
@@ -3986,33 +4750,45 @@ class GroupMember extends DataClass implements Insertable<GroupMember> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return GroupMember(
       groupId: serializer.fromJson<int>(json['groupId']),
       userId: serializer.fromJson<int>(json['userId']),
+      memberGroupId: serializer.fromJson<int?>(json['memberGroupId']),
       role: serializer.fromJson<String>(json['role']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'groupId': serializer.toJson<int>(groupId),
       'userId': serializer.toJson<int>(userId),
+      'memberGroupId': serializer.toJson<int?>(memberGroupId),
       'role': serializer.toJson<String>(role),
     };
   }
 
-  GroupMember copyWith({int? groupId, int? userId, String? role}) =>
-      GroupMember(
-        groupId: groupId ?? this.groupId,
-        userId: userId ?? this.userId,
-        role: role ?? this.role,
-      );
+  GroupMember copyWith({
+    int? groupId,
+    int? userId,
+    drift.Value<int?> memberGroupId = const drift.Value.absent(),
+    String? role,
+  }) => GroupMember(
+    groupId: groupId ?? this.groupId,
+    userId: userId ?? this.userId,
+    memberGroupId:
+        memberGroupId.present ? memberGroupId.value : this.memberGroupId,
+    role: role ?? this.role,
+  );
   GroupMember copyWithCompanion(GroupMembersCompanion data) {
     return GroupMember(
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       userId: data.userId.present ? data.userId.value : this.userId,
+      memberGroupId:
+          data.memberGroupId.present
+              ? data.memberGroupId.value
+              : this.memberGroupId,
       role: data.role.present ? data.role.value : this.role,
     );
   }
@@ -4022,82 +4798,94 @@ class GroupMember extends DataClass implements Insertable<GroupMember> {
     return (StringBuffer('GroupMember(')
           ..write('groupId: $groupId, ')
           ..write('userId: $userId, ')
+          ..write('memberGroupId: $memberGroupId, ')
           ..write('role: $role')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(groupId, userId, role);
+  int get hashCode => Object.hash(groupId, userId, memberGroupId, role);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is GroupMember &&
           other.groupId == this.groupId &&
           other.userId == this.userId &&
+          other.memberGroupId == this.memberGroupId &&
           other.role == this.role);
 }
 
-class GroupMembersCompanion extends UpdateCompanion<GroupMember> {
-  final Value<int> groupId;
-  final Value<int> userId;
-  final Value<String> role;
-  final Value<int> rowid;
+class GroupMembersCompanion extends drift.UpdateCompanion<GroupMember> {
+  final drift.Value<int> groupId;
+  final drift.Value<int> userId;
+  final drift.Value<int?> memberGroupId;
+  final drift.Value<String> role;
+  final drift.Value<int> rowid;
   const GroupMembersCompanion({
-    this.groupId = const Value.absent(),
-    this.userId = const Value.absent(),
-    this.role = const Value.absent(),
-    this.rowid = const Value.absent(),
+    this.groupId = const drift.Value.absent(),
+    this.userId = const drift.Value.absent(),
+    this.memberGroupId = const drift.Value.absent(),
+    this.role = const drift.Value.absent(),
+    this.rowid = const drift.Value.absent(),
   });
   GroupMembersCompanion.insert({
     required int groupId,
     required int userId,
-    this.role = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : groupId = Value(groupId),
-       userId = Value(userId);
-  static Insertable<GroupMember> custom({
-    Expression<int>? groupId,
-    Expression<int>? userId,
-    Expression<String>? role,
-    Expression<int>? rowid,
+    this.memberGroupId = const drift.Value.absent(),
+    this.role = const drift.Value.absent(),
+    this.rowid = const drift.Value.absent(),
+  }) : groupId = drift.Value(groupId),
+       userId = drift.Value(userId);
+  static drift.Insertable<GroupMember> custom({
+    drift.Expression<int>? groupId,
+    drift.Expression<int>? userId,
+    drift.Expression<int>? memberGroupId,
+    drift.Expression<String>? role,
+    drift.Expression<int>? rowid,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (groupId != null) 'group_id': groupId,
       if (userId != null) 'user_id': userId,
+      if (memberGroupId != null) 'member_group_id': memberGroupId,
       if (role != null) 'role': role,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
   GroupMembersCompanion copyWith({
-    Value<int>? groupId,
-    Value<int>? userId,
-    Value<String>? role,
-    Value<int>? rowid,
+    drift.Value<int>? groupId,
+    drift.Value<int>? userId,
+    drift.Value<int?>? memberGroupId,
+    drift.Value<String>? role,
+    drift.Value<int>? rowid,
   }) {
     return GroupMembersCompanion(
       groupId: groupId ?? this.groupId,
       userId: userId ?? this.userId,
+      memberGroupId: memberGroupId ?? this.memberGroupId,
       role: role ?? this.role,
       rowid: rowid ?? this.rowid,
     );
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (groupId.present) {
-      map['group_id'] = Variable<int>(groupId.value);
+      map['group_id'] = drift.Variable<int>(groupId.value);
     }
     if (userId.present) {
-      map['user_id'] = Variable<int>(userId.value);
+      map['user_id'] = drift.Variable<int>(userId.value);
+    }
+    if (memberGroupId.present) {
+      map['member_group_id'] = drift.Variable<int>(memberGroupId.value);
     }
     if (role.present) {
-      map['role'] = Variable<String>(role.value);
+      map['role'] = drift.Variable<String>(role.value);
     }
     if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
+      map['rowid'] = drift.Variable<int>(rowid.value);
     }
     return map;
   }
@@ -4107,6 +4895,7 @@ class GroupMembersCompanion extends UpdateCompanion<GroupMember> {
     return (StringBuffer('GroupMembersCompanion(')
           ..write('groupId: $groupId, ')
           ..write('userId: $userId, ')
+          ..write('memberGroupId: $memberGroupId, ')
           ..write('role: $role, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4115,14 +4904,16 @@ class GroupMembersCompanion extends UpdateCompanion<GroupMember> {
 }
 
 class $NotificationsTable extends Notifications
-    with TableInfo<$NotificationsTable, Notification> {
+    with drift.TableInfo<$NotificationsTable, Notification> {
   @override
-  final GeneratedDatabase attachedDatabase;
+  final drift.GeneratedDatabase attachedDatabase;
   final String? _alias;
   $NotificationsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  static const drift.VerificationMeta _idMeta = const drift.VerificationMeta(
+    'id',
+  );
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> id = drift.GeneratedColumn<int>(
     'id',
     aliasedName,
     false,
@@ -4133,51 +4924,53 @@ class $NotificationsTable extends Notifications
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  static const drift.VerificationMeta _typeMeta = const drift.VerificationMeta(
+    'type',
+  );
   @override
-  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+  late final drift.GeneratedColumn<String> type = drift.GeneratedColumn<String>(
     'type',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _contentMeta = const VerificationMeta(
-    'content',
-  );
+  static const drift.VerificationMeta _contentMeta =
+      const drift.VerificationMeta('content');
   @override
-  late final GeneratedColumn<String> content = GeneratedColumn<String>(
-    'content',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _timestampMeta = const VerificationMeta(
-    'timestamp',
-  );
+  late final drift.GeneratedColumn<String> content =
+      drift.GeneratedColumn<String>(
+        'content',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _timestampMeta =
+      const drift.VerificationMeta('timestamp');
   @override
-  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
-    'timestamp',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _relatedIdMeta = const VerificationMeta(
-    'relatedId',
-  );
+  late final drift.GeneratedColumn<DateTime> timestamp =
+      drift.GeneratedColumn<DateTime>(
+        'timestamp',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const drift.VerificationMeta _relatedIdMeta =
+      const drift.VerificationMeta('relatedId');
   @override
-  late final GeneratedColumn<int> relatedId = GeneratedColumn<int>(
+  late final drift.GeneratedColumn<int> relatedId = drift.GeneratedColumn<int>(
     'related_id',
     aliasedName,
     true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _isReadMeta = const VerificationMeta('isRead');
+  static const drift.VerificationMeta _isReadMeta =
+      const drift.VerificationMeta('isRead');
   @override
-  late final GeneratedColumn<bool> isRead = GeneratedColumn<bool>(
+  late final drift.GeneratedColumn<bool> isRead = drift.GeneratedColumn<bool>(
     'is_read',
     aliasedName,
     false,
@@ -4186,10 +4979,10 @@ class $NotificationsTable extends Notifications
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("is_read" IN (0, 1))',
     ),
-    defaultValue: const Constant(false),
+    defaultValue: const drift.Constant(false),
   );
   @override
-  List<GeneratedColumn> get $columns => [
+  List<drift.GeneratedColumn> get $columns => [
     id,
     type,
     content,
@@ -4203,11 +4996,11 @@ class $NotificationsTable extends Notifications
   String get actualTableName => $name;
   static const String $name = 'notifications';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Notification> instance, {
+  drift.VerificationContext validateIntegrity(
+    drift.Insertable<Notification> instance, {
     bool isInserting = false,
   }) {
-    final context = VerificationContext();
+    final context = drift.VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
@@ -4252,7 +5045,7 @@ class $NotificationsTable extends Notifications
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<drift.GeneratedColumn> get $primaryKey => {id};
   @override
   Notification map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -4295,7 +5088,8 @@ class $NotificationsTable extends Notifications
   }
 }
 
-class Notification extends DataClass implements Insertable<Notification> {
+class Notification extends drift.DataClass
+    implements drift.Insertable<Notification> {
   final int id;
   final String type;
   final String content;
@@ -4311,30 +5105,30 @@ class Notification extends DataClass implements Insertable<Notification> {
     required this.isRead,
   });
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['type'] = Variable<String>(type);
-    map['content'] = Variable<String>(content);
-    map['timestamp'] = Variable<DateTime>(timestamp);
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
+    map['id'] = drift.Variable<int>(id);
+    map['type'] = drift.Variable<String>(type);
+    map['content'] = drift.Variable<String>(content);
+    map['timestamp'] = drift.Variable<DateTime>(timestamp);
     if (!nullToAbsent || relatedId != null) {
-      map['related_id'] = Variable<int>(relatedId);
+      map['related_id'] = drift.Variable<int>(relatedId);
     }
-    map['is_read'] = Variable<bool>(isRead);
+    map['is_read'] = drift.Variable<bool>(isRead);
     return map;
   }
 
   NotificationsCompanion toCompanion(bool nullToAbsent) {
     return NotificationsCompanion(
-      id: Value(id),
-      type: Value(type),
-      content: Value(content),
-      timestamp: Value(timestamp),
+      id: drift.Value(id),
+      type: drift.Value(type),
+      content: drift.Value(content),
+      timestamp: drift.Value(timestamp),
       relatedId:
           relatedId == null && nullToAbsent
-              ? const Value.absent()
-              : Value(relatedId),
-      isRead: Value(isRead),
+              ? const drift.Value.absent()
+              : drift.Value(relatedId),
+      isRead: drift.Value(isRead),
     );
   }
 
@@ -4342,7 +5136,7 @@ class Notification extends DataClass implements Insertable<Notification> {
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return Notification(
       id: serializer.fromJson<int>(json['id']),
       type: serializer.fromJson<String>(json['type']),
@@ -4354,7 +5148,7 @@ class Notification extends DataClass implements Insertable<Notification> {
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
+    serializer ??= drift.driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'type': serializer.toJson<String>(type),
@@ -4370,7 +5164,7 @@ class Notification extends DataClass implements Insertable<Notification> {
     String? type,
     String? content,
     DateTime? timestamp,
-    Value<int?> relatedId = const Value.absent(),
+    drift.Value<int?> relatedId = const drift.Value.absent(),
     bool? isRead,
   }) => Notification(
     id: id ?? this.id,
@@ -4419,40 +5213,40 @@ class Notification extends DataClass implements Insertable<Notification> {
           other.isRead == this.isRead);
 }
 
-class NotificationsCompanion extends UpdateCompanion<Notification> {
-  final Value<int> id;
-  final Value<String> type;
-  final Value<String> content;
-  final Value<DateTime> timestamp;
-  final Value<int?> relatedId;
-  final Value<bool> isRead;
+class NotificationsCompanion extends drift.UpdateCompanion<Notification> {
+  final drift.Value<int> id;
+  final drift.Value<String> type;
+  final drift.Value<String> content;
+  final drift.Value<DateTime> timestamp;
+  final drift.Value<int?> relatedId;
+  final drift.Value<bool> isRead;
   const NotificationsCompanion({
-    this.id = const Value.absent(),
-    this.type = const Value.absent(),
-    this.content = const Value.absent(),
-    this.timestamp = const Value.absent(),
-    this.relatedId = const Value.absent(),
-    this.isRead = const Value.absent(),
+    this.id = const drift.Value.absent(),
+    this.type = const drift.Value.absent(),
+    this.content = const drift.Value.absent(),
+    this.timestamp = const drift.Value.absent(),
+    this.relatedId = const drift.Value.absent(),
+    this.isRead = const drift.Value.absent(),
   });
   NotificationsCompanion.insert({
-    this.id = const Value.absent(),
+    this.id = const drift.Value.absent(),
     required String type,
     required String content,
     required DateTime timestamp,
-    this.relatedId = const Value.absent(),
-    this.isRead = const Value.absent(),
-  }) : type = Value(type),
-       content = Value(content),
-       timestamp = Value(timestamp);
-  static Insertable<Notification> custom({
-    Expression<int>? id,
-    Expression<String>? type,
-    Expression<String>? content,
-    Expression<DateTime>? timestamp,
-    Expression<int>? relatedId,
-    Expression<bool>? isRead,
+    this.relatedId = const drift.Value.absent(),
+    this.isRead = const drift.Value.absent(),
+  }) : type = drift.Value(type),
+       content = drift.Value(content),
+       timestamp = drift.Value(timestamp);
+  static drift.Insertable<Notification> custom({
+    drift.Expression<int>? id,
+    drift.Expression<String>? type,
+    drift.Expression<String>? content,
+    drift.Expression<DateTime>? timestamp,
+    drift.Expression<int>? relatedId,
+    drift.Expression<bool>? isRead,
   }) {
-    return RawValuesInsertable({
+    return drift.RawValuesInsertable({
       if (id != null) 'id': id,
       if (type != null) 'type': type,
       if (content != null) 'content': content,
@@ -4463,12 +5257,12 @@ class NotificationsCompanion extends UpdateCompanion<Notification> {
   }
 
   NotificationsCompanion copyWith({
-    Value<int>? id,
-    Value<String>? type,
-    Value<String>? content,
-    Value<DateTime>? timestamp,
-    Value<int?>? relatedId,
-    Value<bool>? isRead,
+    drift.Value<int>? id,
+    drift.Value<String>? type,
+    drift.Value<String>? content,
+    drift.Value<DateTime>? timestamp,
+    drift.Value<int?>? relatedId,
+    drift.Value<bool>? isRead,
   }) {
     return NotificationsCompanion(
       id: id ?? this.id,
@@ -4481,25 +5275,25 @@ class NotificationsCompanion extends UpdateCompanion<Notification> {
   }
 
   @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
+  Map<String, drift.Expression> toColumns(bool nullToAbsent) {
+    final map = <String, drift.Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = drift.Variable<int>(id.value);
     }
     if (type.present) {
-      map['type'] = Variable<String>(type.value);
+      map['type'] = drift.Variable<String>(type.value);
     }
     if (content.present) {
-      map['content'] = Variable<String>(content.value);
+      map['content'] = drift.Variable<String>(content.value);
     }
     if (timestamp.present) {
-      map['timestamp'] = Variable<DateTime>(timestamp.value);
+      map['timestamp'] = drift.Variable<DateTime>(timestamp.value);
     }
     if (relatedId.present) {
-      map['related_id'] = Variable<int>(relatedId.value);
+      map['related_id'] = drift.Variable<int>(relatedId.value);
     }
     if (isRead.present) {
-      map['is_read'] = Variable<bool>(isRead.value);
+      map['is_read'] = drift.Variable<bool>(isRead.value);
     }
     return map;
   }
@@ -4518,7 +5312,7 @@ class NotificationsCompanion extends UpdateCompanion<Notification> {
   }
 }
 
-abstract class _$LocalDatabase extends GeneratedDatabase {
+abstract class _$LocalDatabase extends drift.GeneratedDatabase {
   _$LocalDatabase(QueryExecutor e) : super(e);
   $LocalDatabaseManager get managers => $LocalDatabaseManager(this);
   late final $CategoriesTable categories = $CategoriesTable(this);
@@ -4537,10 +5331,10 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
   late final $GroupMembersTable groupMembers = $GroupMembersTable(this);
   late final $NotificationsTable notifications = $NotificationsTable(this);
   @override
-  Iterable<TableInfo<Table, Object?>> get allTables =>
-      allSchemaEntities.whereType<TableInfo<Table, Object?>>();
+  Iterable<drift.TableInfo<drift.Table, Object?>> get allTables =>
+      allSchemaEntities.whereType<drift.TableInfo<drift.Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [
+  List<drift.DatabaseSchemaEntity> get allSchemaEntities => [
     categories,
     dayLogQuestions,
     groups,
@@ -4558,23 +5352,29 @@ abstract class _$LocalDatabase extends GeneratedDatabase {
 
 typedef $$CategoriesTableCreateCompanionBuilder =
     CategoriesCompanion Function({
-      Value<int> id,
+      drift.Value<int> id,
+      drift.Value<int?> categoryId,
       required String name,
       required String type,
       required String color,
-      Value<bool> isDeleted,
+      drift.Value<bool> isDeleted,
+      drift.Value<int?> serverId,
+      drift.Value<bool> isSynced,
     });
 typedef $$CategoriesTableUpdateCompanionBuilder =
     CategoriesCompanion Function({
-      Value<int> id,
-      Value<String> name,
-      Value<String> type,
-      Value<String> color,
-      Value<bool> isDeleted,
+      drift.Value<int> id,
+      drift.Value<int?> categoryId,
+      drift.Value<String> name,
+      drift.Value<String> type,
+      drift.Value<String> color,
+      drift.Value<bool> isDeleted,
+      drift.Value<int?> serverId,
+      drift.Value<bool> isSynced,
     });
 
 class $$CategoriesTableFilterComposer
-    extends Composer<_$LocalDatabase, $CategoriesTable> {
+    extends drift.Composer<_$LocalDatabase, $CategoriesTable> {
   $$CategoriesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -4582,34 +5382,49 @@ class $$CategoriesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get name => $composableBuilder(
+  drift.ColumnFilters<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get type => $composableBuilder(
+  drift.ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get color => $composableBuilder(
+  drift.ColumnFilters<String> get color => $composableBuilder(
     column: $table.color,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isDeleted => $composableBuilder(
+  drift.ColumnFilters<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => drift.ColumnFilters(column),
   );
 }
 
 class $$CategoriesTableOrderingComposer
-    extends Composer<_$LocalDatabase, $CategoriesTable> {
+    extends drift.Composer<_$LocalDatabase, $CategoriesTable> {
   $$CategoriesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -4617,34 +5432,49 @@ class $$CategoriesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get name => $composableBuilder(
+  drift.ColumnOrderings<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<String> get name => $composableBuilder(
     column: $table.name,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get type => $composableBuilder(
+  drift.ColumnOrderings<String> get type => $composableBuilder(
     column: $table.type,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get color => $composableBuilder(
+  drift.ColumnOrderings<String> get color => $composableBuilder(
     column: $table.color,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+  drift.ColumnOrderings<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$CategoriesTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $CategoriesTable> {
+    extends drift.Composer<_$LocalDatabase, $CategoriesTable> {
   $$CategoriesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -4652,25 +5482,36 @@ class $$CategoriesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get name =>
+  drift.GeneratedColumn<int> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  drift.GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
-  GeneratedColumn<String> get type =>
+  drift.GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
 
-  GeneratedColumn<String> get color =>
+  drift.GeneratedColumn<String> get color =>
       $composableBuilder(column: $table.color, builder: (column) => column);
 
-  GeneratedColumn<bool> get isDeleted =>
+  drift.GeneratedColumn<bool> get isDeleted =>
       $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  drift.GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  drift.GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
 }
 
 class $$CategoriesTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $CategoriesTable,
           Category,
@@ -4681,14 +5522,14 @@ class $$CategoriesTableTableManager
           $$CategoriesTableUpdateCompanionBuilder,
           (
             Category,
-            BaseReferences<_$LocalDatabase, $CategoriesTable, Category>,
+            drift.BaseReferences<_$LocalDatabase, $CategoriesTable, Category>,
           ),
           Category,
-          PrefetchHooks Function()
+          drift.PrefetchHooks Function()
         > {
   $$CategoriesTableTableManager(_$LocalDatabase db, $CategoriesTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -4699,31 +5540,43 @@ class $$CategoriesTableTableManager
               () => $$CategoriesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> type = const Value.absent(),
-                Value<String> color = const Value.absent(),
-                Value<bool> isDeleted = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> categoryId = const drift.Value.absent(),
+                drift.Value<String> name = const drift.Value.absent(),
+                drift.Value<String> type = const drift.Value.absent(),
+                drift.Value<String> color = const drift.Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
+                drift.Value<int?> serverId = const drift.Value.absent(),
+                drift.Value<bool> isSynced = const drift.Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
+                categoryId: categoryId,
                 name: name,
                 type: type,
                 color: color,
                 isDeleted: isDeleted,
+                serverId: serverId,
+                isSynced: isSynced,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> categoryId = const drift.Value.absent(),
                 required String name,
                 required String type,
                 required String color,
-                Value<bool> isDeleted = const Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
+                drift.Value<int?> serverId = const drift.Value.absent(),
+                drift.Value<bool> isSynced = const drift.Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
+                categoryId: categoryId,
                 name: name,
                 type: type,
                 color: color,
                 isDeleted: isDeleted,
+                serverId: serverId,
+                isSynced: isSynced,
               ),
           withReferenceMapper:
               (p0) =>
@@ -4731,7 +5584,7 @@ class $$CategoriesTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          drift.BaseReferences(db, table, e),
                         ),
                       )
                       .toList(),
@@ -4741,7 +5594,7 @@ class $$CategoriesTableTableManager
 }
 
 typedef $$CategoriesTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $CategoriesTable,
       Category,
@@ -4750,25 +5603,30 @@ typedef $$CategoriesTableProcessedTableManager =
       $$CategoriesTableAnnotationComposer,
       $$CategoriesTableCreateCompanionBuilder,
       $$CategoriesTableUpdateCompanionBuilder,
-      (Category, BaseReferences<_$LocalDatabase, $CategoriesTable, Category>),
+      (
+        Category,
+        drift.BaseReferences<_$LocalDatabase, $CategoriesTable, Category>,
+      ),
       Category,
-      PrefetchHooks Function()
+      drift.PrefetchHooks Function()
     >;
 typedef $$DayLogQuestionsTableCreateCompanionBuilder =
     DayLogQuestionsCompanion Function({
-      Value<int> id,
+      drift.Value<int> id,
+      drift.Value<int?> serverId,
       required String question,
-      Value<String> emoji,
+      drift.Value<String> emoji,
     });
 typedef $$DayLogQuestionsTableUpdateCompanionBuilder =
     DayLogQuestionsCompanion Function({
-      Value<int> id,
-      Value<String> question,
-      Value<String> emoji,
+      drift.Value<int> id,
+      drift.Value<int?> serverId,
+      drift.Value<String> question,
+      drift.Value<String> emoji,
     });
 
 class $$DayLogQuestionsTableFilterComposer
-    extends Composer<_$LocalDatabase, $DayLogQuestionsTable> {
+    extends drift.Composer<_$LocalDatabase, $DayLogQuestionsTable> {
   $$DayLogQuestionsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -4776,24 +5634,29 @@ class $$DayLogQuestionsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get question => $composableBuilder(
+  drift.ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<String> get question => $composableBuilder(
     column: $table.question,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get emoji => $composableBuilder(
+  drift.ColumnFilters<String> get emoji => $composableBuilder(
     column: $table.emoji,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 }
 
 class $$DayLogQuestionsTableOrderingComposer
-    extends Composer<_$LocalDatabase, $DayLogQuestionsTable> {
+    extends drift.Composer<_$LocalDatabase, $DayLogQuestionsTable> {
   $$DayLogQuestionsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -4801,24 +5664,29 @@ class $$DayLogQuestionsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get question => $composableBuilder(
+  drift.ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<String> get question => $composableBuilder(
     column: $table.question,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get emoji => $composableBuilder(
+  drift.ColumnOrderings<String> get emoji => $composableBuilder(
     column: $table.emoji,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$DayLogQuestionsTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $DayLogQuestionsTable> {
+    extends drift.Composer<_$LocalDatabase, $DayLogQuestionsTable> {
   $$DayLogQuestionsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -4826,19 +5694,22 @@ class $$DayLogQuestionsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get question =>
+  drift.GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  drift.GeneratedColumn<String> get question =>
       $composableBuilder(column: $table.question, builder: (column) => column);
 
-  GeneratedColumn<String> get emoji =>
+  drift.GeneratedColumn<String> get emoji =>
       $composableBuilder(column: $table.emoji, builder: (column) => column);
 }
 
 class $$DayLogQuestionsTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $DayLogQuestionsTable,
           DayLogQuestion,
@@ -4849,20 +5720,20 @@ class $$DayLogQuestionsTableTableManager
           $$DayLogQuestionsTableUpdateCompanionBuilder,
           (
             DayLogQuestion,
-            BaseReferences<
+            drift.BaseReferences<
               _$LocalDatabase,
               $DayLogQuestionsTable,
               DayLogQuestion
             >,
           ),
           DayLogQuestion,
-          PrefetchHooks Function()
+          drift.PrefetchHooks Function()
         > {
   $$DayLogQuestionsTableTableManager(
     _$LocalDatabase db,
     $DayLogQuestionsTable table,
   ) : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -4880,21 +5751,25 @@ class $$DayLogQuestionsTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<String> question = const Value.absent(),
-                Value<String> emoji = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> serverId = const drift.Value.absent(),
+                drift.Value<String> question = const drift.Value.absent(),
+                drift.Value<String> emoji = const drift.Value.absent(),
               }) => DayLogQuestionsCompanion(
                 id: id,
+                serverId: serverId,
                 question: question,
                 emoji: emoji,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> serverId = const drift.Value.absent(),
                 required String question,
-                Value<String> emoji = const Value.absent(),
+                drift.Value<String> emoji = const drift.Value.absent(),
               }) => DayLogQuestionsCompanion.insert(
                 id: id,
+                serverId: serverId,
                 question: question,
                 emoji: emoji,
               ),
@@ -4904,7 +5779,7 @@ class $$DayLogQuestionsTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          drift.BaseReferences(db, table, e),
                         ),
                       )
                       .toList(),
@@ -4914,7 +5789,7 @@ class $$DayLogQuestionsTableTableManager
 }
 
 typedef $$DayLogQuestionsTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $DayLogQuestionsTable,
       DayLogQuestion,
@@ -4925,39 +5800,44 @@ typedef $$DayLogQuestionsTableProcessedTableManager =
       $$DayLogQuestionsTableUpdateCompanionBuilder,
       (
         DayLogQuestion,
-        BaseReferences<_$LocalDatabase, $DayLogQuestionsTable, DayLogQuestion>,
+        drift.BaseReferences<
+          _$LocalDatabase,
+          $DayLogQuestionsTable,
+          DayLogQuestion
+        >,
       ),
       DayLogQuestion,
-      PrefetchHooks Function()
+      drift.PrefetchHooks Function()
     >;
 typedef $$GroupsTableCreateCompanionBuilder =
     GroupsCompanion Function({
-      Value<int> id,
+      drift.Value<int> id,
       required String name,
-      Value<String?> description,
-      Value<int> colorType,
-      Value<int?> maxMembers,
-      Value<String?> password,
+      drift.Value<String?> description,
+      drift.Value<int> colorType,
+      drift.Value<int?> maxMembers,
+      drift.Value<String?> password,
+      required String localColor,
     });
 typedef $$GroupsTableUpdateCompanionBuilder =
     GroupsCompanion Function({
-      Value<int> id,
-      Value<String> name,
-      Value<String?> description,
-      Value<int> colorType,
-      Value<int?> maxMembers,
-      Value<String?> password,
+      drift.Value<int> id,
+      drift.Value<String> name,
+      drift.Value<String?> description,
+      drift.Value<int> colorType,
+      drift.Value<int?> maxMembers,
+      drift.Value<String?> password,
+      drift.Value<String> localColor,
     });
 
 final class $$GroupsTableReferences
-    extends BaseReferences<_$LocalDatabase, $GroupsTable, Group> {
+    extends drift.BaseReferences<_$LocalDatabase, $GroupsTable, Group> {
   $$GroupsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<$RoutinesTable, List<Routine>> _routinesRefsTable(
-    _$LocalDatabase db,
-  ) => MultiTypedResultKey.fromTable(
+  static drift.MultiTypedResultKey<$RoutinesTable, List<Routine>>
+  _routinesRefsTable(_$LocalDatabase db) => drift.MultiTypedResultKey.fromTable(
     db.routines,
-    aliasName: $_aliasNameGenerator(db.groups.id, db.routines.groupId),
+    aliasName: drift.$_aliasNameGenerator(db.groups.id, db.routines.groupId),
   );
 
   $$RoutinesTableProcessedTableManager get routinesRefs {
@@ -4967,16 +5847,16 @@ final class $$GroupsTableReferences
     ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_routinesRefsTable($_db));
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
-  static MultiTypedResultKey<$TodosTable, List<Todo>> _todosRefsTable(
+  static drift.MultiTypedResultKey<$TodosTable, List<Todo>> _todosRefsTable(
     _$LocalDatabase db,
-  ) => MultiTypedResultKey.fromTable(
+  ) => drift.MultiTypedResultKey.fromTable(
     db.todos,
-    aliasName: $_aliasNameGenerator(db.groups.id, db.todos.groupId),
+    aliasName: drift.$_aliasNameGenerator(db.groups.id, db.todos.groupId),
   );
 
   $$TodosTableProcessedTableManager get todosRefs {
@@ -4986,16 +5866,15 @@ final class $$GroupsTableReferences
     ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_todosRefsTable($_db));
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
-  static MultiTypedResultKey<$NoticesTable, List<Notice>> _noticesRefsTable(
-    _$LocalDatabase db,
-  ) => MultiTypedResultKey.fromTable(
+  static drift.MultiTypedResultKey<$NoticesTable, List<Notice>>
+  _noticesRefsTable(_$LocalDatabase db) => drift.MultiTypedResultKey.fromTable(
     db.notices,
-    aliasName: $_aliasNameGenerator(db.groups.id, db.notices.groupId),
+    aliasName: drift.$_aliasNameGenerator(db.groups.id, db.notices.groupId),
   );
 
   $$NoticesTableProcessedTableManager get noticesRefs {
@@ -5005,16 +5884,20 @@ final class $$GroupsTableReferences
     ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_noticesRefsTable($_db));
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
-  static MultiTypedResultKey<$GroupMembersTable, List<GroupMember>>
-  _groupMembersRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
-    db.groupMembers,
-    aliasName: $_aliasNameGenerator(db.groups.id, db.groupMembers.groupId),
-  );
+  static drift.MultiTypedResultKey<$GroupMembersTable, List<GroupMember>>
+  _groupMembersRefsTable(_$LocalDatabase db) =>
+      drift.MultiTypedResultKey.fromTable(
+        db.groupMembers,
+        aliasName: drift.$_aliasNameGenerator(
+          db.groups.id,
+          db.groupMembers.groupId,
+        ),
+      );
 
   $$GroupMembersTableProcessedTableManager get groupMembersRefs {
     final manager = $$GroupMembersTableTableManager(
@@ -5023,14 +5906,14 @@ final class $$GroupsTableReferences
     ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_groupMembersRefsTable($_db));
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
 
 class $$GroupsTableFilterComposer
-    extends Composer<_$LocalDatabase, $GroupsTable> {
+    extends drift.Composer<_$LocalDatabase, $GroupsTable> {
   $$GroupsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -5038,38 +5921,43 @@ class $$GroupsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get name => $composableBuilder(
+  drift.ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get description => $composableBuilder(
+  drift.ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get colorType => $composableBuilder(
+  drift.ColumnFilters<int> get colorType => $composableBuilder(
     column: $table.colorType,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get maxMembers => $composableBuilder(
+  drift.ColumnFilters<int> get maxMembers => $composableBuilder(
     column: $table.maxMembers,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get password => $composableBuilder(
+  drift.ColumnFilters<String> get password => $composableBuilder(
     column: $table.password,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  Expression<bool> routinesRefs(
-    Expression<bool> Function($$RoutinesTableFilterComposer f) f,
+  drift.ColumnFilters<String> get localColor => $composableBuilder(
+    column: $table.localColor,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.Expression<bool> routinesRefs(
+    drift.Expression<bool> Function($$RoutinesTableFilterComposer f) f,
   ) {
     final $$RoutinesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -5093,8 +5981,8 @@ class $$GroupsTableFilterComposer
     return f(composer);
   }
 
-  Expression<bool> todosRefs(
-    Expression<bool> Function($$TodosTableFilterComposer f) f,
+  drift.Expression<bool> todosRefs(
+    drift.Expression<bool> Function($$TodosTableFilterComposer f) f,
   ) {
     final $$TodosTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -5118,8 +6006,8 @@ class $$GroupsTableFilterComposer
     return f(composer);
   }
 
-  Expression<bool> noticesRefs(
-    Expression<bool> Function($$NoticesTableFilterComposer f) f,
+  drift.Expression<bool> noticesRefs(
+    drift.Expression<bool> Function($$NoticesTableFilterComposer f) f,
   ) {
     final $$NoticesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -5143,8 +6031,8 @@ class $$GroupsTableFilterComposer
     return f(composer);
   }
 
-  Expression<bool> groupMembersRefs(
-    Expression<bool> Function($$GroupMembersTableFilterComposer f) f,
+  drift.Expression<bool> groupMembersRefs(
+    drift.Expression<bool> Function($$GroupMembersTableFilterComposer f) f,
   ) {
     final $$GroupMembersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -5170,7 +6058,7 @@ class $$GroupsTableFilterComposer
 }
 
 class $$GroupsTableOrderingComposer
-    extends Composer<_$LocalDatabase, $GroupsTable> {
+    extends drift.Composer<_$LocalDatabase, $GroupsTable> {
   $$GroupsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -5178,39 +6066,44 @@ class $$GroupsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get name => $composableBuilder(
+  drift.ColumnOrderings<String> get name => $composableBuilder(
     column: $table.name,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get description => $composableBuilder(
+  drift.ColumnOrderings<String> get description => $composableBuilder(
     column: $table.description,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get colorType => $composableBuilder(
+  drift.ColumnOrderings<int> get colorType => $composableBuilder(
     column: $table.colorType,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get maxMembers => $composableBuilder(
+  drift.ColumnOrderings<int> get maxMembers => $composableBuilder(
     column: $table.maxMembers,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get password => $composableBuilder(
+  drift.ColumnOrderings<String> get password => $composableBuilder(
     column: $table.password,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<String> get localColor => $composableBuilder(
+    column: $table.localColor,
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$GroupsTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $GroupsTable> {
+    extends drift.Composer<_$LocalDatabase, $GroupsTable> {
   $$GroupsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -5218,30 +6111,35 @@ class $$GroupsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get name =>
+  drift.GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
-  GeneratedColumn<String> get description => $composableBuilder(
+  drift.GeneratedColumn<String> get description => $composableBuilder(
     column: $table.description,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get colorType =>
+  drift.GeneratedColumn<int> get colorType =>
       $composableBuilder(column: $table.colorType, builder: (column) => column);
 
-  GeneratedColumn<int> get maxMembers => $composableBuilder(
+  drift.GeneratedColumn<int> get maxMembers => $composableBuilder(
     column: $table.maxMembers,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get password =>
+  drift.GeneratedColumn<String> get password =>
       $composableBuilder(column: $table.password, builder: (column) => column);
 
-  Expression<T> routinesRefs<T extends Object>(
-    Expression<T> Function($$RoutinesTableAnnotationComposer a) f,
+  drift.GeneratedColumn<String> get localColor => $composableBuilder(
+    column: $table.localColor,
+    builder: (column) => column,
+  );
+
+  drift.Expression<T> routinesRefs<T extends Object>(
+    drift.Expression<T> Function($$RoutinesTableAnnotationComposer a) f,
   ) {
     final $$RoutinesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -5265,8 +6163,8 @@ class $$GroupsTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> todosRefs<T extends Object>(
-    Expression<T> Function($$TodosTableAnnotationComposer a) f,
+  drift.Expression<T> todosRefs<T extends Object>(
+    drift.Expression<T> Function($$TodosTableAnnotationComposer a) f,
   ) {
     final $$TodosTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -5290,8 +6188,8 @@ class $$GroupsTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> noticesRefs<T extends Object>(
-    Expression<T> Function($$NoticesTableAnnotationComposer a) f,
+  drift.Expression<T> noticesRefs<T extends Object>(
+    drift.Expression<T> Function($$NoticesTableAnnotationComposer a) f,
   ) {
     final $$NoticesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -5315,8 +6213,8 @@ class $$GroupsTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> groupMembersRefs<T extends Object>(
-    Expression<T> Function($$GroupMembersTableAnnotationComposer a) f,
+  drift.Expression<T> groupMembersRefs<T extends Object>(
+    drift.Expression<T> Function($$GroupMembersTableAnnotationComposer a) f,
   ) {
     final $$GroupMembersTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -5343,7 +6241,7 @@ class $$GroupsTableAnnotationComposer
 
 class $$GroupsTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $GroupsTable,
           Group,
@@ -5354,7 +6252,7 @@ class $$GroupsTableTableManager
           $$GroupsTableUpdateCompanionBuilder,
           (Group, $$GroupsTableReferences),
           Group,
-          PrefetchHooks Function({
+          drift.PrefetchHooks Function({
             bool routinesRefs,
             bool todosRefs,
             bool noticesRefs,
@@ -5363,7 +6261,7 @@ class $$GroupsTableTableManager
         > {
   $$GroupsTableTableManager(_$LocalDatabase db, $GroupsTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -5374,12 +6272,13 @@ class $$GroupsTableTableManager
               () => $$GroupsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String?> description = const Value.absent(),
-                Value<int> colorType = const Value.absent(),
-                Value<int?> maxMembers = const Value.absent(),
-                Value<String?> password = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<String> name = const drift.Value.absent(),
+                drift.Value<String?> description = const drift.Value.absent(),
+                drift.Value<int> colorType = const drift.Value.absent(),
+                drift.Value<int?> maxMembers = const drift.Value.absent(),
+                drift.Value<String?> password = const drift.Value.absent(),
+                drift.Value<String> localColor = const drift.Value.absent(),
               }) => GroupsCompanion(
                 id: id,
                 name: name,
@@ -5387,15 +6286,17 @@ class $$GroupsTableTableManager
                 colorType: colorType,
                 maxMembers: maxMembers,
                 password: password,
+                localColor: localColor,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
                 required String name,
-                Value<String?> description = const Value.absent(),
-                Value<int> colorType = const Value.absent(),
-                Value<int?> maxMembers = const Value.absent(),
-                Value<String?> password = const Value.absent(),
+                drift.Value<String?> description = const drift.Value.absent(),
+                drift.Value<int> colorType = const drift.Value.absent(),
+                drift.Value<int?> maxMembers = const drift.Value.absent(),
+                drift.Value<String?> password = const drift.Value.absent(),
+                required String localColor,
               }) => GroupsCompanion.insert(
                 id: id,
                 name: name,
@@ -5403,6 +6304,7 @@ class $$GroupsTableTableManager
                 colorType: colorType,
                 maxMembers: maxMembers,
                 password: password,
+                localColor: localColor,
               ),
           withReferenceMapper:
               (p0) =>
@@ -5420,7 +6322,7 @@ class $$GroupsTableTableManager
             noticesRefs = false,
             groupMembersRefs = false,
           }) {
-            return PrefetchHooks(
+            return drift.PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (routinesRefs) db.routines,
@@ -5432,25 +6334,26 @@ class $$GroupsTableTableManager
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (routinesRefs)
-                    await $_getPrefetchedData<Group, $GroupsTable, Routine>(
-                      currentTable: table,
-                      referencedTable: $$GroupsTableReferences
-                          ._routinesRefsTable(db),
-                      managerFromTypedResult:
-                          (p0) =>
-                              $$GroupsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).routinesRefs,
-                      referencedItemsForCurrentItem:
-                          (item, referencedItems) => referencedItems.where(
-                            (e) => e.groupId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
+                    await drift
+                        .$_getPrefetchedData<Group, $GroupsTable, Routine>(
+                          currentTable: table,
+                          referencedTable: $$GroupsTableReferences
+                              ._routinesRefsTable(db),
+                          managerFromTypedResult:
+                              (p0) =>
+                                  $$GroupsTableReferences(
+                                    db,
+                                    table,
+                                    p0,
+                                  ).routinesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.groupId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                   if (todosRefs)
-                    await $_getPrefetchedData<Group, $GroupsTable, Todo>(
+                    await drift.$_getPrefetchedData<Group, $GroupsTable, Todo>(
                       currentTable: table,
                       referencedTable: $$GroupsTableReferences._todosRefsTable(
                         db,
@@ -5465,41 +6368,43 @@ class $$GroupsTableTableManager
                       typedResults: items,
                     ),
                   if (noticesRefs)
-                    await $_getPrefetchedData<Group, $GroupsTable, Notice>(
-                      currentTable: table,
-                      referencedTable: $$GroupsTableReferences
-                          ._noticesRefsTable(db),
-                      managerFromTypedResult:
-                          (p0) =>
-                              $$GroupsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).noticesRefs,
-                      referencedItemsForCurrentItem:
-                          (item, referencedItems) => referencedItems.where(
-                            (e) => e.groupId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
+                    await drift
+                        .$_getPrefetchedData<Group, $GroupsTable, Notice>(
+                          currentTable: table,
+                          referencedTable: $$GroupsTableReferences
+                              ._noticesRefsTable(db),
+                          managerFromTypedResult:
+                              (p0) =>
+                                  $$GroupsTableReferences(
+                                    db,
+                                    table,
+                                    p0,
+                                  ).noticesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.groupId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                   if (groupMembersRefs)
-                    await $_getPrefetchedData<Group, $GroupsTable, GroupMember>(
-                      currentTable: table,
-                      referencedTable: $$GroupsTableReferences
-                          ._groupMembersRefsTable(db),
-                      managerFromTypedResult:
-                          (p0) =>
-                              $$GroupsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).groupMembersRefs,
-                      referencedItemsForCurrentItem:
-                          (item, referencedItems) => referencedItems.where(
-                            (e) => e.groupId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
+                    await drift
+                        .$_getPrefetchedData<Group, $GroupsTable, GroupMember>(
+                          currentTable: table,
+                          referencedTable: $$GroupsTableReferences
+                              ._groupMembersRefsTable(db),
+                          managerFromTypedResult:
+                              (p0) =>
+                                  $$GroupsTableReferences(
+                                    db,
+                                    table,
+                                    p0,
+                                  ).groupMembersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.groupId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                 ];
               },
             );
@@ -5509,7 +6414,7 @@ class $$GroupsTableTableManager
 }
 
 typedef $$GroupsTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $GroupsTable,
       Group,
@@ -5520,7 +6425,7 @@ typedef $$GroupsTableProcessedTableManager =
       $$GroupsTableUpdateCompanionBuilder,
       (Group, $$GroupsTableReferences),
       Group,
-      PrefetchHooks Function({
+      drift.PrefetchHooks Function({
         bool routinesRefs,
         bool todosRefs,
         bool noticesRefs,
@@ -5529,41 +6434,51 @@ typedef $$GroupsTableProcessedTableManager =
     >;
 typedef $$RoutinesTableCreateCompanionBuilder =
     RoutinesCompanion Function({
-      Value<int> id,
-      Value<int?> groupId,
+      drift.Value<int> id,
+      drift.Value<int?> scheduleId,
+      drift.Value<int?> routineId,
+      drift.Value<int?> groupId,
       required String content,
-      Value<int> colorType,
-      Value<bool> isDone,
-      Value<DateTime?> startDate,
-      Value<DateTime?> endDate,
-      Value<int?> timeMinutes,
-      Value<String?> weekDays,
-      Value<String> scheduleType,
-      Value<int?> categoryId,
-      Value<int?> alarmMinutes,
+      drift.Value<int> colorType,
+      drift.Value<bool> isDone,
+      drift.Value<DateTime?> startDate,
+      drift.Value<DateTime?> endDate,
+      drift.Value<int?> timeMinutes,
+      drift.Value<String?> weekDays,
+      drift.Value<String> scheduleType,
+      drift.Value<int?> categoryId,
+      drift.Value<int?> alarmMinutes,
+      drift.Value<bool> isDeleted,
+      drift.Value<bool> isSynced,
     });
 typedef $$RoutinesTableUpdateCompanionBuilder =
     RoutinesCompanion Function({
-      Value<int> id,
-      Value<int?> groupId,
-      Value<String> content,
-      Value<int> colorType,
-      Value<bool> isDone,
-      Value<DateTime?> startDate,
-      Value<DateTime?> endDate,
-      Value<int?> timeMinutes,
-      Value<String?> weekDays,
-      Value<String> scheduleType,
-      Value<int?> categoryId,
-      Value<int?> alarmMinutes,
+      drift.Value<int> id,
+      drift.Value<int?> scheduleId,
+      drift.Value<int?> routineId,
+      drift.Value<int?> groupId,
+      drift.Value<String> content,
+      drift.Value<int> colorType,
+      drift.Value<bool> isDone,
+      drift.Value<DateTime?> startDate,
+      drift.Value<DateTime?> endDate,
+      drift.Value<int?> timeMinutes,
+      drift.Value<String?> weekDays,
+      drift.Value<String> scheduleType,
+      drift.Value<int?> categoryId,
+      drift.Value<int?> alarmMinutes,
+      drift.Value<bool> isDeleted,
+      drift.Value<bool> isSynced,
     });
 
 final class $$RoutinesTableReferences
-    extends BaseReferences<_$LocalDatabase, $RoutinesTable, Routine> {
+    extends drift.BaseReferences<_$LocalDatabase, $RoutinesTable, Routine> {
   $$RoutinesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $GroupsTable _groupIdTable(_$LocalDatabase db) => db.groups
-      .createAlias($_aliasNameGenerator(db.routines.groupId, db.groups.id));
+  static $GroupsTable _groupIdTable(_$LocalDatabase db) =>
+      db.groups.createAlias(
+        drift.$_aliasNameGenerator(db.routines.groupId, db.groups.id),
+      );
 
   $$GroupsTableProcessedTableManager? get groupId {
     final $_column = $_itemColumn<int>('group_id');
@@ -5574,14 +6489,14 @@ final class $$RoutinesTableReferences
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
 }
 
 class $$RoutinesTableFilterComposer
-    extends Composer<_$LocalDatabase, $RoutinesTable> {
+    extends drift.Composer<_$LocalDatabase, $RoutinesTable> {
   $$RoutinesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -5589,59 +6504,79 @@ class $$RoutinesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get content => $composableBuilder(
+  drift.ColumnFilters<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<int> get routineId => $composableBuilder(
+    column: $table.routineId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get colorType => $composableBuilder(
+  drift.ColumnFilters<int> get colorType => $composableBuilder(
     column: $table.colorType,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isDone => $composableBuilder(
+  drift.ColumnFilters<bool> get isDone => $composableBuilder(
     column: $table.isDone,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get startDate => $composableBuilder(
+  drift.ColumnFilters<DateTime> get startDate => $composableBuilder(
     column: $table.startDate,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get endDate => $composableBuilder(
+  drift.ColumnFilters<DateTime> get endDate => $composableBuilder(
     column: $table.endDate,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get timeMinutes => $composableBuilder(
+  drift.ColumnFilters<int> get timeMinutes => $composableBuilder(
     column: $table.timeMinutes,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get weekDays => $composableBuilder(
+  drift.ColumnFilters<String> get weekDays => $composableBuilder(
     column: $table.weekDays,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get scheduleType => $composableBuilder(
+  drift.ColumnFilters<String> get scheduleType => $composableBuilder(
     column: $table.scheduleType,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get categoryId => $composableBuilder(
+  drift.ColumnFilters<int> get categoryId => $composableBuilder(
     column: $table.categoryId,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get alarmMinutes => $composableBuilder(
+  drift.ColumnFilters<int> get alarmMinutes => $composableBuilder(
     column: $table.alarmMinutes,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => drift.ColumnFilters(column),
   );
 
   $$GroupsTableFilterComposer get groupId {
@@ -5669,7 +6604,7 @@ class $$RoutinesTableFilterComposer
 }
 
 class $$RoutinesTableOrderingComposer
-    extends Composer<_$LocalDatabase, $RoutinesTable> {
+    extends drift.Composer<_$LocalDatabase, $RoutinesTable> {
   $$RoutinesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -5677,59 +6612,79 @@ class $$RoutinesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get content => $composableBuilder(
+  drift.ColumnOrderings<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<int> get routineId => $composableBuilder(
+    column: $table.routineId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get colorType => $composableBuilder(
+  drift.ColumnOrderings<int> get colorType => $composableBuilder(
     column: $table.colorType,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isDone => $composableBuilder(
+  drift.ColumnOrderings<bool> get isDone => $composableBuilder(
     column: $table.isDone,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get startDate => $composableBuilder(
     column: $table.startDate,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get endDate => $composableBuilder(
     column: $table.endDate,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get timeMinutes => $composableBuilder(
+  drift.ColumnOrderings<int> get timeMinutes => $composableBuilder(
     column: $table.timeMinutes,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get weekDays => $composableBuilder(
+  drift.ColumnOrderings<String> get weekDays => $composableBuilder(
     column: $table.weekDays,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get scheduleType => $composableBuilder(
+  drift.ColumnOrderings<String> get scheduleType => $composableBuilder(
     column: $table.scheduleType,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get categoryId => $composableBuilder(
+  drift.ColumnOrderings<int> get categoryId => $composableBuilder(
     column: $table.categoryId,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get alarmMinutes => $composableBuilder(
+  drift.ColumnOrderings<int> get alarmMinutes => $composableBuilder(
     column: $table.alarmMinutes,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
   $$GroupsTableOrderingComposer get groupId {
@@ -5757,7 +6712,7 @@ class $$RoutinesTableOrderingComposer
 }
 
 class $$RoutinesTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $RoutinesTable> {
+    extends drift.Composer<_$LocalDatabase, $RoutinesTable> {
   $$RoutinesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -5765,46 +6720,60 @@ class $$RoutinesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get content =>
+  drift.GeneratedColumn<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => column,
+  );
+
+  drift.GeneratedColumn<int> get routineId =>
+      $composableBuilder(column: $table.routineId, builder: (column) => column);
+
+  drift.GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
 
-  GeneratedColumn<int> get colorType =>
+  drift.GeneratedColumn<int> get colorType =>
       $composableBuilder(column: $table.colorType, builder: (column) => column);
 
-  GeneratedColumn<bool> get isDone =>
+  drift.GeneratedColumn<bool> get isDone =>
       $composableBuilder(column: $table.isDone, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get startDate =>
+  drift.GeneratedColumn<DateTime> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get endDate =>
+  drift.GeneratedColumn<DateTime> get endDate =>
       $composableBuilder(column: $table.endDate, builder: (column) => column);
 
-  GeneratedColumn<int> get timeMinutes => $composableBuilder(
+  drift.GeneratedColumn<int> get timeMinutes => $composableBuilder(
     column: $table.timeMinutes,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get weekDays =>
+  drift.GeneratedColumn<String> get weekDays =>
       $composableBuilder(column: $table.weekDays, builder: (column) => column);
 
-  GeneratedColumn<String> get scheduleType => $composableBuilder(
+  drift.GeneratedColumn<String> get scheduleType => $composableBuilder(
     column: $table.scheduleType,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get categoryId => $composableBuilder(
+  drift.GeneratedColumn<int> get categoryId => $composableBuilder(
     column: $table.categoryId,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get alarmMinutes => $composableBuilder(
+  drift.GeneratedColumn<int> get alarmMinutes => $composableBuilder(
     column: $table.alarmMinutes,
     builder: (column) => column,
   );
+
+  drift.GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  drift.GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
   $$GroupsTableAnnotationComposer get groupId {
     final $$GroupsTableAnnotationComposer composer = $composerBuilder(
@@ -5832,7 +6801,7 @@ class $$RoutinesTableAnnotationComposer
 
 class $$RoutinesTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $RoutinesTable,
           Routine,
@@ -5843,11 +6812,11 @@ class $$RoutinesTableTableManager
           $$RoutinesTableUpdateCompanionBuilder,
           (Routine, $$RoutinesTableReferences),
           Routine,
-          PrefetchHooks Function({bool groupId})
+          drift.PrefetchHooks Function({bool groupId})
         > {
   $$RoutinesTableTableManager(_$LocalDatabase db, $RoutinesTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -5858,20 +6827,26 @@ class $$RoutinesTableTableManager
               () => $$RoutinesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<int?> groupId = const Value.absent(),
-                Value<String> content = const Value.absent(),
-                Value<int> colorType = const Value.absent(),
-                Value<bool> isDone = const Value.absent(),
-                Value<DateTime?> startDate = const Value.absent(),
-                Value<DateTime?> endDate = const Value.absent(),
-                Value<int?> timeMinutes = const Value.absent(),
-                Value<String?> weekDays = const Value.absent(),
-                Value<String> scheduleType = const Value.absent(),
-                Value<int?> categoryId = const Value.absent(),
-                Value<int?> alarmMinutes = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> scheduleId = const drift.Value.absent(),
+                drift.Value<int?> routineId = const drift.Value.absent(),
+                drift.Value<int?> groupId = const drift.Value.absent(),
+                drift.Value<String> content = const drift.Value.absent(),
+                drift.Value<int> colorType = const drift.Value.absent(),
+                drift.Value<bool> isDone = const drift.Value.absent(),
+                drift.Value<DateTime?> startDate = const drift.Value.absent(),
+                drift.Value<DateTime?> endDate = const drift.Value.absent(),
+                drift.Value<int?> timeMinutes = const drift.Value.absent(),
+                drift.Value<String?> weekDays = const drift.Value.absent(),
+                drift.Value<String> scheduleType = const drift.Value.absent(),
+                drift.Value<int?> categoryId = const drift.Value.absent(),
+                drift.Value<int?> alarmMinutes = const drift.Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
+                drift.Value<bool> isSynced = const drift.Value.absent(),
               }) => RoutinesCompanion(
                 id: id,
+                scheduleId: scheduleId,
+                routineId: routineId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -5883,23 +6858,31 @@ class $$RoutinesTableTableManager
                 scheduleType: scheduleType,
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
+                isDeleted: isDeleted,
+                isSynced: isSynced,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<int?> groupId = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> scheduleId = const drift.Value.absent(),
+                drift.Value<int?> routineId = const drift.Value.absent(),
+                drift.Value<int?> groupId = const drift.Value.absent(),
                 required String content,
-                Value<int> colorType = const Value.absent(),
-                Value<bool> isDone = const Value.absent(),
-                Value<DateTime?> startDate = const Value.absent(),
-                Value<DateTime?> endDate = const Value.absent(),
-                Value<int?> timeMinutes = const Value.absent(),
-                Value<String?> weekDays = const Value.absent(),
-                Value<String> scheduleType = const Value.absent(),
-                Value<int?> categoryId = const Value.absent(),
-                Value<int?> alarmMinutes = const Value.absent(),
+                drift.Value<int> colorType = const drift.Value.absent(),
+                drift.Value<bool> isDone = const drift.Value.absent(),
+                drift.Value<DateTime?> startDate = const drift.Value.absent(),
+                drift.Value<DateTime?> endDate = const drift.Value.absent(),
+                drift.Value<int?> timeMinutes = const drift.Value.absent(),
+                drift.Value<String?> weekDays = const drift.Value.absent(),
+                drift.Value<String> scheduleType = const drift.Value.absent(),
+                drift.Value<int?> categoryId = const drift.Value.absent(),
+                drift.Value<int?> alarmMinutes = const drift.Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
+                drift.Value<bool> isSynced = const drift.Value.absent(),
               }) => RoutinesCompanion.insert(
                 id: id,
+                scheduleId: scheduleId,
+                routineId: routineId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -5911,6 +6894,8 @@ class $$RoutinesTableTableManager
                 scheduleType: scheduleType,
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
+                isDeleted: isDeleted,
+                isSynced: isSynced,
               ),
           withReferenceMapper:
               (p0) =>
@@ -5923,11 +6908,11 @@ class $$RoutinesTableTableManager
                       )
                       .toList(),
           prefetchHooksCallback: ({groupId = false}) {
-            return PrefetchHooks(
+            return drift.PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
               addJoins: <
-                T extends TableManagerState<
+                T extends drift.TableManagerState<
                   dynamic,
                   dynamic,
                   dynamic,
@@ -5966,7 +6951,7 @@ class $$RoutinesTableTableManager
 }
 
 typedef $$RoutinesTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $RoutinesTable,
       Routine,
@@ -5977,41 +6962,49 @@ typedef $$RoutinesTableProcessedTableManager =
       $$RoutinesTableUpdateCompanionBuilder,
       (Routine, $$RoutinesTableReferences),
       Routine,
-      PrefetchHooks Function({bool groupId})
+      drift.PrefetchHooks Function({bool groupId})
     >;
 typedef $$TodosTableCreateCompanionBuilder =
     TodosCompanion Function({
-      Value<int> id,
-      Value<int?> groupId,
+      drift.Value<int> id,
+      drift.Value<int?> scheduleId,
+      drift.Value<int?> groupId,
       required String content,
-      Value<int> colorType,
-      Value<bool> isDone,
-      Value<int?> timeMinutes,
-      Value<String> scheduleType,
-      Value<int?> categoryId,
-      Value<int?> alarmMinutes,
+      drift.Value<int> colorType,
+      drift.Value<bool> isDone,
+      drift.Value<int?> timeMinutes,
+      drift.Value<String> scheduleType,
+      drift.Value<int?> categoryId,
+      drift.Value<int?> alarmMinutes,
       required DateTime date,
+      drift.Value<int?> todoServerId,
+      drift.Value<bool> isDeleted,
+      drift.Value<bool> isSynced,
     });
 typedef $$TodosTableUpdateCompanionBuilder =
     TodosCompanion Function({
-      Value<int> id,
-      Value<int?> groupId,
-      Value<String> content,
-      Value<int> colorType,
-      Value<bool> isDone,
-      Value<int?> timeMinutes,
-      Value<String> scheduleType,
-      Value<int?> categoryId,
-      Value<int?> alarmMinutes,
-      Value<DateTime> date,
+      drift.Value<int> id,
+      drift.Value<int?> scheduleId,
+      drift.Value<int?> groupId,
+      drift.Value<String> content,
+      drift.Value<int> colorType,
+      drift.Value<bool> isDone,
+      drift.Value<int?> timeMinutes,
+      drift.Value<String> scheduleType,
+      drift.Value<int?> categoryId,
+      drift.Value<int?> alarmMinutes,
+      drift.Value<DateTime> date,
+      drift.Value<int?> todoServerId,
+      drift.Value<bool> isDeleted,
+      drift.Value<bool> isSynced,
     });
 
 final class $$TodosTableReferences
-    extends BaseReferences<_$LocalDatabase, $TodosTable, Todo> {
+    extends drift.BaseReferences<_$LocalDatabase, $TodosTable, Todo> {
   $$TodosTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $GroupsTable _groupIdTable(_$LocalDatabase db) => db.groups
-      .createAlias($_aliasNameGenerator(db.todos.groupId, db.groups.id));
+      .createAlias(drift.$_aliasNameGenerator(db.todos.groupId, db.groups.id));
 
   $$GroupsTableProcessedTableManager? get groupId {
     final $_column = $_itemColumn<int>('group_id');
@@ -6022,14 +7015,14 @@ final class $$TodosTableReferences
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
 }
 
 class $$TodosTableFilterComposer
-    extends Composer<_$LocalDatabase, $TodosTable> {
+    extends drift.Composer<_$LocalDatabase, $TodosTable> {
   $$TodosTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6037,49 +7030,69 @@ class $$TodosTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get content => $composableBuilder(
+  drift.ColumnFilters<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get colorType => $composableBuilder(
+  drift.ColumnFilters<int> get colorType => $composableBuilder(
     column: $table.colorType,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isDone => $composableBuilder(
+  drift.ColumnFilters<bool> get isDone => $composableBuilder(
     column: $table.isDone,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get timeMinutes => $composableBuilder(
+  drift.ColumnFilters<int> get timeMinutes => $composableBuilder(
     column: $table.timeMinutes,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get scheduleType => $composableBuilder(
+  drift.ColumnFilters<String> get scheduleType => $composableBuilder(
     column: $table.scheduleType,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get categoryId => $composableBuilder(
+  drift.ColumnFilters<int> get categoryId => $composableBuilder(
     column: $table.categoryId,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get alarmMinutes => $composableBuilder(
+  drift.ColumnFilters<int> get alarmMinutes => $composableBuilder(
     column: $table.alarmMinutes,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get date => $composableBuilder(
+  drift.ColumnFilters<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<int> get todoServerId => $composableBuilder(
+    column: $table.todoServerId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => drift.ColumnFilters(column),
   );
 
   $$GroupsTableFilterComposer get groupId {
@@ -6107,7 +7120,7 @@ class $$TodosTableFilterComposer
 }
 
 class $$TodosTableOrderingComposer
-    extends Composer<_$LocalDatabase, $TodosTable> {
+    extends drift.Composer<_$LocalDatabase, $TodosTable> {
   $$TodosTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6115,49 +7128,69 @@ class $$TodosTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get content => $composableBuilder(
+  drift.ColumnOrderings<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get colorType => $composableBuilder(
+  drift.ColumnOrderings<int> get colorType => $composableBuilder(
     column: $table.colorType,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isDone => $composableBuilder(
+  drift.ColumnOrderings<bool> get isDone => $composableBuilder(
     column: $table.isDone,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get timeMinutes => $composableBuilder(
+  drift.ColumnOrderings<int> get timeMinutes => $composableBuilder(
     column: $table.timeMinutes,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get scheduleType => $composableBuilder(
+  drift.ColumnOrderings<String> get scheduleType => $composableBuilder(
     column: $table.scheduleType,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get categoryId => $composableBuilder(
+  drift.ColumnOrderings<int> get categoryId => $composableBuilder(
     column: $table.categoryId,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get alarmMinutes => $composableBuilder(
+  drift.ColumnOrderings<int> get alarmMinutes => $composableBuilder(
     column: $table.alarmMinutes,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get date => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<int> get todoServerId => $composableBuilder(
+    column: $table.todoServerId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
   $$GroupsTableOrderingComposer get groupId {
@@ -6185,7 +7218,7 @@ class $$TodosTableOrderingComposer
 }
 
 class $$TodosTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $TodosTable> {
+    extends drift.Composer<_$LocalDatabase, $TodosTable> {
   $$TodosTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6193,40 +7226,56 @@ class $$TodosTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get content =>
+  drift.GeneratedColumn<int> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => column,
+  );
+
+  drift.GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
 
-  GeneratedColumn<int> get colorType =>
+  drift.GeneratedColumn<int> get colorType =>
       $composableBuilder(column: $table.colorType, builder: (column) => column);
 
-  GeneratedColumn<bool> get isDone =>
+  drift.GeneratedColumn<bool> get isDone =>
       $composableBuilder(column: $table.isDone, builder: (column) => column);
 
-  GeneratedColumn<int> get timeMinutes => $composableBuilder(
+  drift.GeneratedColumn<int> get timeMinutes => $composableBuilder(
     column: $table.timeMinutes,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get scheduleType => $composableBuilder(
+  drift.GeneratedColumn<String> get scheduleType => $composableBuilder(
     column: $table.scheduleType,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get categoryId => $composableBuilder(
+  drift.GeneratedColumn<int> get categoryId => $composableBuilder(
     column: $table.categoryId,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get alarmMinutes => $composableBuilder(
+  drift.GeneratedColumn<int> get alarmMinutes => $composableBuilder(
     column: $table.alarmMinutes,
     builder: (column) => column,
   );
 
-  GeneratedColumn<DateTime> get date =>
+  drift.GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
+
+  drift.GeneratedColumn<int> get todoServerId => $composableBuilder(
+    column: $table.todoServerId,
+    builder: (column) => column,
+  );
+
+  drift.GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  drift.GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
   $$GroupsTableAnnotationComposer get groupId {
     final $$GroupsTableAnnotationComposer composer = $composerBuilder(
@@ -6254,7 +7303,7 @@ class $$TodosTableAnnotationComposer
 
 class $$TodosTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $TodosTable,
           Todo,
@@ -6265,11 +7314,11 @@ class $$TodosTableTableManager
           $$TodosTableUpdateCompanionBuilder,
           (Todo, $$TodosTableReferences),
           Todo,
-          PrefetchHooks Function({bool groupId})
+          drift.PrefetchHooks Function({bool groupId})
         > {
   $$TodosTableTableManager(_$LocalDatabase db, $TodosTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -6280,18 +7329,23 @@ class $$TodosTableTableManager
               () => $$TodosTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<int?> groupId = const Value.absent(),
-                Value<String> content = const Value.absent(),
-                Value<int> colorType = const Value.absent(),
-                Value<bool> isDone = const Value.absent(),
-                Value<int?> timeMinutes = const Value.absent(),
-                Value<String> scheduleType = const Value.absent(),
-                Value<int?> categoryId = const Value.absent(),
-                Value<int?> alarmMinutes = const Value.absent(),
-                Value<DateTime> date = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> scheduleId = const drift.Value.absent(),
+                drift.Value<int?> groupId = const drift.Value.absent(),
+                drift.Value<String> content = const drift.Value.absent(),
+                drift.Value<int> colorType = const drift.Value.absent(),
+                drift.Value<bool> isDone = const drift.Value.absent(),
+                drift.Value<int?> timeMinutes = const drift.Value.absent(),
+                drift.Value<String> scheduleType = const drift.Value.absent(),
+                drift.Value<int?> categoryId = const drift.Value.absent(),
+                drift.Value<int?> alarmMinutes = const drift.Value.absent(),
+                drift.Value<DateTime> date = const drift.Value.absent(),
+                drift.Value<int?> todoServerId = const drift.Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
+                drift.Value<bool> isSynced = const drift.Value.absent(),
               }) => TodosCompanion(
                 id: id,
+                scheduleId: scheduleId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -6301,21 +7355,29 @@ class $$TodosTableTableManager
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
                 date: date,
+                todoServerId: todoServerId,
+                isDeleted: isDeleted,
+                isSynced: isSynced,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<int?> groupId = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int?> scheduleId = const drift.Value.absent(),
+                drift.Value<int?> groupId = const drift.Value.absent(),
                 required String content,
-                Value<int> colorType = const Value.absent(),
-                Value<bool> isDone = const Value.absent(),
-                Value<int?> timeMinutes = const Value.absent(),
-                Value<String> scheduleType = const Value.absent(),
-                Value<int?> categoryId = const Value.absent(),
-                Value<int?> alarmMinutes = const Value.absent(),
+                drift.Value<int> colorType = const drift.Value.absent(),
+                drift.Value<bool> isDone = const drift.Value.absent(),
+                drift.Value<int?> timeMinutes = const drift.Value.absent(),
+                drift.Value<String> scheduleType = const drift.Value.absent(),
+                drift.Value<int?> categoryId = const drift.Value.absent(),
+                drift.Value<int?> alarmMinutes = const drift.Value.absent(),
                 required DateTime date,
+                drift.Value<int?> todoServerId = const drift.Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
+                drift.Value<bool> isSynced = const drift.Value.absent(),
               }) => TodosCompanion.insert(
                 id: id,
+                scheduleId: scheduleId,
                 groupId: groupId,
                 content: content,
                 colorType: colorType,
@@ -6325,6 +7387,9 @@ class $$TodosTableTableManager
                 categoryId: categoryId,
                 alarmMinutes: alarmMinutes,
                 date: date,
+                todoServerId: todoServerId,
+                isDeleted: isDeleted,
+                isSynced: isSynced,
               ),
           withReferenceMapper:
               (p0) =>
@@ -6337,11 +7402,11 @@ class $$TodosTableTableManager
                       )
                       .toList(),
           prefetchHooksCallback: ({groupId = false}) {
-            return PrefetchHooks(
+            return drift.PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
               addJoins: <
-                T extends TableManagerState<
+                T extends drift.TableManagerState<
                   dynamic,
                   dynamic,
                   dynamic,
@@ -6380,7 +7445,7 @@ class $$TodosTableTableManager
 }
 
 typedef $$TodosTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $TodosTable,
       Todo,
@@ -6391,23 +7456,23 @@ typedef $$TodosTableProcessedTableManager =
       $$TodosTableUpdateCompanionBuilder,
       (Todo, $$TodosTableReferences),
       Todo,
-      PrefetchHooks Function({bool groupId})
+      drift.PrefetchHooks Function({bool groupId})
     >;
 typedef $$CompletedRoutinesTableCreateCompanionBuilder =
     CompletedRoutinesCompanion Function({
-      Value<int> id,
+      drift.Value<int> id,
       required int routineId,
       required DateTime date,
     });
 typedef $$CompletedRoutinesTableUpdateCompanionBuilder =
     CompletedRoutinesCompanion Function({
-      Value<int> id,
-      Value<int> routineId,
-      Value<DateTime> date,
+      drift.Value<int> id,
+      drift.Value<int> routineId,
+      drift.Value<DateTime> date,
     });
 
 class $$CompletedRoutinesTableFilterComposer
-    extends Composer<_$LocalDatabase, $CompletedRoutinesTable> {
+    extends drift.Composer<_$LocalDatabase, $CompletedRoutinesTable> {
   $$CompletedRoutinesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6415,24 +7480,24 @@ class $$CompletedRoutinesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get routineId => $composableBuilder(
+  drift.ColumnFilters<int> get routineId => $composableBuilder(
     column: $table.routineId,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get date => $composableBuilder(
+  drift.ColumnFilters<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 }
 
 class $$CompletedRoutinesTableOrderingComposer
-    extends Composer<_$LocalDatabase, $CompletedRoutinesTable> {
+    extends drift.Composer<_$LocalDatabase, $CompletedRoutinesTable> {
   $$CompletedRoutinesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6440,24 +7505,24 @@ class $$CompletedRoutinesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get routineId => $composableBuilder(
+  drift.ColumnOrderings<int> get routineId => $composableBuilder(
     column: $table.routineId,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get date => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$CompletedRoutinesTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $CompletedRoutinesTable> {
+    extends drift.Composer<_$LocalDatabase, $CompletedRoutinesTable> {
   $$CompletedRoutinesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6465,19 +7530,19 @@ class $$CompletedRoutinesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<int> get routineId =>
+  drift.GeneratedColumn<int> get routineId =>
       $composableBuilder(column: $table.routineId, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get date =>
+  drift.GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 }
 
 class $$CompletedRoutinesTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $CompletedRoutinesTable,
           CompletedRoutine,
@@ -6488,20 +7553,20 @@ class $$CompletedRoutinesTableTableManager
           $$CompletedRoutinesTableUpdateCompanionBuilder,
           (
             CompletedRoutine,
-            BaseReferences<
+            drift.BaseReferences<
               _$LocalDatabase,
               $CompletedRoutinesTable,
               CompletedRoutine
             >,
           ),
           CompletedRoutine,
-          PrefetchHooks Function()
+          drift.PrefetchHooks Function()
         > {
   $$CompletedRoutinesTableTableManager(
     _$LocalDatabase db,
     $CompletedRoutinesTable table,
   ) : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -6521,9 +7586,9 @@ class $$CompletedRoutinesTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<int> routineId = const Value.absent(),
-                Value<DateTime> date = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int> routineId = const drift.Value.absent(),
+                drift.Value<DateTime> date = const drift.Value.absent(),
               }) => CompletedRoutinesCompanion(
                 id: id,
                 routineId: routineId,
@@ -6531,7 +7596,7 @@ class $$CompletedRoutinesTableTableManager
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
                 required int routineId,
                 required DateTime date,
               }) => CompletedRoutinesCompanion.insert(
@@ -6545,7 +7610,7 @@ class $$CompletedRoutinesTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          drift.BaseReferences(db, table, e),
                         ),
                       )
                       .toList(),
@@ -6555,7 +7620,7 @@ class $$CompletedRoutinesTableTableManager
 }
 
 typedef $$CompletedRoutinesTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $CompletedRoutinesTable,
       CompletedRoutine,
@@ -6566,30 +7631,30 @@ typedef $$CompletedRoutinesTableProcessedTableManager =
       $$CompletedRoutinesTableUpdateCompanionBuilder,
       (
         CompletedRoutine,
-        BaseReferences<
+        drift.BaseReferences<
           _$LocalDatabase,
           $CompletedRoutinesTable,
           CompletedRoutine
         >,
       ),
       CompletedRoutine,
-      PrefetchHooks Function()
+      drift.PrefetchHooks Function()
     >;
 typedef $$CompletedTodosTableCreateCompanionBuilder =
     CompletedTodosCompanion Function({
-      Value<int> id,
+      drift.Value<int> id,
       required int todoId,
       required DateTime date,
     });
 typedef $$CompletedTodosTableUpdateCompanionBuilder =
     CompletedTodosCompanion Function({
-      Value<int> id,
-      Value<int> todoId,
-      Value<DateTime> date,
+      drift.Value<int> id,
+      drift.Value<int> todoId,
+      drift.Value<DateTime> date,
     });
 
 class $$CompletedTodosTableFilterComposer
-    extends Composer<_$LocalDatabase, $CompletedTodosTable> {
+    extends drift.Composer<_$LocalDatabase, $CompletedTodosTable> {
   $$CompletedTodosTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6597,24 +7662,24 @@ class $$CompletedTodosTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get todoId => $composableBuilder(
+  drift.ColumnFilters<int> get todoId => $composableBuilder(
     column: $table.todoId,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get date => $composableBuilder(
+  drift.ColumnFilters<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 }
 
 class $$CompletedTodosTableOrderingComposer
-    extends Composer<_$LocalDatabase, $CompletedTodosTable> {
+    extends drift.Composer<_$LocalDatabase, $CompletedTodosTable> {
   $$CompletedTodosTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6622,24 +7687,24 @@ class $$CompletedTodosTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get todoId => $composableBuilder(
+  drift.ColumnOrderings<int> get todoId => $composableBuilder(
     column: $table.todoId,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get date => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$CompletedTodosTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $CompletedTodosTable> {
+    extends drift.Composer<_$LocalDatabase, $CompletedTodosTable> {
   $$CompletedTodosTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6647,19 +7712,19 @@ class $$CompletedTodosTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<int> get todoId =>
+  drift.GeneratedColumn<int> get todoId =>
       $composableBuilder(column: $table.todoId, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get date =>
+  drift.GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 }
 
 class $$CompletedTodosTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $CompletedTodosTable,
           CompletedTodo,
@@ -6670,20 +7735,20 @@ class $$CompletedTodosTableTableManager
           $$CompletedTodosTableUpdateCompanionBuilder,
           (
             CompletedTodo,
-            BaseReferences<
+            drift.BaseReferences<
               _$LocalDatabase,
               $CompletedTodosTable,
               CompletedTodo
             >,
           ),
           CompletedTodo,
-          PrefetchHooks Function()
+          drift.PrefetchHooks Function()
         > {
   $$CompletedTodosTableTableManager(
     _$LocalDatabase db,
     $CompletedTodosTable table,
   ) : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -6698,13 +7763,13 @@ class $$CompletedTodosTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<int> todoId = const Value.absent(),
-                Value<DateTime> date = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<int> todoId = const drift.Value.absent(),
+                drift.Value<DateTime> date = const drift.Value.absent(),
               }) => CompletedTodosCompanion(id: id, todoId: todoId, date: date),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
                 required int todoId,
                 required DateTime date,
               }) => CompletedTodosCompanion.insert(
@@ -6718,7 +7783,7 @@ class $$CompletedTodosTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          drift.BaseReferences(db, table, e),
                         ),
                       )
                       .toList(),
@@ -6728,7 +7793,7 @@ class $$CompletedTodosTableTableManager
 }
 
 typedef $$CompletedTodosTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $CompletedTodosTable,
       CompletedTodo,
@@ -6739,30 +7804,34 @@ typedef $$CompletedTodosTableProcessedTableManager =
       $$CompletedTodosTableUpdateCompanionBuilder,
       (
         CompletedTodo,
-        BaseReferences<_$LocalDatabase, $CompletedTodosTable, CompletedTodo>,
+        drift.BaseReferences<
+          _$LocalDatabase,
+          $CompletedTodosTable,
+          CompletedTodo
+        >,
       ),
       CompletedTodo,
-      PrefetchHooks Function()
+      drift.PrefetchHooks Function()
     >;
 typedef $$DayLogsTableCreateCompanionBuilder =
     DayLogsCompanion Function({
       required DateTime date,
-      Value<String?> emotion,
-      Value<String?> answerMapJson,
-      Value<String?> diary,
-      Value<int> rowid,
+      drift.Value<String?> emotion,
+      drift.Value<String?> answerMapJson,
+      drift.Value<String?> diary,
+      drift.Value<int> rowid,
     });
 typedef $$DayLogsTableUpdateCompanionBuilder =
     DayLogsCompanion Function({
-      Value<DateTime> date,
-      Value<String?> emotion,
-      Value<String?> answerMapJson,
-      Value<String?> diary,
-      Value<int> rowid,
+      drift.Value<DateTime> date,
+      drift.Value<String?> emotion,
+      drift.Value<String?> answerMapJson,
+      drift.Value<String?> diary,
+      drift.Value<int> rowid,
     });
 
 class $$DayLogsTableFilterComposer
-    extends Composer<_$LocalDatabase, $DayLogsTable> {
+    extends drift.Composer<_$LocalDatabase, $DayLogsTable> {
   $$DayLogsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6770,29 +7839,29 @@ class $$DayLogsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<DateTime> get date => $composableBuilder(
+  drift.ColumnFilters<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get emotion => $composableBuilder(
+  drift.ColumnFilters<String> get emotion => $composableBuilder(
     column: $table.emotion,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get answerMapJson => $composableBuilder(
+  drift.ColumnFilters<String> get answerMapJson => $composableBuilder(
     column: $table.answerMapJson,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get diary => $composableBuilder(
+  drift.ColumnFilters<String> get diary => $composableBuilder(
     column: $table.diary,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 }
 
 class $$DayLogsTableOrderingComposer
-    extends Composer<_$LocalDatabase, $DayLogsTable> {
+    extends drift.Composer<_$LocalDatabase, $DayLogsTable> {
   $$DayLogsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6800,29 +7869,29 @@ class $$DayLogsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<DateTime> get date => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get date => $composableBuilder(
     column: $table.date,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get emotion => $composableBuilder(
+  drift.ColumnOrderings<String> get emotion => $composableBuilder(
     column: $table.emotion,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get answerMapJson => $composableBuilder(
+  drift.ColumnOrderings<String> get answerMapJson => $composableBuilder(
     column: $table.answerMapJson,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get diary => $composableBuilder(
+  drift.ColumnOrderings<String> get diary => $composableBuilder(
     column: $table.diary,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$DayLogsTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $DayLogsTable> {
+    extends drift.Composer<_$LocalDatabase, $DayLogsTable> {
   $$DayLogsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6830,24 +7899,24 @@ class $$DayLogsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<DateTime> get date =>
+  drift.GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
-  GeneratedColumn<String> get emotion =>
+  drift.GeneratedColumn<String> get emotion =>
       $composableBuilder(column: $table.emotion, builder: (column) => column);
 
-  GeneratedColumn<String> get answerMapJson => $composableBuilder(
+  drift.GeneratedColumn<String> get answerMapJson => $composableBuilder(
     column: $table.answerMapJson,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get diary =>
+  drift.GeneratedColumn<String> get diary =>
       $composableBuilder(column: $table.diary, builder: (column) => column);
 }
 
 class $$DayLogsTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $DayLogsTable,
           DayLog,
@@ -6856,13 +7925,16 @@ class $$DayLogsTableTableManager
           $$DayLogsTableAnnotationComposer,
           $$DayLogsTableCreateCompanionBuilder,
           $$DayLogsTableUpdateCompanionBuilder,
-          (DayLog, BaseReferences<_$LocalDatabase, $DayLogsTable, DayLog>),
+          (
+            DayLog,
+            drift.BaseReferences<_$LocalDatabase, $DayLogsTable, DayLog>,
+          ),
           DayLog,
-          PrefetchHooks Function()
+          drift.PrefetchHooks Function()
         > {
   $$DayLogsTableTableManager(_$LocalDatabase db, $DayLogsTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -6873,11 +7945,11 @@ class $$DayLogsTableTableManager
               () => $$DayLogsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<DateTime> date = const Value.absent(),
-                Value<String?> emotion = const Value.absent(),
-                Value<String?> answerMapJson = const Value.absent(),
-                Value<String?> diary = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
+                drift.Value<DateTime> date = const drift.Value.absent(),
+                drift.Value<String?> emotion = const drift.Value.absent(),
+                drift.Value<String?> answerMapJson = const drift.Value.absent(),
+                drift.Value<String?> diary = const drift.Value.absent(),
+                drift.Value<int> rowid = const drift.Value.absent(),
               }) => DayLogsCompanion(
                 date: date,
                 emotion: emotion,
@@ -6888,10 +7960,10 @@ class $$DayLogsTableTableManager
           createCompanionCallback:
               ({
                 required DateTime date,
-                Value<String?> emotion = const Value.absent(),
-                Value<String?> answerMapJson = const Value.absent(),
-                Value<String?> diary = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
+                drift.Value<String?> emotion = const drift.Value.absent(),
+                drift.Value<String?> answerMapJson = const drift.Value.absent(),
+                drift.Value<String?> diary = const drift.Value.absent(),
+                drift.Value<int> rowid = const drift.Value.absent(),
               }) => DayLogsCompanion.insert(
                 date: date,
                 emotion: emotion,
@@ -6905,7 +7977,7 @@ class $$DayLogsTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          drift.BaseReferences(db, table, e),
                         ),
                       )
                       .toList(),
@@ -6915,7 +7987,7 @@ class $$DayLogsTableTableManager
 }
 
 typedef $$DayLogsTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $DayLogsTable,
       DayLog,
@@ -6924,37 +7996,39 @@ typedef $$DayLogsTableProcessedTableManager =
       $$DayLogsTableAnnotationComposer,
       $$DayLogsTableCreateCompanionBuilder,
       $$DayLogsTableUpdateCompanionBuilder,
-      (DayLog, BaseReferences<_$LocalDatabase, $DayLogsTable, DayLog>),
+      (DayLog, drift.BaseReferences<_$LocalDatabase, $DayLogsTable, DayLog>),
       DayLog,
-      PrefetchHooks Function()
+      drift.PrefetchHooks Function()
     >;
 typedef $$NoticesTableCreateCompanionBuilder =
     NoticesCompanion Function({
-      Value<int?> groupId,
-      Value<int> id,
+      drift.Value<int?> groupId,
+      drift.Value<int> id,
       required String content,
       required DateTime createdAt,
-      Value<String?> authorName,
-      Value<bool> isDeleted,
+      drift.Value<String?> authorName,
+      drift.Value<bool> isDeleted,
       required DateTime noticeDate,
     });
 typedef $$NoticesTableUpdateCompanionBuilder =
     NoticesCompanion Function({
-      Value<int?> groupId,
-      Value<int> id,
-      Value<String> content,
-      Value<DateTime> createdAt,
-      Value<String?> authorName,
-      Value<bool> isDeleted,
-      Value<DateTime> noticeDate,
+      drift.Value<int?> groupId,
+      drift.Value<int> id,
+      drift.Value<String> content,
+      drift.Value<DateTime> createdAt,
+      drift.Value<String?> authorName,
+      drift.Value<bool> isDeleted,
+      drift.Value<DateTime> noticeDate,
     });
 
 final class $$NoticesTableReferences
-    extends BaseReferences<_$LocalDatabase, $NoticesTable, Notice> {
+    extends drift.BaseReferences<_$LocalDatabase, $NoticesTable, Notice> {
   $$NoticesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $GroupsTable _groupIdTable(_$LocalDatabase db) => db.groups
-      .createAlias($_aliasNameGenerator(db.notices.groupId, db.groups.id));
+  static $GroupsTable _groupIdTable(_$LocalDatabase db) =>
+      db.groups.createAlias(
+        drift.$_aliasNameGenerator(db.notices.groupId, db.groups.id),
+      );
 
   $$GroupsTableProcessedTableManager? get groupId {
     final $_column = $_itemColumn<int>('group_id');
@@ -6965,14 +8039,14 @@ final class $$NoticesTableReferences
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
 }
 
 class $$NoticesTableFilterComposer
-    extends Composer<_$LocalDatabase, $NoticesTable> {
+    extends drift.Composer<_$LocalDatabase, $NoticesTable> {
   $$NoticesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6980,34 +8054,34 @@ class $$NoticesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get content => $composableBuilder(
+  drift.ColumnFilters<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+  drift.ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get authorName => $composableBuilder(
+  drift.ColumnFilters<String> get authorName => $composableBuilder(
     column: $table.authorName,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isDeleted => $composableBuilder(
+  drift.ColumnFilters<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get noticeDate => $composableBuilder(
+  drift.ColumnFilters<DateTime> get noticeDate => $composableBuilder(
     column: $table.noticeDate,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
   $$GroupsTableFilterComposer get groupId {
@@ -7035,7 +8109,7 @@ class $$NoticesTableFilterComposer
 }
 
 class $$NoticesTableOrderingComposer
-    extends Composer<_$LocalDatabase, $NoticesTable> {
+    extends drift.Composer<_$LocalDatabase, $NoticesTable> {
   $$NoticesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7043,34 +8117,34 @@ class $$NoticesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get content => $composableBuilder(
+  drift.ColumnOrderings<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get authorName => $composableBuilder(
+  drift.ColumnOrderings<String> get authorName => $composableBuilder(
     column: $table.authorName,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+  drift.ColumnOrderings<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get noticeDate => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get noticeDate => $composableBuilder(
     column: $table.noticeDate,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
   $$GroupsTableOrderingComposer get groupId {
@@ -7098,7 +8172,7 @@ class $$NoticesTableOrderingComposer
 }
 
 class $$NoticesTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $NoticesTable> {
+    extends drift.Composer<_$LocalDatabase, $NoticesTable> {
   $$NoticesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7106,24 +8180,24 @@ class $$NoticesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get content =>
+  drift.GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  drift.GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<String> get authorName => $composableBuilder(
+  drift.GeneratedColumn<String> get authorName => $composableBuilder(
     column: $table.authorName,
     builder: (column) => column,
   );
 
-  GeneratedColumn<bool> get isDeleted =>
+  drift.GeneratedColumn<bool> get isDeleted =>
       $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get noticeDate => $composableBuilder(
+  drift.GeneratedColumn<DateTime> get noticeDate => $composableBuilder(
     column: $table.noticeDate,
     builder: (column) => column,
   );
@@ -7154,7 +8228,7 @@ class $$NoticesTableAnnotationComposer
 
 class $$NoticesTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $NoticesTable,
           Notice,
@@ -7165,11 +8239,11 @@ class $$NoticesTableTableManager
           $$NoticesTableUpdateCompanionBuilder,
           (Notice, $$NoticesTableReferences),
           Notice,
-          PrefetchHooks Function({bool groupId})
+          drift.PrefetchHooks Function({bool groupId})
         > {
   $$NoticesTableTableManager(_$LocalDatabase db, $NoticesTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -7180,13 +8254,13 @@ class $$NoticesTableTableManager
               () => $$NoticesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int?> groupId = const Value.absent(),
-                Value<int> id = const Value.absent(),
-                Value<String> content = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<String?> authorName = const Value.absent(),
-                Value<bool> isDeleted = const Value.absent(),
-                Value<DateTime> noticeDate = const Value.absent(),
+                drift.Value<int?> groupId = const drift.Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<String> content = const drift.Value.absent(),
+                drift.Value<DateTime> createdAt = const drift.Value.absent(),
+                drift.Value<String?> authorName = const drift.Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
+                drift.Value<DateTime> noticeDate = const drift.Value.absent(),
               }) => NoticesCompanion(
                 groupId: groupId,
                 id: id,
@@ -7198,12 +8272,12 @@ class $$NoticesTableTableManager
               ),
           createCompanionCallback:
               ({
-                Value<int?> groupId = const Value.absent(),
-                Value<int> id = const Value.absent(),
+                drift.Value<int?> groupId = const drift.Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
                 required String content,
                 required DateTime createdAt,
-                Value<String?> authorName = const Value.absent(),
-                Value<bool> isDeleted = const Value.absent(),
+                drift.Value<String?> authorName = const drift.Value.absent(),
+                drift.Value<bool> isDeleted = const drift.Value.absent(),
                 required DateTime noticeDate,
               }) => NoticesCompanion.insert(
                 groupId: groupId,
@@ -7225,11 +8299,11 @@ class $$NoticesTableTableManager
                       )
                       .toList(),
           prefetchHooksCallback: ({groupId = false}) {
-            return PrefetchHooks(
+            return drift.PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
               addJoins: <
-                T extends TableManagerState<
+                T extends drift.TableManagerState<
                   dynamic,
                   dynamic,
                   dynamic,
@@ -7268,7 +8342,7 @@ class $$NoticesTableTableManager
 }
 
 typedef $$NoticesTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $NoticesTable,
       Notice,
@@ -7279,21 +8353,25 @@ typedef $$NoticesTableProcessedTableManager =
       $$NoticesTableUpdateCompanionBuilder,
       (Notice, $$NoticesTableReferences),
       Notice,
-      PrefetchHooks Function({bool groupId})
+      drift.PrefetchHooks Function({bool groupId})
     >;
 typedef $$UsersTableCreateCompanionBuilder =
-    UsersCompanion Function({Value<int> id, required String nickname});
+    UsersCompanion Function({drift.Value<int> id, required String nickname});
 typedef $$UsersTableUpdateCompanionBuilder =
-    UsersCompanion Function({Value<int> id, Value<String> nickname});
+    UsersCompanion Function({
+      drift.Value<int> id,
+      drift.Value<String> nickname,
+    });
 
 final class $$UsersTableReferences
-    extends BaseReferences<_$LocalDatabase, $UsersTable, User> {
+    extends drift.BaseReferences<_$LocalDatabase, $UsersTable, User> {
   $$UsersTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<$GroupMembersTable, List<GroupMember>>
-  _groupMembersRefsTable(_$LocalDatabase db) => MultiTypedResultKey.fromTable(
+  static drift.MultiTypedResultKey<$GroupMembersTable, List<GroupMember>>
+  _groupMembersRefsTable(_$LocalDatabase db) => drift
+      .MultiTypedResultKey.fromTable(
     db.groupMembers,
-    aliasName: $_aliasNameGenerator(db.users.id, db.groupMembers.userId),
+    aliasName: drift.$_aliasNameGenerator(db.users.id, db.groupMembers.userId),
   );
 
   $$GroupMembersTableProcessedTableManager get groupMembersRefs {
@@ -7303,14 +8381,14 @@ final class $$UsersTableReferences
     ).filter((f) => f.userId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_groupMembersRefsTable($_db));
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
 
 class $$UsersTableFilterComposer
-    extends Composer<_$LocalDatabase, $UsersTable> {
+    extends drift.Composer<_$LocalDatabase, $UsersTable> {
   $$UsersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7318,18 +8396,18 @@ class $$UsersTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get nickname => $composableBuilder(
+  drift.ColumnFilters<String> get nickname => $composableBuilder(
     column: $table.nickname,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  Expression<bool> groupMembersRefs(
-    Expression<bool> Function($$GroupMembersTableFilterComposer f) f,
+  drift.Expression<bool> groupMembersRefs(
+    drift.Expression<bool> Function($$GroupMembersTableFilterComposer f) f,
   ) {
     final $$GroupMembersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -7355,7 +8433,7 @@ class $$UsersTableFilterComposer
 }
 
 class $$UsersTableOrderingComposer
-    extends Composer<_$LocalDatabase, $UsersTable> {
+    extends drift.Composer<_$LocalDatabase, $UsersTable> {
   $$UsersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7363,19 +8441,19 @@ class $$UsersTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get nickname => $composableBuilder(
+  drift.ColumnOrderings<String> get nickname => $composableBuilder(
     column: $table.nickname,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$UsersTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $UsersTable> {
+    extends drift.Composer<_$LocalDatabase, $UsersTable> {
   $$UsersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7383,14 +8461,14 @@ class $$UsersTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get nickname =>
+  drift.GeneratedColumn<String> get nickname =>
       $composableBuilder(column: $table.nickname, builder: (column) => column);
 
-  Expression<T> groupMembersRefs<T extends Object>(
-    Expression<T> Function($$GroupMembersTableAnnotationComposer a) f,
+  drift.Expression<T> groupMembersRefs<T extends Object>(
+    drift.Expression<T> Function($$GroupMembersTableAnnotationComposer a) f,
   ) {
     final $$GroupMembersTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -7417,7 +8495,7 @@ class $$UsersTableAnnotationComposer
 
 class $$UsersTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $UsersTable,
           User,
@@ -7428,11 +8506,11 @@ class $$UsersTableTableManager
           $$UsersTableUpdateCompanionBuilder,
           (User, $$UsersTableReferences),
           User,
-          PrefetchHooks Function({bool groupMembersRefs})
+          drift.PrefetchHooks Function({bool groupMembersRefs})
         > {
   $$UsersTableTableManager(_$LocalDatabase db, $UsersTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -7443,12 +8521,12 @@ class $$UsersTableTableManager
               () => $$UsersTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<String> nickname = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<String> nickname = const drift.Value.absent(),
               }) => UsersCompanion(id: id, nickname: nickname),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
                 required String nickname,
               }) => UsersCompanion.insert(id: id, nickname: nickname),
           withReferenceMapper:
@@ -7462,29 +8540,31 @@ class $$UsersTableTableManager
                       )
                       .toList(),
           prefetchHooksCallback: ({groupMembersRefs = false}) {
-            return PrefetchHooks(
+            return drift.PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [if (groupMembersRefs) db.groupMembers],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (groupMembersRefs)
-                    await $_getPrefetchedData<User, $UsersTable, GroupMember>(
-                      currentTable: table,
-                      referencedTable: $$UsersTableReferences
-                          ._groupMembersRefsTable(db),
-                      managerFromTypedResult:
-                          (p0) =>
-                              $$UsersTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).groupMembersRefs,
-                      referencedItemsForCurrentItem:
-                          (item, referencedItems) =>
-                              referencedItems.where((e) => e.userId == item.id),
-                      typedResults: items,
-                    ),
+                    await drift
+                        .$_getPrefetchedData<User, $UsersTable, GroupMember>(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._groupMembersRefsTable(db),
+                          managerFromTypedResult:
+                              (p0) =>
+                                  $$UsersTableReferences(
+                                    db,
+                                    table,
+                                    p0,
+                                  ).groupMembersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                 ];
               },
             );
@@ -7494,7 +8574,7 @@ class $$UsersTableTableManager
 }
 
 typedef $$UsersTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $UsersTable,
       User,
@@ -7505,29 +8585,34 @@ typedef $$UsersTableProcessedTableManager =
       $$UsersTableUpdateCompanionBuilder,
       (User, $$UsersTableReferences),
       User,
-      PrefetchHooks Function({bool groupMembersRefs})
+      drift.PrefetchHooks Function({bool groupMembersRefs})
     >;
 typedef $$GroupMembersTableCreateCompanionBuilder =
     GroupMembersCompanion Function({
       required int groupId,
       required int userId,
-      Value<String> role,
-      Value<int> rowid,
+      drift.Value<int?> memberGroupId,
+      drift.Value<String> role,
+      drift.Value<int> rowid,
     });
 typedef $$GroupMembersTableUpdateCompanionBuilder =
     GroupMembersCompanion Function({
-      Value<int> groupId,
-      Value<int> userId,
-      Value<String> role,
-      Value<int> rowid,
+      drift.Value<int> groupId,
+      drift.Value<int> userId,
+      drift.Value<int?> memberGroupId,
+      drift.Value<String> role,
+      drift.Value<int> rowid,
     });
 
 final class $$GroupMembersTableReferences
-    extends BaseReferences<_$LocalDatabase, $GroupMembersTable, GroupMember> {
+    extends
+        drift.BaseReferences<_$LocalDatabase, $GroupMembersTable, GroupMember> {
   $$GroupMembersTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $GroupsTable _groupIdTable(_$LocalDatabase db) => db.groups
-      .createAlias($_aliasNameGenerator(db.groupMembers.groupId, db.groups.id));
+  static $GroupsTable _groupIdTable(_$LocalDatabase db) =>
+      db.groups.createAlias(
+        drift.$_aliasNameGenerator(db.groupMembers.groupId, db.groups.id),
+      );
 
   $$GroupsTableProcessedTableManager get groupId {
     final $_column = $_itemColumn<int>('group_id')!;
@@ -7538,13 +8623,13 @@ final class $$GroupMembersTableReferences
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
 
   static $UsersTable _userIdTable(_$LocalDatabase db) => db.users.createAlias(
-    $_aliasNameGenerator(db.groupMembers.userId, db.users.id),
+    drift.$_aliasNameGenerator(db.groupMembers.userId, db.users.id),
   );
 
   $$UsersTableProcessedTableManager get userId {
@@ -7556,14 +8641,14 @@ final class $$GroupMembersTableReferences
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_userIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(
+    return drift.ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
 }
 
 class $$GroupMembersTableFilterComposer
-    extends Composer<_$LocalDatabase, $GroupMembersTable> {
+    extends drift.Composer<_$LocalDatabase, $GroupMembersTable> {
   $$GroupMembersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7571,9 +8656,14 @@ class $$GroupMembersTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get role => $composableBuilder(
+  drift.ColumnFilters<int> get memberGroupId => $composableBuilder(
+    column: $table.memberGroupId,
+    builder: (column) => drift.ColumnFilters(column),
+  );
+
+  drift.ColumnFilters<String> get role => $composableBuilder(
     column: $table.role,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
   $$GroupsTableFilterComposer get groupId {
@@ -7624,7 +8714,7 @@ class $$GroupMembersTableFilterComposer
 }
 
 class $$GroupMembersTableOrderingComposer
-    extends Composer<_$LocalDatabase, $GroupMembersTable> {
+    extends drift.Composer<_$LocalDatabase, $GroupMembersTable> {
   $$GroupMembersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7632,9 +8722,14 @@ class $$GroupMembersTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get role => $composableBuilder(
+  drift.ColumnOrderings<int> get memberGroupId => $composableBuilder(
+    column: $table.memberGroupId,
+    builder: (column) => drift.ColumnOrderings(column),
+  );
+
+  drift.ColumnOrderings<String> get role => $composableBuilder(
     column: $table.role,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
   $$GroupsTableOrderingComposer get groupId {
@@ -7685,7 +8780,7 @@ class $$GroupMembersTableOrderingComposer
 }
 
 class $$GroupMembersTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $GroupMembersTable> {
+    extends drift.Composer<_$LocalDatabase, $GroupMembersTable> {
   $$GroupMembersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7693,7 +8788,12 @@ class $$GroupMembersTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get role =>
+  drift.GeneratedColumn<int> get memberGroupId => $composableBuilder(
+    column: $table.memberGroupId,
+    builder: (column) => column,
+  );
+
+  drift.GeneratedColumn<String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
 
   $$GroupsTableAnnotationComposer get groupId {
@@ -7745,7 +8845,7 @@ class $$GroupMembersTableAnnotationComposer
 
 class $$GroupMembersTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $GroupMembersTable,
           GroupMember,
@@ -7756,11 +8856,11 @@ class $$GroupMembersTableTableManager
           $$GroupMembersTableUpdateCompanionBuilder,
           (GroupMember, $$GroupMembersTableReferences),
           GroupMember,
-          PrefetchHooks Function({bool groupId, bool userId})
+          drift.PrefetchHooks Function({bool groupId, bool userId})
         > {
   $$GroupMembersTableTableManager(_$LocalDatabase db, $GroupMembersTable table)
     : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -7772,13 +8872,15 @@ class $$GroupMembersTableTableManager
                   $$GroupMembersTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> groupId = const Value.absent(),
-                Value<int> userId = const Value.absent(),
-                Value<String> role = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
+                drift.Value<int> groupId = const drift.Value.absent(),
+                drift.Value<int> userId = const drift.Value.absent(),
+                drift.Value<int?> memberGroupId = const drift.Value.absent(),
+                drift.Value<String> role = const drift.Value.absent(),
+                drift.Value<int> rowid = const drift.Value.absent(),
               }) => GroupMembersCompanion(
                 groupId: groupId,
                 userId: userId,
+                memberGroupId: memberGroupId,
                 role: role,
                 rowid: rowid,
               ),
@@ -7786,11 +8888,13 @@ class $$GroupMembersTableTableManager
               ({
                 required int groupId,
                 required int userId,
-                Value<String> role = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
+                drift.Value<int?> memberGroupId = const drift.Value.absent(),
+                drift.Value<String> role = const drift.Value.absent(),
+                drift.Value<int> rowid = const drift.Value.absent(),
               }) => GroupMembersCompanion.insert(
                 groupId: groupId,
                 userId: userId,
+                memberGroupId: memberGroupId,
                 role: role,
                 rowid: rowid,
               ),
@@ -7805,11 +8909,11 @@ class $$GroupMembersTableTableManager
                       )
                       .toList(),
           prefetchHooksCallback: ({groupId = false, userId = false}) {
-            return PrefetchHooks(
+            return drift.PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
               addJoins: <
-                T extends TableManagerState<
+                T extends drift.TableManagerState<
                   dynamic,
                   dynamic,
                   dynamic,
@@ -7864,7 +8968,7 @@ class $$GroupMembersTableTableManager
 }
 
 typedef $$GroupMembersTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $GroupMembersTable,
       GroupMember,
@@ -7875,29 +8979,29 @@ typedef $$GroupMembersTableProcessedTableManager =
       $$GroupMembersTableUpdateCompanionBuilder,
       (GroupMember, $$GroupMembersTableReferences),
       GroupMember,
-      PrefetchHooks Function({bool groupId, bool userId})
+      drift.PrefetchHooks Function({bool groupId, bool userId})
     >;
 typedef $$NotificationsTableCreateCompanionBuilder =
     NotificationsCompanion Function({
-      Value<int> id,
+      drift.Value<int> id,
       required String type,
       required String content,
       required DateTime timestamp,
-      Value<int?> relatedId,
-      Value<bool> isRead,
+      drift.Value<int?> relatedId,
+      drift.Value<bool> isRead,
     });
 typedef $$NotificationsTableUpdateCompanionBuilder =
     NotificationsCompanion Function({
-      Value<int> id,
-      Value<String> type,
-      Value<String> content,
-      Value<DateTime> timestamp,
-      Value<int?> relatedId,
-      Value<bool> isRead,
+      drift.Value<int> id,
+      drift.Value<String> type,
+      drift.Value<String> content,
+      drift.Value<DateTime> timestamp,
+      drift.Value<int?> relatedId,
+      drift.Value<bool> isRead,
     });
 
 class $$NotificationsTableFilterComposer
-    extends Composer<_$LocalDatabase, $NotificationsTable> {
+    extends drift.Composer<_$LocalDatabase, $NotificationsTable> {
   $$NotificationsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7905,39 +9009,39 @@ class $$NotificationsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  drift.ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get type => $composableBuilder(
+  drift.ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<String> get content => $composableBuilder(
+  drift.ColumnFilters<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get timestamp => $composableBuilder(
+  drift.ColumnFilters<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<int> get relatedId => $composableBuilder(
+  drift.ColumnFilters<int> get relatedId => $composableBuilder(
     column: $table.relatedId,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isRead => $composableBuilder(
+  drift.ColumnFilters<bool> get isRead => $composableBuilder(
     column: $table.isRead,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => drift.ColumnFilters(column),
   );
 }
 
 class $$NotificationsTableOrderingComposer
-    extends Composer<_$LocalDatabase, $NotificationsTable> {
+    extends drift.Composer<_$LocalDatabase, $NotificationsTable> {
   $$NotificationsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7945,39 +9049,39 @@ class $$NotificationsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  drift.ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get type => $composableBuilder(
+  drift.ColumnOrderings<String> get type => $composableBuilder(
     column: $table.type,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get content => $composableBuilder(
+  drift.ColumnOrderings<String> get content => $composableBuilder(
     column: $table.content,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get timestamp => $composableBuilder(
+  drift.ColumnOrderings<DateTime> get timestamp => $composableBuilder(
     column: $table.timestamp,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get relatedId => $composableBuilder(
+  drift.ColumnOrderings<int> get relatedId => $composableBuilder(
     column: $table.relatedId,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isRead => $composableBuilder(
+  drift.ColumnOrderings<bool> get isRead => $composableBuilder(
     column: $table.isRead,
-    builder: (column) => ColumnOrderings(column),
+    builder: (column) => drift.ColumnOrderings(column),
   );
 }
 
 class $$NotificationsTableAnnotationComposer
-    extends Composer<_$LocalDatabase, $NotificationsTable> {
+    extends drift.Composer<_$LocalDatabase, $NotificationsTable> {
   $$NotificationsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7985,28 +9089,28 @@ class $$NotificationsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  drift.GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get type =>
+  drift.GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
 
-  GeneratedColumn<String> get content =>
+  drift.GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get timestamp =>
+  drift.GeneratedColumn<DateTime> get timestamp =>
       $composableBuilder(column: $table.timestamp, builder: (column) => column);
 
-  GeneratedColumn<int> get relatedId =>
+  drift.GeneratedColumn<int> get relatedId =>
       $composableBuilder(column: $table.relatedId, builder: (column) => column);
 
-  GeneratedColumn<bool> get isRead =>
+  drift.GeneratedColumn<bool> get isRead =>
       $composableBuilder(column: $table.isRead, builder: (column) => column);
 }
 
 class $$NotificationsTableTableManager
     extends
-        RootTableManager<
+        drift.RootTableManager<
           _$LocalDatabase,
           $NotificationsTable,
           Notification,
@@ -8017,16 +9121,20 @@ class $$NotificationsTableTableManager
           $$NotificationsTableUpdateCompanionBuilder,
           (
             Notification,
-            BaseReferences<_$LocalDatabase, $NotificationsTable, Notification>,
+            drift.BaseReferences<
+              _$LocalDatabase,
+              $NotificationsTable,
+              Notification
+            >,
           ),
           Notification,
-          PrefetchHooks Function()
+          drift.PrefetchHooks Function()
         > {
   $$NotificationsTableTableManager(
     _$LocalDatabase db,
     $NotificationsTable table,
   ) : super(
-        TableManagerState(
+        drift.TableManagerState(
           db: db,
           table: table,
           createFilteringComposer:
@@ -8041,12 +9149,12 @@ class $$NotificationsTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
-                Value<String> type = const Value.absent(),
-                Value<String> content = const Value.absent(),
-                Value<DateTime> timestamp = const Value.absent(),
-                Value<int?> relatedId = const Value.absent(),
-                Value<bool> isRead = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
+                drift.Value<String> type = const drift.Value.absent(),
+                drift.Value<String> content = const drift.Value.absent(),
+                drift.Value<DateTime> timestamp = const drift.Value.absent(),
+                drift.Value<int?> relatedId = const drift.Value.absent(),
+                drift.Value<bool> isRead = const drift.Value.absent(),
               }) => NotificationsCompanion(
                 id: id,
                 type: type,
@@ -8057,12 +9165,12 @@ class $$NotificationsTableTableManager
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                drift.Value<int> id = const drift.Value.absent(),
                 required String type,
                 required String content,
                 required DateTime timestamp,
-                Value<int?> relatedId = const Value.absent(),
-                Value<bool> isRead = const Value.absent(),
+                drift.Value<int?> relatedId = const drift.Value.absent(),
+                drift.Value<bool> isRead = const drift.Value.absent(),
               }) => NotificationsCompanion.insert(
                 id: id,
                 type: type,
@@ -8077,7 +9185,7 @@ class $$NotificationsTableTableManager
                       .map(
                         (e) => (
                           e.readTable(table),
-                          BaseReferences(db, table, e),
+                          drift.BaseReferences(db, table, e),
                         ),
                       )
                       .toList(),
@@ -8087,7 +9195,7 @@ class $$NotificationsTableTableManager
 }
 
 typedef $$NotificationsTableProcessedTableManager =
-    ProcessedTableManager<
+    drift.ProcessedTableManager<
       _$LocalDatabase,
       $NotificationsTable,
       Notification,
@@ -8098,10 +9206,14 @@ typedef $$NotificationsTableProcessedTableManager =
       $$NotificationsTableUpdateCompanionBuilder,
       (
         Notification,
-        BaseReferences<_$LocalDatabase, $NotificationsTable, Notification>,
+        drift.BaseReferences<
+          _$LocalDatabase,
+          $NotificationsTable,
+          Notification
+        >,
       ),
       Notification,
-      PrefetchHooks Function()
+      drift.PrefetchHooks Function()
     >;
 
 class $LocalDatabaseManager {

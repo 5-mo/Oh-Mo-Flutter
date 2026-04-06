@@ -1,0 +1,932 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_service.dart';
+
+class GroupService {
+  static const String baseUrl = 'http://3.36.161.109:8080/api';
+
+  Future<Map<String, dynamic>> createGroup({
+    required String groupName,
+    required String password,
+    required String groupColor,
+    required int memberCount,
+    required String nickname,
+  }) async {
+    final url = Uri.parse('$baseUrl/group');
+    final Map<String, dynamic> body = {
+      "groupName": groupName,
+      "groupPassword": password,
+      "groupColor": groupColor,
+      "numPeople": memberCount,
+      "nickname": nickname,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        return Map<String, dynamic>.from(data['result']);
+      } else {
+        throw Exception(data['message'] ?? '그룹 생성 실패');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> leaveGroup(int groupId) async {
+    final url = Uri.parse('$baseUrl/group/leave');
+    final Map<String, dynamic> body = {"groupId": groupId};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      if (response.statusCode == 500) {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        print('서버 상세 에러: ${errorData['message']}');
+        throw Exception(errorData['message'] ?? '서버 제약 조건으로 인해 나갈 수 없습니다.');
+      }
+
+      if (response.body.isEmpty) return true;
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        return true;
+      } else {
+        throw Exception(data['message'] ?? '그룹 나가기 실패');
+      }
+    } catch (e) {
+      print('그룹 나가기 통신 에러: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchGroups() async {
+    final url = Uri.parse('$baseUrl/group');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return List<Map<String, dynamic>>.from(decodedData['result']);
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> delegateGroupManager({
+    required int groupId,
+    required int targetMemberGroupId,
+  }) async {
+    final url = Uri.parse('$baseUrl/group/manager');
+    final body = {
+      "groupId": groupId,
+      "targetMemberGroupId": targetMemberGroupId,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      print('방장 위임 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> kickGroupMember({
+    required int groupId,
+    required int targetMemberGroupId,
+  }) async {
+    final url = Uri.parse('$baseUrl/group/kick');
+    final Map<String, dynamic> body = {
+      "groupId": groupId,
+      "targetMemberGroupId": targetMemberGroupId,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && data['isSuccess'] == true;
+    } catch (e) {
+      print('멤버 강퇴 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> inviteMemberByEmail({
+    required int groupId,
+    required String targetEmail,
+  }) async {
+    final url = Uri.parse('$baseUrl/group/invite');
+    final body = {"groupId": groupId, "targetEmail": targetEmail};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && data['isSuccess'] == true;
+    } catch (e) {
+      print('멤버 초대 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> acceptInvitation(int invitationId) async {
+    final url = Uri.parse('$baseUrl/group/invite/accept');
+    final body = {"invitationId": invitationId};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      ;
+      return response.statusCode == 200 && data['isSuccess'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMyInvitations() async {
+    final url = Uri.parse('$baseUrl/group/invite');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        return List<Map<String, dynamic>>.from(data['result']);
+      }
+      return [];
+    } catch (e) {
+      print('초대 목록 조회 에러 : $e');
+      return [];
+    }
+  }
+
+  Future<bool> rejectInvitation(int invitationId) async {
+    final url = Uri.parse('$baseUrl/group/invite/reject');
+    final body = {"invitationId": invitationId};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && data['isSuccess'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getGroupDetail(int groupId) async {
+    final List<dynamic> groups = await fetchGroups();
+
+    try {
+      return groups.firstWhere((g) => g['groupId'] == groupId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List?> createGroupRoutine({
+    required int? groupId,
+    required String content,
+    required List<String> routineWeek,
+    required String date,
+    String? time,
+    String? alarmTime,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/routine');
+
+    String formattedTime =
+        (time == null || time.isEmpty) ? "00:00" : time.trim().substring(0, 5);
+
+    final Map<String, dynamic> body = {
+      "groupId": groupId,
+      "content": content,
+      "date": date,
+      "routineWeek": routineWeek,
+      "time": formattedTime,
+    };
+
+    if (alarmTime != null && alarmTime.trim().isNotEmpty) {
+      body["alarmTime"] = alarmTime.substring(0, 5);
+    }
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        final List<dynamic> resultList = decodedData['result'] ?? [];
+        return resultList.map<int>((item) => item['routineId'] as int).toList();
+      }
+      return [];
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> updateGroupRoutine({
+    required int scheduleId,
+    required String content,
+    required List<String> routineWeek,
+    required String date,
+    String? time,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/routine/$scheduleId');
+    final body = {
+      "content": content,
+      "date": date,
+      "routineWeek": routineWeek,
+      "time": time ?? "00:00",
+    };
+    print("PATCH 요청 URL: $url");
+    print("PATCH 요청 바디: ${jsonEncode(body)}");
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json;charset=utf-8',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      print("수정 서버 응답 바디: $decodedData");
+      return response.statusCode == 200 && decodedData['isSuccess'] == true;
+    } catch (e) {
+      print('루틴 수정 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteGroupRoutine(int routineId) async {
+    final url = Uri.parse('$baseUrl/group-schedule/routine/$routineId');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+        ),
+      );
+
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return true;
+      } else {
+        print('그룹 루틴 삭제 실패 : ${decodedData['message']}');
+        return false;
+      }
+    } catch (e) {
+      print('그룹 루틴 삭제 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<int?> createGroupTodo({
+    required int groupId,
+    required String content,
+    required String date,
+    String? time,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/todo');
+    final body = {
+      "groupId": groupId,
+      "content": content,
+      "date": date,
+      "time": time ?? "00:00",
+      "routineWeek": [],
+    };
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      return (decoded['isSuccess'] == true)
+          ? decoded['result']['todoId']
+          : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> updateGroupTodo({
+    required int todoId,
+    required String content,
+    required String date,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/todo/$todoId');
+
+    final Map<String, dynamic> body = {
+      "content": content,
+      "date": date,
+      "time": null,
+      "alarmTime": null,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteGroupTodo(int todoId) async {
+    final url = Uri.parse('$baseUrl/group-schedule/todo/$todoId');
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        if (response.body.isEmpty) return true;
+        final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+        return decodedData['isSuccess'] == true;
+      } else {
+        print('그룹 투두 삭제 실패 : ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('그룹 투두 삭제 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> registerAssigneeTodo({
+    required int todoId,
+    required int memberGroupId,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/assignee-todo');
+    final body = {"todoId": todoId, "memberGroupId": memberGroupId};
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        return decoded['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('담당자 지정 에러: $e');
+      return false;
+    }
+  }
+
+  Future<List<dynamic>> fetchAssigneeTodo(int todoId) async {
+    final url = Uri.parse(
+      '$baseUrl/group-schedule/assignee-todo?todoId=$todoId',
+    );
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(url, headers: {'Authorization': 'Bearer $token'}),
+      );
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      return (decoded['isSuccess'] == true) ? decoded['result'] : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchAssigneeRoutine(int routineId) async {
+    final url = Uri.parse(
+      '$baseUrl/group-schedule/assignee-routine?routineId=$routineId',
+    );
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+        ),
+      );
+
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && decoded['isSuccess'] == true) {
+        return decoded['result'];
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchGroupSchedules({
+    required int groupId,
+    required String date,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/group-schedule/by-date',
+    ).replace(queryParameters: {'groupId': groupId.toString(), 'date': date});
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
+          },
+        ),
+      );
+
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return decodedData['result'];
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchGroupMembers(int groupId) async {
+    final url = Uri.parse(
+      '$baseUrl/group/member',
+    ).replace(queryParameters: {'groupId': groupId.toString()});
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
+          },
+        ),
+      );
+
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return Map<String, dynamic>.from(decodedData['result']);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> registerAssigneeRoutine({
+    required int routineId,
+    required List<int> memberGroupIdList,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/assignee-routine');
+
+    bool allSuccess = true;
+
+    for (int mId in memberGroupIdList) {
+      try {
+        final response = await AuthService.authenticatedRequest(
+          (token) => http.post(
+            url,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({"routineId": routineId, "memberGroupId": mId}),
+          ),
+        );
+
+        final decodedData = json.decode(utf8.decode(response.bodyBytes));
+        if (response.statusCode != 200 || decodedData['isSuccess'] != true) {
+          allSuccess = false;
+          print("담당자 $mId 등록 실패 : ${decodedData['message']}");
+        }
+      } catch (e) {
+        allSuccess = false;
+        print("담당자 등록 에러: $e");
+        return false;
+      }
+    }
+    return allSuccess;
+  }
+
+  Future<bool> updateGroupNickname({
+    required int groupId,
+    required String nickname,
+  }) async {
+    final url = Uri.parse('$baseUrl/group/nickname');
+
+    final body = {"groupId": groupId, "nickname": nickname};
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      return response.statusCode == 200 && data['isSuccess'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> enterGroup({
+    required String groupCode,
+    required String groupPassword,
+    required String nickname,
+  }) async {
+    final url = Uri.parse('$baseUrl/group/enter');
+    final Map<String, dynamic> body = {
+      "groupCode": groupCode,
+      "groupPassword": groupPassword,
+      "nickname": nickname,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && data['isSuccess'] == true) {
+        return Map<String, dynamic>.from(data['result']);
+      } else {
+        throw Exception(data['message'] ?? '그룹 입장에 실패했습니다.');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<String?> getMyEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('userEmail');
+  }
+
+  Future<bool> deleteGroup({
+    required int groupId,
+    required String groupPassword,
+  }) async {
+    final url = Uri.parse('$baseUrl/group');
+    final Map<String, dynamic> body = {
+      "groupId": groupId,
+      "groupPassword": groupPassword,
+    };
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (response.statusCode == 200 && data['isSuccess'] == true) return true;
+      throw Exception(data['message'] ?? '그룹 삭제 실패');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> updateAssigneeStatus(int assigneeId) async {
+    final url = Uri.parse(
+      '$baseUrl/group-schedule/assignee/status?assigneeId=$assigneeId',
+    );
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+          body: '',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        if (response.body.isEmpty) return true;
+        final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+        return decodedData['isSuccess'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('담당자 상태 변경 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<bool> createNotice({
+    required int groupId,
+    required String notice,
+    required String date,
+  }) async {
+    final url = Uri.parse('$baseUrl/notice');
+    final body = {"notice": notice, "date": date, "groupId": groupId};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decoded['isSuccess'] == true) {
+        return true;
+      } else {
+        print("등록 실패: ${decoded['message']}");
+        return false;
+      }
+    } catch (e) {
+      print('통신 에러: $e');
+      return false;
+    }
+  }
+
+  Future<List<dynamic>> fetchNotices({
+    required int groupId,
+    required String date,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/notice',
+    ).replace(queryParameters: {'groupId': groupId.toString(), 'date': date});
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+      return (response.statusCode == 200 && decodedData['isSuccess'] == true)
+          ? decodedData['result'] ?? []
+          : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> fetchNoticesByMonth({
+    required int groupId,
+    required String yearMonth,
+  }) async {
+    final url = Uri.parse('$baseUrl/notice/by-month').replace(
+      queryParameters: {'groupId': groupId.toString(), 'year-month': yearMonth},
+    );
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.get(url, headers: {'Authorization': 'Bearer $token'}),
+      );
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+      return (response.statusCode == 200 && decodedData['isSuccess'] == true)
+          ? decodedData['result'] ?? []
+          : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> updateNotice({
+    required int noticeId,
+    required String notice,
+    required String date,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/notice',
+    ).replace(queryParameters: {'noticeId': noticeId.toString()});
+    final body = {"notice": notice, "date": date};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteNotice({required int noticeId}) async {
+    final url = Uri.parse(
+      '$baseUrl/notice',
+    ).replace(queryParameters: {'noticeId': noticeId.toString()});
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.delete(
+          url,
+          headers: {'Authorization': 'Bearer $token', 'Accept': '*/*'},
+        ),
+      );
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      print("공지 삭제 서버 응답 : $decoded");
+
+      return response.statusCode == 200 && decoded['isSuccess'] == true;
+    } catch (e) {
+      print('공지 삭제 통신 에러 : $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> registerGroupAiTodo({
+    required int groupId,
+    required String text,
+  }) async {
+    final url = Uri.parse('$baseUrl/group-schedule/nlp/todo');
+
+    final Map<String, dynamic> body = {"groupId": groupId, "text": text};
+
+    try {
+      final response = await AuthService.authenticatedRequest(
+        (token) => http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json; charset-utf-8',
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        ),
+      );
+      final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && decodedData['isSuccess'] == true) {
+        return decodedData['result'];
+      } else {
+        print('그룹 AI 투두 등록 실패 : ${decodedData['message']}');
+        return null;
+      }
+    } catch (e) {
+      print('그룹 AI 투두 등록 에러 : $e');
+      return null;
+    }
+  }
+}

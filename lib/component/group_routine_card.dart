@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ohmo/component/delete_bottom_sheet.dart';
 import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/services/group_service.dart';
 
 import '../const/colors.dart';
 
@@ -14,6 +15,9 @@ class GroupRoutineCard extends StatefulWidget {
   final int completedMemberCount;
   final bool isIndicatorVisible;
   final bool isCheckboxVisible;
+  final int? memberGroupId;
+  final String? myNickname;
+  final VoidCallback? onEditPressed;
 
   const GroupRoutineCard({
     Key? key,
@@ -25,6 +29,9 @@ class GroupRoutineCard extends StatefulWidget {
     required this.completedMemberCount,
     required this.isIndicatorVisible,
     required this.isCheckboxVisible,
+    this.memberGroupId,
+    this.myNickname,
+    this.onEditPressed,
   }) : super(key: key);
 
   @override
@@ -61,13 +68,9 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
   Widget build(BuildContext context) {
     final String originalContent = widget.routine.content;
     final mentionRegex = RegExp(r'@[\w\(\)가-힣]+');
-    final allMentions =
-        mentionRegex
-            .allMatches(originalContent)
-            .map((m) => m.group(0)!)
-            .toList();
+
     final mainContent = originalContent.replaceAll(mentionRegex, '').trim();
-    final mentionsText = allMentions.join(' ');
+    final matches = mentionRegex.allMatches(originalContent);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -88,34 +91,49 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
           const SizedBox(width: 12.0),
 
           Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: 14.0,
-                  fontFamily: 'PretendardRegular',
-                  decoration:
-                      widget.isDoneForDay
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                  color: widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
-                  decorationColor: Middle_GREY_COLOR,
-                ),
-                children: [
-                  TextSpan(text: mainContent),
-                  TextSpan(
-                    text: ' $mentionsText',
-                    style: TextStyle(
-                      color:
-                          widget.isDoneForDay
-                              ? Middle_GREY_COLOR
-                              : Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: GestureDetector(
+              onTap: widget.onEditPressed,
+              behavior: HitTestBehavior.opaque,
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 14.0,
+                    fontFamily: 'PretendardRegular',
+                    decoration:
+                        widget.isDoneForDay
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                    color:
+                        widget.isDoneForDay ? Middle_GREY_COLOR : Colors.black,
+                    decorationColor: Middle_GREY_COLOR,
                   ),
-                ],
+                  children: [
+                    TextSpan(text: mainContent),
+                    ...matches.map((m) {
+                      String mention = m.group(0)!;
+                      String nameOnly = mention.substring(1).trim();
+
+                      if (widget.myNickname != null &&
+                          nameOnly == widget.myNickname &&
+                          !mention.contains('(나)')) {
+                        mention = '$mention(나)';
+                      }
+
+                      return TextSpan(
+                        text: ' $mention',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[600],
+                          fontFamily: 'PretendardBold',
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
             ),
           ),
+
           Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -135,14 +153,43 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                       widget.isCheckboxVisible
                           ? Checkbox(
                             value: widget.isDoneForDay,
-                            onChanged: (value) async {
-                              final db = LocalDatabaseSingleton.instance;
-                              await db.toggleRoutineCompletion(
-                                widget.routine.id,
-                                widget.selectedDate,
-                              );
-                              widget.onDataChanged?.call();
-                            },
+                            onChanged:
+                                (widget.routine.id == 0)
+                                    ? null
+                                    : (value) async {
+
+                                  final int targetId = widget.routine.id;
+
+                                  if (targetId == 0) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('아직 서버와 동기화 중입니다. 잠시 후 다시 시도해주세요.'))
+                                    );
+                                    return;
+                                  }
+
+                                  final groupService = GroupService();
+                                  bool isSuccess = await groupService.updateAssigneeStatus(targetId);
+
+                                  if (isSuccess) {
+                                    final db = LocalDatabaseSingleton.instance;
+                                    await db.toggleRoutineCompletion(
+                                      widget.routine.id,
+                                      widget.selectedDate,
+                                    );
+
+                                    await Future.delayed(const Duration(milliseconds: 500));
+
+                                    if (widget.onDataChanged != null) {
+                                      await widget.onDataChanged!();
+                                    }
+                                  } else {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('서버 상태 업데이트에 실패했습니다.')),
+                                      );
+                                    }
+                                  }
+                                },
                             activeColor: Colors.black,
                             checkColor: Colors.white,
                             fillColor: MaterialStateProperty.all(Colors.black),
@@ -169,13 +216,19 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                       builder: (BuildContext bContext) {
                         return DeleteBottomSheet(
                           onDelete: () async {
-                            final db = LocalDatabaseSingleton.instance;
-                            await db.deactivateRoutine(
-                              widget.routine.id,
-                              widget.selectedDate,
-                            );
+                            final groupService = GroupService();
+                            final int? deleteTargetId = widget.routine.routineId;
 
-                            widget.onDataChanged?.call();
+                            if (deleteTargetId == null || deleteTargetId == 0) {
+                              return;
+                            }
+
+                            bool isSuccess = await groupService.deleteGroupRoutine(deleteTargetId);
+
+                            if (isSuccess) {
+                              if (widget.onDataChanged != null) await widget.onDataChanged!();
+                            } else {
+                            }
                           },
                         );
                       },
@@ -185,7 +238,7 @@ class _GroupRoutineCardState extends State<GroupRoutineCard> {
                     color: Colors.transparent,
                     padding: const EdgeInsets.all(2.0),
                     child: SvgPicture.asset(
-                      'android/assets/images/routine_alarm.svg',
+                      'android/assets/images/todo_alarm.svg',
                     ),
                   ),
                 ),

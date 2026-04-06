@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/services/group_service.dart';
 
 import 'group_popup.dart';
 
@@ -14,12 +15,10 @@ class DelegationBottomSheet extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<DelegationBottomSheet> createState() =>
-      _DelegationBottomSheetState();
+  State<DelegationBottomSheet> createState() => _DelegationBottomSheetState();
 }
 
-class _DelegationBottomSheetState
-    extends State<DelegationBottomSheet> {
+class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
   late final LocalDatabase _db;
   List<MemberInfo> _members = [];
   MemberInfo? _selectedMember;
@@ -32,36 +31,48 @@ class _DelegationBottomSheetState
   }
 
   Future<void> _fetchMembers() async {
-    /*
     try {
-      final allMembers = await _db.getMembersForGroup(widget.groupId);
+      final groupService = GroupService();
+      final data = await groupService.fetchGroupMembers(widget.groupId);
 
-      final kickableMembers =
-          allMembers.where((m) => m.role != 'OWNER').toList();
+      if (data != null) {
+        final List<dynamic> memberList =
+            data['memberGroupInfos'] ?? data['memberDtoList'] ?? [];
+        final myEmail = await groupService.getMyEmail();
 
-      if (mounted) {
-        setState(() {
-          _members = kickableMembers;
-          _isLoading = false;
-        });
+        final List<MemberInfo> fetchMembers =
+            memberList.where((m) => m['memberInfo']['email'] != myEmail).map((
+              m,
+            ) {
+              final Map<String, dynamic> info = m['memberInfo'] ?? {};
+              final String? groupNickname = m['nickname']?.toString();
+              final String? globalNickname =
+                  m['memberInfo']?['nickname']?.toString();
+              final String finalNickname =
+                  groupNickname ?? globalNickname ?? '이름 없음';
+              return MemberInfo(
+                userId: m['memberInfo']?['userId'] ?? 0,
+                memberGroupId: m['memberGroupId'],
+                nickname: finalNickname,
+                role: m['role'] ?? 'MEMBER',
+                profileImageUrl:
+                    info['profileImageUrl'] ?? info['profileImage'],
+              );
+            }).toList();
+
+        if (mounted) {
+          setState(() {
+            _members = fetchMembers;
+          });
+        }
       }
     } catch (e) {
-      if (mounted)
-        setState(() {
-          _isLoading = false;
-        });
       print('멤버 로딩 실패:$e');
-    }
-     */
-    if (mounted) {
-      setState(() {
-        _members = [
-          MemberInfo(userId: 101, nickname: '이유진', role: 'MEMBER'),
-          MemberInfo(userId: 102, nickname: '홍재원', role: 'MEMBER'),
-          MemberInfo(userId: 103, nickname: '정은지', role: 'MEMBER'),
-          MemberInfo(userId: 104, nickname: '임효진', role: 'MEMBER'),
-        ];
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('멤버 목록을 불러오지 못했습니다.')));
+      }
     }
   }
 
@@ -88,7 +99,7 @@ class _DelegationBottomSheetState
 
   Widget _buildMemberList() {
     if (_members.isEmpty) {
-      return Center(child: Text('권한을 넘길 멤버가 없습니다.'));
+      return Center(child: Text('\n\n권한을 넘길 멤버가 없습니다.\n\n'));
     }
     return Container(
       height: 90,
@@ -104,8 +115,8 @@ class _DelegationBottomSheetState
   }
 
   Widget _buildMemberItem(MemberInfo member) {
-    final bool isSelected =
-    (_selectedMember != null && _selectedMember!.userId == member.userId);
+    final bool isSelected = (_selectedMember != null &&
+        _selectedMember!.memberGroupId == member.memberGroupId);
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -131,9 +142,31 @@ class _DelegationBottomSheetState
               ),
               child: CircleAvatar(
                 radius: 13,
-                backgroundImage: AssetImage(
-                  'android/assets/images/clear_ohmo.png',
-                ),
+                backgroundColor: Colors.grey[200],
+                backgroundImage:
+                    (() {
+                          final path = member.profileImageUrl;
+                          if (path == null || path.isEmpty) {
+                            return const AssetImage(
+                              'android/assets/images/clear_ohmo.png',
+                            );
+                          }
+                          if (path.startsWith('http')) {
+                            return NetworkImage(path);
+                          }
+                          return AssetImage(path);
+                        })()
+                        as ImageProvider?,
+                child:
+                    (member.profileImageUrl == null ||
+                            member.profileImageUrl!.isEmpty)
+                        ? ClipOval(
+                          child: Image.asset(
+                            'android/assets/images/clear_ohmo.png',
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                        : null,
               ),
             ),
             SizedBox(height: 5),
@@ -197,15 +230,30 @@ class _DelegationBottomSheetState
       },
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && member.memberGroupId != null) {
       try {
-        await _db.delegateOwnership(widget.groupId, member.userId,widget.currentUserId);
+        final groupService = GroupService();
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("'${member.nickname}'님을 권한을 넘겼습니다.")),
+        final bool isSuccess = await groupService.delegateGroupManager(
+          groupId: widget.groupId,
+          targetMemberGroupId: member.memberGroupId!,
         );
-        Navigator.pop(context, true);
+
+        if (isSuccess) {
+          await _db.delegateOwnership(
+            widget.groupId,
+            member.userId,
+            widget.currentUserId,
+          );
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("'${member.nickname}'님을 권한을 넘겼습니다.")),
+          );
+          Navigator.pop(context, true);
+        } else {
+          throw Exception('서버 응답 실패');
+        }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(

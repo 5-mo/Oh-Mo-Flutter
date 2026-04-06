@@ -5,11 +5,15 @@ import 'delete_popup.dart';
 class DeleteBottomSheet extends StatefulWidget {
   final VoidCallback onDelete;
   final bool showConfirmationPopup;
+  final String title;
+  final String message;
 
   const DeleteBottomSheet({
     Key? key,
     required this.onDelete,
     this.showConfirmationPopup = true,
+    this.title =  '루틴 삭제',
+    this.message = '이후 일정만 삭제되고, 이전 루틴 기록은\n유지됩니다. 삭제를 진행하시겠어요?',
   }) : super(key: key);
 
   @override
@@ -46,8 +50,8 @@ class _DeleteBottomSheetState extends State<DeleteBottomSheet> {
             context: context,
             builder: (_) {
               return DeletePopup(
-                messageHeader: '루틴 삭제',
-                message: '이후 일정만 삭제되고, 이전 루틴 기록은\n유지됩니다. 삭제를 진행하시겠어요?',
+                messageHeader: widget.title,
+                message: widget.message,
                 onDelete: widget.onDelete,
               );
             },

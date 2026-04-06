@@ -2,12 +2,16 @@ import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:ohmo/const/colors.dart';
+import 'package:provider/provider.dart';
 import '../db/drift_database.dart';
+import '../models/profile_data_provider.dart';
 import '../services/notification_service.dart';
 import 'alarm_bottom_sheet.dart';
 import 'color_palette_bottom_sheet.dart';
+import '../services/routine_service.dart';
 
 class RoutineCard extends StatefulWidget {
+  final DateTime selectedDate;
   final String content;
   final bool showCheckbox;
   final Widget Function(BuildContext)? deletePopupBuilder;
@@ -20,6 +24,7 @@ class RoutineCard extends StatefulWidget {
   final VoidCallback? onEditPressed;
 
   const RoutineCard({
+    required this.selectedDate,
     required this.content,
     required this.colorType,
     required this.scheduleId,
@@ -30,6 +35,7 @@ class RoutineCard extends StatefulWidget {
     this.onDataChanged,
     this.isColorPickerEnabled = true,
     this.onEditPressed,
+
     Key? key,
   }) : super(key: key);
 
@@ -187,39 +193,63 @@ class _RoutineCardState extends State<RoutineCard> {
                   );
                 }
               },
-              child: SvgPicture.asset(
-                'android/assets/images/routine_alarm.svg',
-              ),
+              child: SvgPicture.asset('android/assets/images/todo_alarm.svg'),
             ),
             const SizedBox(width: 8.0),
 
             widget.showCheckbox
                 ? Checkbox(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: VisualDensity.minimumDensity,
-                    vertical: VisualDensity.minimumDensity,
-                  ),
-                  value: _isChecked,
-                  onChanged: (bool? value) async {
-                    setState(() => _isChecked = value ?? false);
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(
+                horizontal: VisualDensity.minimumDensity,
+                vertical: VisualDensity.minimumDensity,
+              ),
+              value: _isChecked,
 
-                    try {
-                      final db = LocalDatabase();
-                      await db.toggleRoutineStatus(widget.scheduleId);
+              onChanged: (bool? value) async {
+                if (value == null) return;
 
-                      if (widget.onStatusChanged != null) {
-                        await widget.onStatusChanged!();
-                      }
-                    } catch (e) {
-                      print('루틴 상태 변경 실패: $e');
-                      setState(() => _isChecked = !(_isChecked));
+                setState(() => _isChecked = value);
+
+                try {
+                  final db = LocalDatabaseSingleton.instance;
+                  final profile = Provider.of<ProfileData>(context, listen: false);
+                  final currentRoutine = await db.getRoutineById(widget.scheduleId);
+
+                  if (currentRoutine == null) return;
+
+                  if (!profile.isGuest) {
+                    final int? realApiId = currentRoutine.routineId;
+                    if (realApiId != null && realApiId != 0) {
+                      final routineService = RoutineService();
+                      await routineService.toggleRoutineStatus(realApiId);
                     }
-                  },
-                  activeColor: Colors.black,
-                  checkColor: Colors.white,
-                  fillColor: MaterialStateProperty.all(Colors.black),
-                )
+                  }
+
+                  await db.toggleRoutineCompletion(widget.scheduleId, widget.selectedDate);
+
+                  if (profile.isGuest) {
+                    await db.updateRoutine(
+                      RoutinesCompanion(
+                        id: Value(widget.scheduleId),
+                        isSynced: const Value(false),
+                      ),
+                    );
+                    print('🛡️ 게스트 모드: [${widget.content}] 완료 상태 저장 및 동기화 예약');
+                  }
+
+                  if (widget.onStatusChanged != null) {
+                    await widget.onStatusChanged!();
+                  }
+                } catch (e) {
+                  print('루틴 상태 변경 실패: $e');
+                  setState(() => _isChecked = !value);
+                }
+              },
+              activeColor: Colors.black,
+              checkColor: Colors.white,
+              fillColor: MaterialStateProperty.all(Colors.black),
+            )
                 : SizedBox.shrink(),
           ],
         ),
@@ -232,7 +262,7 @@ class _RoutineCardState extends State<RoutineCard> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
+      shape: RoundedRectangleBorder( 
         borderRadius: BorderRadius.only(
           topRight: Radius.circular(59),
           topLeft: Radius.circular(59),

@@ -38,12 +38,9 @@ struct Provider: AppIntentTimelineProvider {
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
         let currentDate = Date()
-        let startOfToday = Calendar.current.startOfDay(for: currentDate)
-        let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: startOfToday)!
-        
         let entry = createTimeLineEntry(for: currentDate, configuration: configuration)
         
-        return Timeline(entries: [entry], policy: .after(startOfTomorrow))
+        return Timeline(entries: [entry], policy: .atEnd)
     }
     
     private func createTimeLineEntry(for date: Date, configuration: ConfigurationAppIntent) -> SimpleEntry {
@@ -57,20 +54,28 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     private func decodeTodoList(from defaults: UserDefaults?) -> [String] {
-        guard let jsonString = defaults?.string(forKey: "today_todo"),
-              let data = jsonString.data(using: .utf8) else {
-            return ["할 일을\n 추가해보세요 :)"]
+        guard let jsonString = defaults?.string(forKey: "today_todo") else {
+            return []
+        }
+        
+    
+        guard let data = jsonString.data(using: .utf8) else {
+            return []
         }
         
         do {
-            if let todoObjects=try JSONSerialization.jsonObject(with: data, options: [])as? [[String:Any]]{
-                let contents=todoObjects.compactMap{$0["content"]as? String}
-                return contents.isEmpty ? ["할 일을 추가해보세요 :)"] : contents
+            if let todoObjects = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                let contents = todoObjects.compactMap { $0["content"] as? String }
+                
+                if contents.isEmpty {
+                    return []
+                }
+                return contents
             }
-            return["데이터 형식 오류"]
+            return []
         } catch {
-            print("todoList decoding error:", error)
-            return ["에러 발생"]
+            print("todoList decoding error: \(error)")
+            return []
         }
     }
     
@@ -194,37 +199,60 @@ struct HomeWidgetExtensionEntryView: View {
     
     // MARK: - Widget Views
     var smallView: some View {
-        let todosForToday = entry.todoList
+            let todosForToday = entry.todoList
+            let isEmpty = todosForToday.isEmpty ||
+                          (todosForToday.count == 1 && (todosForToday.first?.contains("추가해보세요") == true || todosForToday.first?.contains("실패") == true))
 
-        return GeometryReader { geometry in
-            ZStack(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 4) {
-                    if todosForToday.isEmpty || (todosForToday.count == 1 && todosForToday.first?.contains("추가해보세요") == true) {
-                        Text("할 일을\n추가해보세요 :)")
-                            .font(.system(size: 14))
-                    } else {
-                        ForEach(todosForToday.prefix(4), id: \.self) { todoContent in
-                            Text("● \(todoContent)")
-                                .font(.system(size: 14))
-                                .foregroundColor(.black)
-                                .lineLimit(1)
+            return GeometryReader { geometry in
+                ZStack {
+                    if isEmpty {
+                        VStack(spacing: 3) {
+                            Spacer()
+                            
+                            VStack(spacing: 3) {
+                                Text("오늘 할 일을")
+                                Text("추가해보세요 :)")
+                            }
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.black)
+                            .multilineTextAlignment(.center)
+                            
+                            Spacer()
+                            Spacer() 
                         }
-                    }
-                    Spacer()
-                }
-                .padding(20)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
                 
-                Link(destination: URL(string: "ohmoapp://daylog/todo")!) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(todosForToday.prefix(4), id: \.self) { todoContent in
+                                HStack(alignment: .top, spacing: 5) {
+                                    Text("●")
+                                        .font(.system(size: 8))
+                                        .offset(y: 4)
+                                    Text(todoContent)
+                                        .font(.system(size: 14))
+                                        .lineLimit(1)
+                                }
+                                .foregroundColor(.black)
+                            }
+                            Spacer()
+                        }
+                        .padding(.top, 20)
+                        .padding(.horizontal, 18)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    }
+                    
+    
                     Image("ohmo")
                         .resizable()
-                        .frame(width: 70, height: 70)
+                        .scaledToFit()
+                        .frame(width: 65, height: 65)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                        .offset(x: 15, y: 15)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .offset(x:20, y: 20)
+                .widgetURL(URL(string: "ohmoapp://daylog/todo"))
             }
         }
-    }
     
     private func DayView(for date: Date, entry: Provider.Entry) -> some View {
         let calendar = Calendar.current

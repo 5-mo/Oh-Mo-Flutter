@@ -6,9 +6,14 @@ import 'package:intl/intl.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/db/local_category_repository.dart';
+import 'package:ohmo/services/category_service.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_item.dart';
+import '../models/profile_data_provider.dart';
 import '../screen/category_screen.dart';
 import 'package:ohmo/services/notification_service.dart';
+import 'package:ohmo/services/todo_service.dart';
 
 class TodoBottomSheet extends StatefulWidget {
   final DateTime selectedDate;
@@ -30,14 +35,13 @@ class TodoBottomSheet extends StatefulWidget {
 
 class _TodoBottomSheetState extends State<TodoBottomSheet> {
   bool isChecked = false;
-
   late DateTime _currentDate;
-
   List<CategoryItem> todos = [];
   int? selectedCategoryId;
   final TextEditingController contentController = TextEditingController();
   TimeOfDay? selectedTime;
   bool _isLoading = false;
+  int? _existingAlarmMinutes;
 
   @override
   void initState() {
@@ -48,56 +52,74 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
 
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
-    await _loadCategories();
+
+    final loadedTodos = await _loadCategories();
 
     if (widget.todoIdToEdit != null) {
-      await _loadDataForEdit(widget.todoIdToEdit!);
+      await _loadDataForEdit(widget.todoIdToEdit!, loadedTodos);
     }
+
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        todos = loadedTodos;
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _loadDataForEdit(int todoId) async {
+  Future<void> _loadDataForEdit(
+    int todoId,
+    List<CategoryItem> currentTodos,
+  ) async {
     final db = LocalDatabaseSingleton.instance;
     final todo = await db.getTodoById(todoId);
     if (todo == null) return;
 
-    setState(() {
-      contentController.text = todo.content;
-      _currentDate = todo.date;
+    contentController.text = todo.content;
+    _currentDate = todo.date;
+    _existingAlarmMinutes = todo.alarmMinutes;
 
-      if (todo.timeMinutes != null) {
-        if (todo.timeMinutes == 0 &&
-            (todo.date.hour != 0 || todo.date.minute != 0)) {
-          selectedTime = TimeOfDay.fromDateTime(todo.date);
-        } else if (todo.timeMinutes! > 0) {
-          selectedTime = null;
+    if (todo.timeMinutes != null) {
+      selectedTime = TimeOfDay(
+        hour: todo.timeMinutes! ~/ 60,
+        minute: todo.timeMinutes! % 60,
+      );
+      isChecked = true;
+    } else {
+      selectedTime = null;
+      isChecked = false;
+    }
+
+    if (todo.categoryId != null) {
+      try {
+        final matchedCategory = currentTodos.firstWhere(
+          (cat) => cat.id == todo.categoryId,
+          orElse:
+              () => CategoryItem(
+                id: -1,
+                categoryName: 'unknown',
+                colorType: 'black',
+                scheduleType: '',
+              ),
+        );
+
+        if (matchedCategory.id != -1) {
+          if (matchedCategory.categoryName == 'default') {
+            selectedCategoryId = null;
+          } else {
+            selectedCategoryId = matchedCategory.id;
+          }
         }
-        isChecked = true;
-        if (todo.date.hour != 0 || todo.date.minute != 0) {
-          selectedTime = TimeOfDay.fromDateTime(todo.date);
-        } else {
-          selectedTime = null;
-        }
-      } else {
-        isChecked = false;
-        if (todo.date.hour != 0 || todo.date.minute != 0) {
-          selectedTime = TimeOfDay.fromDateTime(todo.date);
-        } else {
-          selectedTime = null;
-        }
+      } catch (e) {
+        selectedCategoryId = null;
       }
-      if (todos.any((cat) => cat.id == todo.categoryId)) {
-        selectedCategoryId = todo.categoryId;
-      }
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    String selectedDateStr = DateFormat('M월  d일  ').format(_currentDate);
+    String selectedDateStr = DateFormat('M월         d일').format(_currentDate);
 
     if (_isLoading) {
       return Container(
@@ -220,6 +242,8 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   }
 
   Widget _buildCategorySelectionSection() {
+    final displayTodos =
+        todos.where((cat) => cat.categoryName != 'default').toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -228,7 +252,7 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
         ),
         SizedBox(height: 10),
-        if (todos.isEmpty)
+        if (displayTodos.isEmpty)
           Center(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -248,19 +272,19 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
             ),
           )
         else
-          _buildCategoryChoiceChips(),
+          _buildCategoryChoiceChips(displayTodos),
         SizedBox(height: 10),
         Center(child: SizedBox(height: 5)),
       ],
     );
   }
 
-  Widget _buildCategoryChoiceChips() {
+  Widget _buildCategoryChoiceChips(List<CategoryItem> filteredTodos) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          ...todos.map((category) {
+          ...filteredTodos.map((category) {
             final isSelected = category.id == selectedCategoryId;
             Color circleColor;
             try {
@@ -407,11 +431,29 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "내용",
-          style: TextStyle(fontSize: 16, fontFamily: 'PretendardBold'),
+        RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: "내용",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'PretendardBold',
+                  color: Colors.black,
+                ),
+              ),
+              TextSpan(
+                text: ' *',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'PretendardRegular',
+                  color: Color(0xFFE04747),
+                ),
+              ),
+            ],
+          ),
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         Container(
           width: double.infinity,
           height: 41,
@@ -422,10 +464,10 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4),
             ],
           ),
-          padding: EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: TextField(
             controller: contentController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               border: InputBorder.none,
               contentPadding: EdgeInsets.only(bottom: 6),
             ),
@@ -438,49 +480,36 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () async {
-        if (contentController.text.isEmpty) {
+        final String pureContent = contentController.text.trim();
+        if (pureContent.isEmpty) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text("내용을 입력해주세요")));
+          ).showSnackBar(const SnackBar(content: Text("내용을 입력해주세요")));
           return;
         }
+
         if (isChecked && selectedTime == null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("알람을 켜려면 '시간 선택'은 필수입니다.")));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("알람을 켜려면 '시간 선택'은 필수입니다.")),
+          );
           return;
         }
 
         try {
+          setState(() => _isLoading = true);
+          final profile = Provider.of<ProfileData>(context, listen: false);
+          final todoService = TodoService();
           final db = LocalDatabaseSingleton.instance;
-          final int? alarmMinutesValue;
-          if (isChecked) {
-            alarmMinutesValue = 0;
-          } else {
-            alarmMinutesValue = null;
-          }
-          int colorIndex = 0;
 
-          int? categoryId = selectedCategoryId;
+          final String dateStr = DateFormat('yyyy-MM-dd').format(_currentDate);
+          String? timeStr;
+          int? dbTimeMinutes;
+          DateTime fullTodoDate;
 
-          if (selectedCategoryId != null) {
-            final selectedCategory = todos.firstWhere(
-              (c) => c.id == selectedCategoryId,
-            );
-            try {
-              colorIndex =
-                  ColorTypeExtension.fromString(
-                    selectedCategory.colorType!,
-                  ).index;
-            } catch (_) {
-              colorIndex = 0;
-            }
-          } else {
-            colorIndex = ColorType.uncategorizedBlack.index;
-          }
-
-          final DateTime fullTodoDate;
           if (selectedTime != null) {
+            timeStr =
+                "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
+            dbTimeMinutes = selectedTime!.hour * 60 + selectedTime!.minute;
             fullTodoDate = DateTime(
               _currentDate.year,
               _currentDate.month,
@@ -489,80 +518,136 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
               selectedTime!.minute,
             );
           } else {
-            fullTodoDate = _currentDate;
+            fullTodoDate = DateTime(
+              _currentDate.year,
+              _currentDate.month,
+              _currentDate.day,
+            );
           }
 
-          int todoId;
+          int finalLocalCategoryId;
+          int? realServerCategoryId;
+          int colorIndex = ColorType.uncategorizedBlack.index;
+
+          if (selectedCategoryId != null) {
+            finalLocalCategoryId = selectedCategoryId!;
+            final localCategory = todos.firstWhere(
+              (c) => c.id == selectedCategoryId,
+            );
+            colorIndex =
+                ColorTypeExtension.fromString(
+                  localCategory.colorType ?? 'pinkLight',
+                ).index;
+            realServerCategoryId = localCategory.serverId;
+          } else {
+            final defaultCat = todos.firstWhere(
+              (cat) => cat.categoryName == 'default',
+              orElse:
+                  () => CategoryItem(
+                    id: -1,
+                    categoryName: 'default',
+                    colorType: 'uncategorizedBlack',
+                    scheduleType: 'TO_DO',
+                  ),
+            );
+            finalLocalCategoryId = defaultCat.id;
+            realServerCategoryId = defaultCat.serverId;
+            colorIndex = ColorType.uncategorizedBlack.index;
+          }
+
+          int? newServerTodoId;
+          bool isSynced = false;
 
           if (widget.todoIdToEdit != null) {
+            final existingTodo = await db.getTodoById(widget.todoIdToEdit!);
+            final int? serverScheduleId = existingTodo?.scheduleId;
+
+            if (!profile.isGuest &&
+                serverScheduleId != null &&
+                serverScheduleId != 0) {
+              await todoService.updateTodo(
+                scheduleId: serverScheduleId,
+                categoryId: realServerCategoryId ?? 0,
+                content: pureContent,
+                date: dateStr,
+                time: timeStr,
+                alarmTime: isChecked ? timeStr : null,
+              );
+              isSynced = true;
+            }
+
             await db.updateTodo(
               TodosCompanion(
                 id: drift.Value(widget.todoIdToEdit!),
-                content: drift.Value(contentController.text),
+                content: drift.Value(pureContent),
                 colorType: drift.Value(colorIndex),
-                categoryId: drift.Value(categoryId),
-                timeMinutes: drift.Value(alarmMinutesValue),
+                categoryId: drift.Value(finalLocalCategoryId),
+                timeMinutes: drift.Value(dbTimeMinutes),
                 date: drift.Value(fullTodoDate),
+                isSynced: drift.Value(profile.isGuest ? false : true),
               ),
             );
-            todoId = widget.todoIdToEdit!;
-          } else {
-            todoId = await db.insertTodo(
-              TodosCompanion.insert(
-                content: contentController.text,
-                colorType: drift.Value(colorIndex),
-                categoryId: drift.Value(categoryId),
-                scheduleType: drift.Value('TO_DO'),
-                timeMinutes: drift.Value(alarmMinutesValue),
-                isDone: drift.Value(false),
-                date: fullTodoDate,
-              ),
+
+            await NotificationService().cancelNotification(
+              widget.todoIdToEdit!,
             );
-          }
-
-          await NotificationService().cancelNotification(todoId);
-
-          if (isChecked && selectedTime != null) {
-            final notificationTime = fullTodoDate;
-
-            if (notificationTime.isAfter(DateTime.now())) {
-              await NotificationService().scheduleNotification(
-                id: todoId,
-                title: '오늘의 할 일!',
-                body: contentController.text,
-                scheduledTime: notificationTime,
-                payload: 'todo_$todoId',
+            if (isChecked && fullTodoDate.isAfter(DateTime.now())) {
+              await _registerNotification(
+                widget.todoIdToEdit!,
+                fullTodoDate,
+                _existingAlarmMinutes,
               );
-              try {
-                await db
-                    .into(db.notifications)
-                    .insert(
-                      NotificationsCompanion.insert(
-                        type: 'calender',
-                        content: '[To-do] ${contentController.text}',
-                        timestamp: notificationTime,
-                        isRead: const drift.Value(false),
-                      ),
-                    );
-                print("DB 알림 테이블 저장 완료");
-              } catch (e) {
-                print("DB 알림 테이블 저장 실패: $e");
-              }
+            }
+          } else {
+            if (!profile.isGuest) {
+              newServerTodoId = await todoService.registerTodo(
+                categoryId: realServerCategoryId ?? 0,
+                time: timeStr,
+                alarm: isChecked,
+                content: pureContent,
+                date: dateStr,
+              );
+              if (newServerTodoId != null) isSynced = true;
+            }
+
+            final newLocalId = await db.insertTodo(
+              TodosCompanion.insert(
+                scheduleId: drift.Value(newServerTodoId),
+                todoServerId: drift.Value(newServerTodoId),
+                content: pureContent,
+                colorType: drift.Value(colorIndex),
+                categoryId: drift.Value(finalLocalCategoryId),
+                scheduleType: const drift.Value('TO_DO'),
+                timeMinutes: drift.Value(dbTimeMinutes),
+                isDone: const drift.Value(false),
+                date: fullTodoDate,
+                isSynced: drift.Value(isSynced),
+              ),
+            );
+
+            if (isChecked && fullTodoDate.isAfter(DateTime.now())) {
+              await _registerNotification(newLocalId, fullTodoDate, 0);
             }
           }
 
           if (widget.onTodoAdded != null) await widget.onTodoAdded!();
           if (widget.onDataChanged != null) await widget.onDataChanged!();
 
-          Navigator.pop(context);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("투두 등록 완료!")));
+          if (mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("저장 완료!")));
+          }
         } catch (e) {
-          print('투두 저장 실패: $e');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("투두 저장 실패")));
+          print("저장 에러: $e");
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("저장 실패: $e")));
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
         }
       },
       child: Container(
@@ -573,30 +658,128 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
           borderRadius: BorderRadius.circular(9),
         ),
         child: Center(
-          child: Text(
-            '저장하기',
-            style: TextStyle(
-              fontSize: 20,
-              fontFamily: 'PretendardBold',
-              color: Colors.white,
-            ),
-          ),
+          child:
+              _isLoading
+                  ? const CupertinoActivityIndicator(color: Colors.white)
+                  : const Text(
+                    '저장하기',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'PretendardBold',
+                      color: Colors.white,
+                    ),
+                  ),
         ),
       ),
     );
   }
 
-  Future<void> _loadCategories() async {
-    try {
-      final localDb = LocalDatabaseSingleton.instance;
-      final categoryRepo = LocalCategoryRepository(localDb);
+  Future<void> _registerNotification(
+    int id,
+    DateTime todoTime,
+    int? minutesBefore,
+  ) async {
+    final notificationTime = todoTime.subtract(
+      Duration(minutes: minutesBefore ?? 0),
+    );
 
-      final loadedTodos = await categoryRepo.fetchCategories(
+    if (notificationTime.isAfter(DateTime.now())) {
+      await NotificationService().scheduleNotification(
+        id: id,
+        title: '오늘의 할 일!',
+        body: contentController.text,
+        scheduledTime: notificationTime,
+        payload: 'todo_$id',
+      );
+
+      final db = LocalDatabaseSingleton.instance;
+      try {
+        await db
+            .into(db.notifications)
+            .insert(
+              NotificationsCompanion.insert(
+                type: 'calender',
+                content: '[To-do] ${contentController.text}',
+                timestamp: notificationTime,
+                isRead: const drift.Value(false),
+              ),
+            );
+      } catch (e) {
+        print('알림함 DB 저장 실패 :$e');
+      }
+    }
+  }
+
+  Future<List<CategoryItem>> _loadCategories() async {
+    final localDb = LocalDatabaseSingleton.instance;
+    final categoryRepo = LocalCategoryRepository(localDb);
+    final categoryService = CategoryService();
+
+    try {
+      final serverCategories = await categoryService.getCategories('TO_DO');
+      final currentLocalCategories = await categoryRepo.fetchCategories(
         scheduleType: 'TO_DO',
       );
-      todos = loadedTodos;
+
+      final localCategoryNames =
+          currentLocalCategories.map((e) => e.categoryName).toSet();
+
+      if (serverCategories.isNotEmpty) {
+        for (var item in serverCategories) {
+          final String name = item['categoryName'] ?? '이름 없음';
+
+          final dynamic rawId = item['categoryId'] ?? item['id'];
+          final int serverId =
+              (rawId is int)
+                  ? rawId
+                  : int.tryParse(rawId?.toString() ?? '0') ?? 0;
+
+          final String rawColor = item['color'] ?? 'pinkLight';
+          final String localColor = _mapServerColorToLocal(rawColor);
+
+          if (!localCategoryNames.contains(name)) {
+            await categoryRepo.insertCategory(
+              name: name,
+              type: 'TO_DO',
+              color: localColor,
+              serverCategoryId: serverId,
+              isSynced: true,
+            );
+          } else {
+            final existingItem = currentLocalCategories.firstWhere(
+              (e) => e.categoryName == name,
+            );
+
+            if (existingItem.serverId == null || existingItem.serverId == 0) {
+              await categoryRepo.updateCategoryServerId(
+                existingItem.id,
+                serverId,
+              );
+            }
+
+            if (existingItem.colorType != localColor) {
+              await categoryRepo.updateCategoryColor(
+                existingItem.id,
+                localColor,
+              );
+            }
+          }
+        }
+      }
     } catch (e) {
-      print('카테고리 로드 실패: $e');
+      print('카테고리 동기화 실패 (인터넷 문제 등): $e');
     }
+    return await categoryRepo.fetchCategories(scheduleType: 'TO_DO');
+  }
+
+  String _mapServerColorToLocal(String serverColor) {
+    try {
+      for (var type in ColorType.values) {
+        if (type.name.toUpperCase() == serverColor.toUpperCase()) {
+          return type.name;
+        }
+      }
+    } catch (e) {}
+    return 'pinkLight';
   }
 }

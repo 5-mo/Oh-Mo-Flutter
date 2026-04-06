@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:ohmo/component/group_popup.dart';
 import 'package:ohmo/component/sharing_link_bottom_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../component/inviting_id_bottom_sheet.dart';
 import '../../const/colors.dart';
-import '../../db/drift_database.dart';
-import 'package:drift/drift.dart' as d;
+import '../../services/group_service.dart';
+import '../category_screen.dart';
+import '../home_screen.dart';
 
 class GroupAddMemberScreen extends StatefulWidget {
   final String roomName;
@@ -25,12 +28,11 @@ class GroupAddMemberScreen extends StatefulWidget {
 
 class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
   final TextEditingController _nicknameController = TextEditingController();
-  late final LocalDatabase _db;
+  final GroupService _groupService = GroupService();
 
   @override
   void initState() {
     super.initState();
-    _db = LocalDatabaseSingleton.instance;
   }
 
   @override
@@ -217,61 +219,85 @@ class _GroupAddMemberScreenState extends State<GroupAddMemberScreen> {
       return;
     }
 
-    const int currentUserId = 1;
-
     try {
-      final newGroupId = await _db.transaction(() async {
-        await (_db.update(_db.users)..where(
-          (u) => u.id.equals(currentUserId),
-        )).write(UsersCompanion(nickname: d.Value(nickname)));
+      final Map<String, dynamic> groupResult = await _groupService.createGroup(
+        groupName: widget.roomName,
+        password: widget.password,
+        groupColor: widget.selectedColor.name,
+        memberCount: widget.memberCount,
+        nickname: nickname,
+      );
 
-        final groupCompanion = GroupsCompanion(
-          name: d.Value(widget.roomName),
-          colorType: d.Value(widget.selectedColor.index),
-          maxMembers: d.Value(widget.memberCount),
-          password: d.Value(
-            widget.password.isNotEmpty ? widget.password : null,
-          ),
-        );
-        final newGroup = await _db
-            .into(_db.groups)
-            .insertReturning(groupCompanion);
-
-        final memberCompanion = GroupMembersCompanion(
-          groupId: d.Value(newGroup.id),
-          userId: d.Value(currentUserId),
-          role: d.Value('OWNER'),
-        );
-        await _db.into(_db.groupMembers).insert(memberCompanion);
-
-        return newGroup.id;
-      });
+      final int serverGroupId = groupResult['groupId'];
+      final String serverGroupCode = groupResult['groupCode'];
 
       if (!mounted) return;
 
-      showModalBottomSheet(
+      final bool? result = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(59),
-            topRight: Radius.circular(59),
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
           ),
         ),
-        builder: (_) {
-          if (isSharingLink) {
-            return SharingLinkBottomSheet(groupId: newGroupId);
-          } else {
-            return InvitingIdBottomSheet(groupId: newGroupId);
-          }
-        },
+        builder:
+            (_) =>
+                isSharingLink
+                    ? SharingLinkBottomSheet(
+                      groupName: widget.roomName,
+                      groupCode: serverGroupCode,
+                    )
+                    : InvitingIdBottomSheet(
+                      groupId: serverGroupId,
+                      groupName: widget.roomName,
+                    ),
       );
+
+      if (result == true && mounted) {
+        await Future.delayed(const Duration(milliseconds: 200));
+
+        final bool? isConfirmed = await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => const GroupPopup(
+                messageHeader: "멤버 초대하기",
+                message: "성공적으로 초대장이 발송되었습니다!",
+                confirmButtonText: "확인",
+                showCancelButton: false,
+              ),
+        );
+
+        final int serverGroupId = groupResult['groupId'];
+        final String serverGroupCode = groupResult['groupCode'];
+
+        await _groupService.updateGroupNickname(
+          groupId: serverGroupId,
+          nickname: nickname,
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('group_nickname_$serverGroupId', nickname);
+
+        if (isConfirmed == true && mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        }
+      }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('그룹 생성에 실패했습니다: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '그룹 생성에 실패했습니다: ${e.toString().replaceAll('Exception:', '')}',
+          ),
+        ),
+      );
     }
   }
 }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:ohmo/component/group_popup.dart';
 import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/services/auth_service.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:provider/provider.dart';
+
+import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -25,6 +28,7 @@ class _SignupScreenState extends State<SignupScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
+
           child: Text(
             '취소',
             style: TextStyle(
@@ -37,9 +41,7 @@ class _SignupScreenState extends State<SignupScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-          ),
+          decoration: BoxDecoration(color: Colors.white),
         ),
       ),
       body: Stack(
@@ -53,7 +55,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: Text(
                       '회원가입',
                       style: TextStyle(
-                        fontFamily: 'PretendardSemibold',
+                        fontFamily: 'PretendardMedium',
                         fontSize: 24.0,
                       ),
                     ),
@@ -87,6 +89,12 @@ class _SignupScreenState extends State<SignupScreen> {
         ],
       ),
     );
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+    ).hasMatch(email);
   }
 
   Widget _buildSignupText(String label) {
@@ -153,6 +161,12 @@ class _SignupScreenState extends State<SignupScreen> {
           ).showSnackBar(SnackBar(content: Text("빈칸 없이 모두 입력해주세요.")));
           return;
         }
+        if (!_isValidEmail(email)) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("올바른 이메일 형식을 입력해주세요.")));
+          return;
+        }
 
         final result = await AuthService.signup(email, password, nickname);
 
@@ -161,10 +175,27 @@ class _SignupScreenState extends State<SignupScreen> {
 
           final profile = Provider.of<ProfileData>(context, listen: false);
           profile.updateProfile(updateNickname: nickname, updateEmail: email);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => HomeScreen()),
-          );
+
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return const GroupPopup(
+                messageHeader: "회원가입 완료",
+                message: '지금 바로 오모와 함께\n일정을 기록해보세요!',
+                showCancelButton: false,
+              );
+            },
+          ).then((value) {
+            if (value == true) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false,
+              );
+            }
+          });
         } else {
           ScaffoldMessenger.of(
             context,
