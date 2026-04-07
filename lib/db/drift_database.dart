@@ -68,6 +68,22 @@ class LocalDatabase extends _$LocalDatabase {
   @override
   int get schemaVersion => 8;
 
+  Future<void> clearAllData() async {
+    await transaction(() async {
+      await delete(todos).go();
+      await delete(routines).go();
+      await delete(dayLogs).go();
+      await delete(categories).go();
+      await delete(dayLogQuestions).go();
+      await delete(completedTodos).go();
+      await delete(completedRoutines).go();
+      await delete(notices).go();
+      await delete(groups).go();
+      await delete(groupMembers).go();
+      await delete(notifications).go();
+    });
+  }
+
   // ------------------ Category ------------------
 
   Future<Category?> getCategoryById(int id) {
