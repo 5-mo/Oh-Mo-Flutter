@@ -33,7 +33,6 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
-  static const currentUserId = 1; //db 연결
   List<CategoryItem> routines = [];
   List<CategoryItem> todos = [];
   List<DayLogQuestionItem> daylogQuestions = [];
@@ -145,10 +144,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
         Map<int, int> memberTotalCount = {};
         Map<int, int> memberDoneCount = {};
 
-        // 3. 투두/루틴을 돌면서 각 담당자(assignee)의 상태를 집계합니다.
         void countSchedules(List<dynamic> schedules) {
           for (var s in schedules) {
-            // 투두/루틴 구조에 따라 assignee 리스트 위치가 다를 수 있으니 확인 필요
             final groupData =
                 s['groupTodoWithAssignee'] ??
                 s['groupRoutineWithAssignee'] ??
@@ -240,6 +237,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final profile = Provider.of<ProfileData>(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -281,11 +279,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
               ),
               SizedBox(height: 10.0),
-
-              Padding(
-                padding: const EdgeInsets.only(left: 31),
-                child: _buildGroupAccordion(),
-              ),
+              if (!profile.isGuest)
+                Padding(
+                  padding: const EdgeInsets.only(left: 31),
+                  child: _buildGroupAccordion(),
+                ),
 
               SizedBox(height: 60),
             ],

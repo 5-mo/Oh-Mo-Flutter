@@ -80,7 +80,6 @@ void main() async {
       );
     }
   } catch (e) {
-    print("Firebase 이미 초기화됨: $e");
   }
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -120,6 +119,7 @@ void main() async {
         await memberService.updateFcmToken(fcmToken);
         print("FCM Token 등록 성공 : $fcmToken");
       }
+      await WidgetUpdater.update();
     } else {
       profileData.setGeustMode(true);
     }

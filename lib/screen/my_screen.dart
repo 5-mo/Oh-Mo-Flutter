@@ -437,9 +437,7 @@ class _MyScreenState extends State<MyScreen> {
   }
 
   Future<void> _testNotionIntegration() async {
-    const String notionToken =
-        'ntn_S4139943297a3lp7jr2q8STxcy5IhFSH4j6RtOGsfz86xv';
-    const String databaseId = '7cb0f6c28581838fab3a8182f1f54a1a';
+
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -453,12 +451,10 @@ class _MyScreenState extends State<MyScreen> {
       final response = await http.post(
         url,
         headers: {
-          'Authorization': 'Bearer $notionToken',
           'Notion-Version': '2022-06-28',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'parent': {'database_id': databaseId},
           'properties': {
             'content': {
               'rich_text': [

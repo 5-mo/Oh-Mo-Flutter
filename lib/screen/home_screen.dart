@@ -491,6 +491,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (mounted) {
       setState(() => _isInitialLoading = false);
+
+      await WidgetUpdater.update();
     }
   }
 
