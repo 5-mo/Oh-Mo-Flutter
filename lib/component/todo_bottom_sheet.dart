@@ -683,11 +683,13 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
       Duration(minutes: minutesBefore ?? 0),
     );
 
+    String formattedTime = DateFormat('HH:mm').format(notificationTime);
+
     if (notificationTime.isAfter(DateTime.now())) {
       await NotificationService().scheduleNotification(
         id: id,
-        title: '오늘의 할 일!',
-        body: contentController.text,
+        title: contentController.text,
+        body: '${formattedTime}',
         scheduledTime: notificationTime,
         payload: 'todo_$id',
       );

@@ -151,31 +151,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     for (var notification in visibleNotifications) {
       if (notification.content.contains('[Routine]')) {
-        // [수정 포인트]
-        // 1. 루틴 이름 추출
+
         final String pureContent = notification.content.trim();
 
-        // 2. '분' 단위 대신 '날짜' 단위까지만 추출 (연, 월, 일)
-        // 오늘 등록한 모든 동일 루틴은 이 날짜값이 같습니다.
+
         final String dateGroup = "${notification.timestamp.year}${notification.timestamp.month}${notification.timestamp.day}";
 
-        // 3. 내용 + 날짜를 조합한 키 생성
-        // 예: routine_매일운동하기_2026329
         final String groupKey = "routine_${pureContent}_$dateGroup";
 
         if (!filteredMap.containsKey(groupKey)) {
-          filteredMap[groupKey] = notification; // 맵에 없으면(가장 첫 번째 것) 추가
+          filteredMap[groupKey] = notification;
         }
       } else {
-        // 일반 알림은 중복 제거 없이 고유 ID로 저장
         filteredMap['normal_${notification.id}'] = notification;
       }
     }
 
-    // 2. 맵에서 값만 추출하여 리스트화
     final List<db.Notification> finalNotifications = filteredMap.values.toList();
 
-    // 3. 최종 정렬 (사용자에게 보여줄 순서)
     finalNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return Column(
       children: [

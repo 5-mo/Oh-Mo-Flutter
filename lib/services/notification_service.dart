@@ -184,4 +184,39 @@ class NotificationService {
       await _flutterLocalNotificationsPlugin.cancel(uniqueNotificationId);
     }
   }
+
+  Future<void> showImmediateNotification({
+    required String type,
+    required String title,
+    required String body,
+    int? relatedId,
+    String? groupName,
+  }) async {
+    String pushTitle = "그룹에 새로운 알림이 있습니다";
+
+    String pushBody = body;
+    if (!pushBody.contains('[공지]')) {
+      pushBody = "[공지] $body";
+    }
+
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'group_notice_channel',
+          '그룹 공지 알림',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+        );
+
+    await _flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecond,
+      pushTitle,
+      pushBody,
+      const NotificationDetails(
+        android: androidDetails,
+        iOS: DarwinNotificationDetails(),
+      ),
+      payload: '${type}_$relatedId',
+    );
+  }
 }

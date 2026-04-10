@@ -1184,6 +1184,8 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
               currentDay.day,
             ).add(Duration(minutes: routine.timeMinutes!));
 
+            String formattedTime = DateFormat('HH:mm').format(notificationTime);
+
             if (notificationTime.isBefore(DateTime.now())) continue;
 
             int uniqueNotificationId =
@@ -1191,8 +1193,8 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
             await NotificationService().scheduleNotification(
               id: uniqueNotificationId,
-              title: '오늘의 루틴 시간!',
-              body: routine.content,
+              title: routine.content,
+              body: '${formattedTime}',
               scheduledTime: notificationTime,
               payload: 'routine_${routine.id}',
             );

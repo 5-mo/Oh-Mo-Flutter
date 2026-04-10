@@ -34,26 +34,32 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   final database = db.LocalDatabaseSingleton.instance;
 
-  String saveType='group';
-  final String? serverType=message.data['type'];
+  String saveType = 'group';
+  final String? serverType = message.data['type'];
 
-  if(serverType=='GROUP_INVITATION'){
-    saveType='invitation';
-  }else if(serverType=='SCHEDULE_ALARM'){
-    saveType='calendar';
-  }else if(serverType=='NOTICE'){
-    saveType='group';
+  if (serverType == 'GROUP_INVITATION') {
+    saveType = 'invitation';
+  } else if (serverType == 'SCHEDULE_ALARM') {
+    saveType = 'calendar';
+  } else if (serverType == 'NOTICE') {
+    saveType = 'group';
   }
 
   await database.insertNotification(
     db.NotificationsCompanion.insert(
       type: saveType,
-      content: message.notification?.body ?? message.data['message'] ?? '새로운 알림이 도착했습니다.',
+      content:
+          message.notification?.body ??
+          message.data['message'] ??
+          '새로운 알림이 도착했습니다.',
       timestamp: DateTime.now(),
       isRead: const drift.Value(false),
       relatedId: drift.Value(
-        int.tryParse(message.data['invitationId']?.toString() ??
-            message.data['groupId']?.toString() ?? '0'),
+        int.tryParse(
+          message.data['invitationId']?.toString() ??
+              message.data['groupId']?.toString() ??
+              '0',
+        ),
       ),
     ),
   );
@@ -79,8 +85,7 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
-  } catch (e) {
-  }
+  } catch (e) {}
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   FirebaseMessaging messaging = FirebaseMessaging.instance;
@@ -132,6 +137,33 @@ void main() async {
   platform.setMethodCallHandler(_handleWidgetMethodCalls);
 
   await NotificationService().init();
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    final String? serverType = message.data['type'];
+    if (serverType == 'GROUP_INVITATION') {
+      print("초대 알림은 푸시를 띄우지 않습니다.");
+      return;
+    }
+    print("==== FCM DATA PAYLOAD ====");
+    print(message.data);
+    print("==========================");
+
+    final String title = message.notification?.title ?? "OhMo";
+    final String body =
+        message.notification?.body ?? message.data['message'] ?? "";
+
+    final String groupName =
+        message.data['groupName'] ?? message.data['title'] ?? "새로운";
+
+    await NotificationService().showImmediateNotification(
+      type: message.data['type'] ?? 'group',
+      title: groupName,
+      body: body,
+      groupName: groupName,
+      relatedId: int.tryParse(message.data['groupId']?.toString() ?? '0'),
+    );
+  });
+
   await HomeWidget.setAppGroupId('group.ohmo');
   //await clearTokens();
   runApp(

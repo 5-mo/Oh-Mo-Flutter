@@ -90,7 +90,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       final String? serverType = message.data['type'];
       final String groupName = message.data['groupName'] ?? '새로운';
-      final String serverMessage = message.data['message'] ?? message.notification?.body ?? '내용 없음';
+      final String serverMessage =
+          message.data['message'] ?? message.notification?.body ?? '내용 없음';
       final String? serverDateStr = message.data['date'];
       String formattedNoticeDate = "";
 
@@ -109,7 +110,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       switch (serverType) {
         case 'NOTICE':
           saveType = 'group';
-          myCustomContent = "‘$groupName’ 그룹에 새로운 공지가 등록되었습니다.\n[공지] $serverMessage$formattedNoticeDate";
+          myCustomContent =
+              "‘$groupName’ 그룹에 새로운 공지가 등록되었습니다.\n[공지] $serverMessage$formattedNoticeDate";
           break;
 
         case 'GROUP_INVITATION':
@@ -120,8 +122,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         case 'SCHEDULE_ADDED':
         case 'ASSIGNEE_ADDED':
           saveType = 'group';
-          String serverType = (message.data['scheduleType'] ?? "").toString().toUpperCase();
-          String serverMessage = message.data['message'] ?? message.notification?.body ?? "";
+          String serverType =
+              (message.data['scheduleType'] ?? "").toString().toUpperCase();
+          String serverMessage =
+              message.data['message'] ?? message.notification?.body ?? "";
 
           String prefix = "";
           if (serverType == 'ROUTINE' || serverMessage.contains('루틴')) {
@@ -130,12 +134,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             prefix = "[To-do]";
           }
 
-          myCustomContent = "‘$groupName’ 그룹에 새로운 할 일이 등록되었습니다.\n$prefix $serverMessage";
+          myCustomContent =
+              "‘$groupName’ 그룹에 새로운 할 일이 등록되었습니다.\n$prefix $serverMessage";
           break;
 
         default:
           saveType = 'group';
-          myCustomContent = message.notification?.body ?? message.data['message'] ?? '새로운 알림이 있습니다.';
+          myCustomContent =
+              message.notification?.body ??
+              message.data['message'] ??
+              '새로운 알림이 있습니다.';
       }
 
       await database.insertNotification(
@@ -145,12 +153,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           timestamp: DateTime.now(),
           isRead: const Value(false),
           relatedId: Value(
-            int.tryParse(message.data['invitationId']?.toString() ??
-                message.data['groupId']?.toString() ?? '0'),
+            int.tryParse(
+              message.data['invitationId']?.toString() ??
+                  message.data['groupId']?.toString() ??
+                  '0',
+            ),
           ),
         ),
       );
-
 
       if (serverType == 'GROUP_INVITATION' && !_isInvitationDialogShowing) {
         _showSingleInvitationPopup(message.data);
@@ -1221,8 +1231,8 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
 
             await NotificationService().scheduleNotification(
               id: currentTodo.id,
-              title: '오늘의 할 일!',
-              body: '[To-do] $originalTimeStr ${currentTodo.content}',
+              title: '[To-do] $originalTimeStr ${currentTodo.content}',
+              body: '${notificationTime}',
               scheduledTime: notificationTime,
               payload: 'todo_${currentTodo.id}',
             );
