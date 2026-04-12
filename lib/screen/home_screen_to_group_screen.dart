@@ -10,6 +10,7 @@ import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:ohmo/screen/group/group_main_screen.dart';
 import 'package:ohmo/services/group_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../component/color_palette_bottom_sheet.dart';
 import '../component/group_settings_bottom_sheet.dart';
 import '../customize_category.dart';
@@ -41,6 +42,8 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
   final CategoryService _categoryService = CategoryService();
   final GroupService _groupService = GroupService();
   List<dynamic> _groups = [];
+  final LayerLink _addGroupLayerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -135,7 +138,128 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
         _groups = groupWithMembers;
         _isGroupDeleted = !isGroupVisible;
       });
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _showGroupPageTooltip();
+        }
+      });
     }
+  }
+
+  void _hideToolTip() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _showGroupPageTooltip() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool hasGroup = _groups.isNotEmpty;
+
+    final String tooltipKey = hasGroup
+        ? 'hasShownGroupProgressTip'
+        : 'hasShownGroupCreateGuide';
+
+
+    final bool hasShown = prefs.getBool(tooltipKey) ?? false;
+
+    if (!hasShown && mounted) {
+      _overlayEntry = _createGroupPageOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      await prefs.setBool(tooltipKey, true);
+    }
+  }
+
+  OverlayEntry _createGroupPageOverlayEntry() {
+    final bool hasGroup = _groups.isNotEmpty;
+
+    final String tooltipText =
+        hasGroup ? "멤버들의 일정 진행률을\n확인할 수 있어요" : "그룹을 만들어 여러 명과\n일정을 공유해보세요";
+    return OverlayEntry(
+      builder:
+          (context) => Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                CompositedTransformFollower(
+                  link: _addGroupLayerLink,
+                  showWhenUnlinked: false,
+                  offset: const Offset(-270, 190),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 15),
+                          child: CustomPaint(
+                            size: const Size(8, 10),
+                            painter: TrianglePainter(
+                              color: const Color(0xFF4E4E4E),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4E4E4E),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    tooltipText,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontFamily: 'PretendardMedium',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: _hideToolTip,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2A2A2A),
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: const Text(
+                                        "확인",
+                                        style: TextStyle(
+                                          color: Color(0xFFE6E6E6),
+                                          fontSize: 12,
+                                          fontFamily: 'PretendardMedium',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _overlayEntry?.remove();
+    super.dispose();
   }
 
   @override
@@ -186,9 +310,8 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
       ColorTypeExtension.fromString(colorTypeString),
     );
     final List<dynamic> members = group['members'] ?? [];
-    final myInfo = members.where(
-      (m) => m['memberInfo']['email'] == ""
-    ).firstOrNull;
+    final myInfo =
+        members.where((m) => m['memberInfo']['email'] == "").firstOrNull;
     final int totalCount = group['totalCount'] ?? members.length;
     return InkWell(
       onTap: () async {
@@ -451,7 +574,10 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.add_circle, color: Colors.black),
+                      icon: CompositedTransformTarget(
+                        link: _addGroupLayerLink,
+                        child: Icon(Icons.add_circle, color: Colors.black),
+                      ),
                       onPressed: () async {
                         await Navigator.push(
                           context,
@@ -534,4 +660,24 @@ class _HomeScreenToGroupScreenState extends State<HomeScreenToGroupScreen> {
       setState(() => _needsRefresh = true);
     }
   }
+}
+
+class TrianglePainter extends CustomPainter {
+  final Color color;
+
+  TrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path();
+    path.moveTo(size.width / 2, 0);
+    path.lineTo(0, size.height);
+    path.lineTo(size.width, size.height);
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

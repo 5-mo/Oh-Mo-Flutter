@@ -252,11 +252,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _showInitialTooltip() async {
     final prefs = await SharedPreferences.getInstance();
-    final bool hasShown = prefs.getBool('hasShownCalendarTooltip') ?? false;
 
-    if (!hasShown && mounted) {
+    final bool hasShownCalendar =
+        prefs.getBool('hasShownCalendarTooltip') ?? false;
+    final bool hasShownGroup = prefs.getBool('hasShowGroupTooltip') ?? false;
+
+    if (!mounted) return;
+
+    if (!hasShownGroup) {
       _showTooltipOverlay();
-      await prefs.setBool('hasShownCalendarTooltip', true);
+    } else if (!hasShownGroup) {
+      _showGroupTooltipOverlay();
+      await prefs.setBool('hasShownGroupTooltip', true);
     }
   }
 
@@ -273,6 +280,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _hideFirstAndShowSecond() {
     _hideToolTip();
     _showSecondTooltipOverlay();
+  }
+
+  void _hideSecondAndShowGroup() async {
+    _hideToolTip();
+
+    _showGroupTooltipOverlay();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasShowGroupTooltip', true);
   }
 
   void _showSecondTooltipOverlay() {
@@ -417,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                   const SizedBox(width: 12),
                                   GestureDetector(
-                                    onTap: _hideToolTip,
+                                    onTap: _hideSecondAndShowGroup,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
@@ -451,6 +467,94 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
     );
   }
+
+  void _showGroupTooltipOverlay() {
+    _overlayEntry = _createGroupOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  OverlayEntry _createGroupOverlayEntry() {
+      return OverlayEntry(
+        builder:
+            (context) => Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              CompositedTransformFollower(
+                link: _routineLayerLink,
+                showWhenUnlinked: false,
+                offset: const Offset(-205, -365),
+                child: IntrinsicWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: CustomPaint(
+                          size: const Size(8, 10),
+                          painter: TrianglePainter(
+                            color: const Color(0xFF4E4E4E),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4E4E4E),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  "그룹 기능이 생겼어요!\n한 번 클릭해볼까요?",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontFamily: 'PretendardMedium',
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: _hideToolTip,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2A2A2A),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: const Text(
+                                      "확인",
+                                      style: TextStyle(
+                                        color: Color(0xFFE6E6E6),
+                                        fontSize: 12,
+                                        fontFamily: 'PretendardMedium',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
   void _handleWidgetClick(Uri? uri) {
     if (uri == null) return;

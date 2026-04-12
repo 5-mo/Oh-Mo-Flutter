@@ -7,7 +7,9 @@ import 'package:intl/intl.dart';
 import 'package:ohmo/component/group_routine_bottom_sheet.dart';
 import 'package:ohmo/const/colors.dart';
 import 'package:ohmo/db/drift_database.dart';
+import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/services/group_sse_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../component/color_palette_bottom_sheet.dart';
 import '../../component/delete_bottom_sheet.dart';
 import '../../component/group_routine_card.dart';
@@ -154,21 +156,29 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         List<CalendarEvent> dayEvents = [];
 
         final List<dynamic> noticesJson = dayData['notices'] ?? [];
-        dayEvents.addAll(noticesJson.map((nj) => CalendarEvent(
-          id: nj['id'] ?? nj['noticeId'] ?? 0,
-          content: nj['notice'] ?? '',
-          currentCompletion: 0,
-          requiredCompletion: 1,
-        )).toList());
-
+        dayEvents.addAll(
+          noticesJson
+              .map(
+                (nj) => CalendarEvent(
+                  id: nj['id'] ?? nj['noticeId'] ?? 0,
+                  content: nj['notice'] ?? '',
+                  currentCompletion: 0,
+                  requiredCompletion: 1,
+                ),
+              )
+              .toList(),
+        );
 
         if (dayData['isFullDone'] == true) {
-          dayEvents.insert(0, CalendarEvent(
-            id: -999,
-            content: '',
-            currentCompletion: 1,
-            requiredCompletion: 1,
-          ));
+          dayEvents.insert(
+            0,
+            CalendarEvent(
+              id: -999,
+              content: '',
+              currentCompletion: 1,
+              requiredCompletion: 1,
+            ),
+          );
         }
 
         tempEvents[dateOnly] = dayEvents;
@@ -856,17 +866,119 @@ class _NoticeSectionState extends State<NoticeSection> {
   List<Notice> _notices = [];
   DateTime? _selectedDate;
   int? _editingNoticeId;
+  final LayerLink _noticeLayerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
     super.initState();
     _fetchNotices();
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _showNoticeTooltip();
+    });
   }
 
   @override
   void dispose() {
+    _hideNoticeTooltip();
     _newNoticeController.dispose();
     super.dispose();
+  }
+
+  void _showNoticeTooltip() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool hasShown = prefs.getBool('hasShownNoticeTooltip') ?? false;
+
+    if (!hasShown && mounted) {
+      _overlayEntry = _createNoticeOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      await prefs.setBool('hasShownNoticeTooltip', true);
+    }
+  }
+
+  void _hideNoticeTooltip() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  OverlayEntry _createNoticeOverlayEntry() {
+    return OverlayEntry(
+      builder:
+          (context) => Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                CompositedTransformFollower(
+                  link: _noticeLayerLink,
+                  showWhenUnlinked: false,
+                  offset: const Offset(83, 30),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right:15),
+                          child: CustomPaint(
+                            size: const Size(10, 8),
+                            painter: TrianglePainter(
+                              color: const Color(0xFF4E4E4E).withOpacity(0.85),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4E4E4E).withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "공지를 등록해보세요!",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  height: 1.2,
+                                  fontFamily: 'PretendardMedium',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: _hideNoticeTooltip,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2A2A2A),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: const Text(
+                                    "확인",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
   }
 
   Future<void> _fetchNotices() async {
@@ -1028,7 +1140,10 @@ class _NoticeSectionState extends State<NoticeSection> {
           children: [
             Row(
               children: [
-                Text('Notice', style: titleTextStyle),
+                CompositedTransformTarget(
+                  link: _noticeLayerLink,
+                  child: Text('Notice', style: titleTextStyle),
+                ),
                 Spacer(),
                 InkWell(
                   borderRadius: BorderRadius.circular(20),

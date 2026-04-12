@@ -87,6 +87,8 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
   bool isChecked = false;
   final GroupService _groupService = GroupService();
   String? myNickname;
+  final LayerLink _textFieldLayerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -97,14 +99,115 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
       contentController.text = widget.todoToEdit!.content;
     }
     contentController.addListener(_onTextChanged);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _showMentionTooltip();
+      });
+    });
   }
 
   @override
   void dispose() {
+    _hideToolTip();
     contentController.removeListener(_onTextChanged);
     contentController.dispose();
     _contentFocusNode.dispose();
     super.dispose();
+  }
+
+  void _showMentionTooltip() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final bool hasShown = prefs.getBool('hasShownTodoMentionTooltip') ?? false;
+
+    if (!hasShown && mounted) {
+      _overlayEntry = _createMentionOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      await prefs.setBool('hasShownTodoMentionTooltip', true);
+    }
+  }
+
+  void _hideToolTip() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  OverlayEntry _createMentionOverlayEntry() {
+    return OverlayEntry(
+      builder:
+          (context) => Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                CompositedTransformFollower(
+                  link: _textFieldLayerLink,
+                  showWhenUnlinked: false,
+                  offset: const Offset(120, -20),
+                  child: IntrinsicWidth(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        CustomPaint(
+                          size: const Size(8, 10),
+                          painter: TodoMentionTrianglePainter(
+                            color: const Color(0xFF4E4E4E),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4E4E4E),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "멤버를 언급해서\n일정을 분담해보세요!",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontFamily: 'PretendardMedium',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: _hideToolTip,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2A2A2A),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: const Text(
+                                    "확인",
+                                    style: TextStyle(
+                                      color: Color(0xFFE6E6E6),
+                                      fontSize: 12,
+                                      fontFamily: 'PretendardMedium',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
   }
 
   void _onTextChanged() {
@@ -274,17 +377,20 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
             ],
           ),
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: ExtendedTextField(
-            controller: contentController,
-            focusNode: _contentFocusNode,
-            specialTextSpanBuilder: MentionTextSpanBuilder(),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              hintText: '내용을 입력하세요 (ex. @오모 발표자료 준비)',
+          child: CompositedTransformTarget(
+            link: _textFieldLayerLink,
+            child: ExtendedTextField(
+              controller: contentController,
+              focusNode: _contentFocusNode,
+              specialTextSpanBuilder: MentionTextSpanBuilder(),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText: '내용을 입력하세요 (ex. @오모 발표자료 준비)',
+              ),
+              style: TextStyle(fontSize: 14, color: Colors.black),
             ),
-            style: TextStyle(fontSize: 14, color: Colors.black),
           ),
         ),
       ],
@@ -544,4 +650,26 @@ class _GroupTodoBottomSheetState extends State<GroupTodoBottomSheet> {
       ),
     );
   }
+}
+
+class TodoMentionTrianglePainter extends CustomPainter {
+  final Color color;
+
+  TodoMentionTrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path();
+
+    path.moveTo(size.width, 0);
+    path.lineTo(0, size.height / 2);
+    path.lineTo(size.width, size.height);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
