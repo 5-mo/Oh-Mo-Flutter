@@ -314,21 +314,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ],
         ),
       ),
-      onTap: () {
+      onTap: () async {
         if (item.type == 'invitation' && item.relatedId != null) {
-          showDialog(
+          if (item.content.contains('입장했습니다')) {
+            return;
+          }
+          final parts = item.content.split("'");
+          String groupName = parts.length > 1 ? parts[1] : '초대된 그룹';
+
+          final bool? result = await showDialog<bool>(
             context: context,
-            barrierDismissible: false,
-            builder:
-                (context) => InvitationPopup(
-                  invitationId: item.relatedId ?? 0,
-                  groupId: item.relatedId ?? 0,
-                  groupName:
-                      item.content.split("'")[1].isNotEmpty
-                          ? item.content.split("'")[1]
-                          : '초대된 그룹',
-                ),
+            barrierDismissible: true,
+            builder: (context) => InvitationPopup(
+              invitationId: item.relatedId!,
+              groupId: item.relatedId!,
+              groupName: groupName,
+            ),
           );
+
+          if (result == true) {
+            await _db.deleteNotificationById(item.id);
+          }
         }
       },
     );

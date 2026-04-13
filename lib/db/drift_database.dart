@@ -742,6 +742,19 @@ class LocalDatabase extends _$LocalDatabase {
 
   // ------------------ Notification ------------------
 
+  Future<int> deleteNotificationById(int id) {
+    return (delete(notifications)..where((n) => n.id.equals(id))).go();
+  }
+
+  Future<void> deleteInvitationNotificationByGroupName(String groupName) async {
+    await (delete(notifications)..where(
+      (n) =>
+          n.type.equals('invitation') &
+          n.content.like('%$groupName%') &
+          n.content.like('%입장했습니다%').not(),
+    )).go();
+  }
+
   Future<int> insertNotification(NotificationsCompanion entry) {
     return into(notifications).insert(entry);
   }

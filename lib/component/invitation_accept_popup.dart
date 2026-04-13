@@ -45,12 +45,8 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
       final detail = await groupService.getGroupDetail(widget.groupId);
       final memberResult = await groupService.fetchGroupMembers(widget.groupId);
 
-      print("서버 응답 상세: $detail");
-      print("서버 응답 멤버: $memberResult");
-
       if (mounted) {
         setState(() {
-
           _groupName = detail?['groupName'] ?? widget.groupName;
           _groupColor = detail?['groupColor'];
 
@@ -70,7 +66,7 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(37)),
 
-      contentPadding: EdgeInsets.fromLTRB(32.0, 20, 32.0, 5.0),
+      contentPadding: EdgeInsets.fromLTRB(32.0, 30, 32.0, 15),
       content:
           _isLoading
               ? Container(
@@ -165,25 +161,23 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
   Widget _buildCheckInvitationButton() {
     return GestureDetector(
       onTap: () async {
-        final success = await GroupService().acceptInvitation(
-          widget.invitationId,
-        );
+        final success = await GroupService().acceptInvitation(widget.invitationId);
         if (success) {
           final localDb = db.LocalDatabaseSingleton.instance;
 
+          await localDb.deleteInvitationNotificationByGroupName(widget.groupName);
+
           await localDb.insertNotification(
-            db.NotificationsCompanion(
-              type: drift.Value('invitation'),
-              content: drift.Value("'${widget.groupName}' 그룹에 입장했습니다."),
-              timestamp: drift.Value(DateTime.now()),
+            db.NotificationsCompanion.insert(
+              type: 'invitation',
+              content: "'${widget.groupName}' 그룹에 입장했습니다.",
+              timestamp: DateTime.now(),
               relatedId: drift.Value(widget.groupId),
-              isRead: drift.Value(true),
+              isRead: const drift.Value(true),
             ),
           );
-        }
 
-        if (mounted) {
-          Navigator.pop(context, true);
+          if (mounted) Navigator.of(context).pop(true);
         }
       },
       child: Container(
@@ -210,11 +204,11 @@ class _InvitationAcceptPopupState extends State<InvitationAcceptPopup> {
   Widget _buildLaterButton() {
     return GestureDetector(
       onTap: () async {
-        final success = await GroupService().rejectInvitation(
-          widget.invitationId,
-        );
-        if (success && mounted) {
-          Navigator.of(context).pop();
+        final success = await GroupService().rejectInvitation(widget.invitationId);
+        if (success) {
+          await db.LocalDatabaseSingleton.instance.deleteInvitationNotificationByGroupName(widget.groupName);
+
+          if (mounted) Navigator.of(context).pop(true);
         }
       },
       child: Container(

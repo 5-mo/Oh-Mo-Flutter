@@ -52,9 +52,8 @@ class _InvitationPopupState extends State<InvitationPopup> {
 
   Widget _buildCheckInvitationButton() {
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).pop();
-        showDialog(
+      onTap: () async {
+        final bool? result = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder:
@@ -64,6 +63,10 @@ class _InvitationPopupState extends State<InvitationPopup> {
                 groupName: widget.groupName,
               ),
         );
+
+        if (mounted && result == true) {
+          Navigator.of(context).pop(true);
+        }
       },
       child: Container(
         width: 239,

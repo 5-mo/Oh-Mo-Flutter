@@ -199,8 +199,8 @@ class _MyScreenState extends State<MyScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildNotionButton(context),
-                        SizedBox(height: 20.0),
+                       /* _buildNotionButton(context),
+                        SizedBox(height: 20.0),*/
                         _buildCategoryManaging(context),
                         if (_isDiaryVisible) ...[
                           SizedBox(height: 15.0),
