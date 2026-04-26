@@ -79,6 +79,34 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Future<void> _loadAllData() async {
+    final fetchedRoutines = await _repository.fetchCategories(scheduleType: 'ROUTINE');
+    final fetchedTodos = await _repository.fetchCategories(scheduleType: 'TO_DO');
+    final localQuestions = await _repository.fetchDayLogQuestions();
+
+    final isRoutineVisible = await RoutineVisibilityHelper.getVisibility();
+    final isTodoVisible = await TodoVisibilityHelper.getVisibility();
+    final isDaylogVisible = await QuestionVisibilityHelper.getVisibility();
+    final isDiaryVisible = await DiaryVisibilityHelper.getVisibility();
+    final isGroupVisible = await GroupVisibilityHelper.getVisibility();
+
+    if (mounted) {
+      setState(() {
+        routines = fetchedRoutines.where((c) => c.categoryName != 'default').toList();
+        todos = fetchedTodos.where((c) => c.categoryName != 'default').toList();
+        daylogQuestions = localQuestions; // 질문 즉시 반영
+
+        if (routines.isNotEmpty) {
+          selectedCategoryId = routines.first.id;
+        }
+
+        _isRoutineDeleted = !isRoutineVisible;
+        _isTodoDeleted = !isTodoVisible;
+        _isDaylogDeleted = !isDaylogVisible;
+        _isDiaryDeleted = !isDiaryVisible;
+        _isGroupDeleted = !isGroupVisible;
+      });
+    }
+
     final currentLocalQuestions = await _repository.fetchDayLogQuestions();
     final dayLogService = DayLogService();
     final serverQuestions = await dayLogService.getQuestions();
@@ -116,15 +144,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
         await _repository.fetchDayLogQuestions();
 
     // ------------------ 루틴 & 투두 로직 ------------------
-    final fetchedRoutines = await _repository.fetchCategories(
-      scheduleType: 'ROUTINE',
-    );
+
     final filteredRoutines =
         fetchedRoutines.where((c) => c.categoryName != 'default').toList();
 
-    final fetchedTodos = await _repository.fetchCategories(
-      scheduleType: 'TO_DO',
-    );
     final filteredTodos =
         fetchedTodos.where((c) => c.categoryName != 'default').toList();
 
@@ -209,11 +232,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
       }),
     );
 
-    final isRoutineVisible = await RoutineVisibilityHelper.getVisibility();
-    final isTodoVisible = await TodoVisibilityHelper.getVisibility();
-    final isDaylogVisible = await QuestionVisibilityHelper.getVisibility();
-    final isDiaryVisible = await DiaryVisibilityHelper.getVisibility();
-    final isGroupVisible = await GroupVisibilityHelper.getVisibility();
 
     if (mounted) {
       setState(() {
@@ -561,9 +579,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                                   _selectedColorType.name
                                                       .toUpperCase(),
                                               scheduleType: 'ROUTINE',
-                                            );
+                                            ).timeout(const Duration(seconds: 2));
 
-                                        if (serverId == null) isSynced = true;
+                                        if (serverId != null) isSynced = true;
                                       } catch (e) {
                                         print("서버 저장 실패 : $e");
                                       }
@@ -854,20 +872,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                                   _selectedColorType.name
                                                       .toUpperCase(),
                                               scheduleType: "TO_DO",
-                                            );
+                                            ).timeout(const Duration(seconds: 2));
 
                                         if (serverId != null) {
                                           isSynced = true;
-                                        } else {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                "서버 저장 실패. 오프라인으로 저장합니다.",
-                                              ),
-                                            ),
-                                          );
                                         }
                                       } catch (e) {
                                         print("서버 에러: $e");
