@@ -15,8 +15,7 @@ import 'package:ohmo/models/profile_data_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/notification_service.dart';
 import 'db/drift_database.dart' as db;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../services/auth_service.dart';
+import 'services/auth_service.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -101,33 +100,28 @@ void main() async {
   final callbackHandle = PluginUtilities.getCallbackHandle(backgroundMain);
 
   final prefs = await SharedPreferences.getInstance();
-  final storage = await FlutterSecureStorage();
-
-  String? savedEmail = await storage.read(key: 'userEmail');
-  String? savedPassword = await storage.read(key: 'userPassword');
 
   final profileData = ProfileData();
 
-  if (savedEmail != null && savedPassword != null) {
-    final response = await AuthService.login(savedEmail, savedPassword);
+  final newToken = await AuthService.refreshToken();
+  if (newToken != null) {
+    final savedEmail = prefs.getString('userEmail') ?? '';
+    final savedNickname = prefs.getString('userNickname') ?? '';
+    profileData.setGeustMode(false);
+    profileData.updateProfile(
+      updateEmail: savedEmail,
+      updateNickname: savedNickname,
+    );
 
-    if (response != null) {
-      profileData.setGeustMode(false);
-      profileData.updateProfile(
-        updateEmail: savedEmail,
-        updateNickname: response['nickname'],
-      );
-
-      String? fcmToken = await FirebaseMessaging.instance.getToken();
-      if (fcmToken != null) {
-        final memberService = MemberService();
-        await memberService.updateFcmToken(fcmToken);
-        print("FCM Token 등록 성공 : $fcmToken");
-      }
-      await WidgetUpdater.update();
-    } else {
-      profileData.setGeustMode(true);
+    String? fcmToken = await FirebaseMessaging.instance.getToken();
+    if (fcmToken != null) {
+      final memberService = MemberService();
+      await memberService.updateFcmToken(fcmToken);
+      print("FCM Token 등록 성공 : $fcmToken");
     }
+    await WidgetUpdater.update();
+  } else {
+    profileData.setGeustMode(true);
   }
   await prefs.setInt(
     'background_callback_handle',

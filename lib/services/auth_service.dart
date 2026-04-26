@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http_parser/http_parser.dart';
+import '../const/app_config.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://3.36.161.109:8080';
+  static const String baseUrl = AppConfig.baseUrl;
+  static const _storage = FlutterSecureStorage();
 
   // 회원가입
   static Future<String?> signup(
@@ -84,9 +87,9 @@ class AuthService {
         final refreshToken = tokenData['refreshToken'] ?? '';
 
         if (accessToken.isNotEmpty) {
+          await _storage.write(key: 'accessToken', value: accessToken);
+          await _storage.write(key: 'refreshToken', value: refreshToken);
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('accessToken', accessToken);
-          await prefs.setString('refreshToken', refreshToken);
           await prefs.setString('userEmail', email);
           if (result['nickname'] != null) {
             await prefs.setString('userNickname', result['nickname']);
@@ -108,10 +111,9 @@ class AuthService {
 
   // 액세스 토큰 재발급
   static Future<String?> refreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
+    final storedRefreshToken = await _storage.read(key: 'refreshToken');
 
-    if (refreshToken == null) {
+    if (storedRefreshToken == null) {
       print('리프레시 토큰 없음');
       return null;
     }
@@ -122,7 +124,7 @@ class AuthService {
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
+        body: jsonEncode({'refreshToken': storedRefreshToken}),
       ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
@@ -134,10 +136,10 @@ class AuthService {
           final newAccessToken = tokenData['accessToken'];
           final newRefreshToken = tokenData['refreshToken'];
 
-          await prefs.setString('accessToken', newAccessToken);
+          await _storage.write(key: 'accessToken', value: newAccessToken);
 
           if (newRefreshToken != null) {
-            await prefs.setString('refreshToken', newRefreshToken);
+            await _storage.write(key: 'refreshToken', value: newRefreshToken);
           }
           print('토큰 재발급 성공!');
           return newAccessToken;
@@ -157,8 +159,7 @@ class AuthService {
 
   //로그아웃
   static Future<bool> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
+    final accessToken = await _storage.read(key: 'accessToken');
     final url = Uri.parse('$baseUrl/api/member/logout');
 
     try {
@@ -175,8 +176,9 @@ class AuthService {
       final decodeBody = utf8.decode(response.bodyBytes);
       final data = jsonDecode(decodeBody);
 
-      await prefs.remove('accessToken');
-      await prefs.remove('refreshToken');
+      await _storage.delete(key: 'accessToken');
+      await _storage.delete(key: 'refreshToken');
+      final prefs = await SharedPreferences.getInstance();
       await prefs.remove('userEmail');
       await prefs.remove('userNickname');
 
@@ -189,16 +191,15 @@ class AuthService {
       }
     } catch (e) {
       print('로그아웃 중 오류 발생 : $e');
-      await prefs.remove('accessToken');
-      await prefs.remove('refreshToken');
+      await _storage.delete(key: 'accessToken');
+      await _storage.delete(key: 'refreshToken');
       return false;
     }
   }
 
   // 회원탈퇴
   static Future<bool> withdraw() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
+    final accessToken = await _storage.read(key: 'accessToken');
     final url = Uri.parse('$baseUrl/api/member/withdraw');
 
     try {
@@ -220,8 +221,9 @@ class AuthService {
 
       if (response.statusCode == 200 && data['isSuccess'] == true) {
         print('회원 탈퇴 성공');
-        await prefs.remove('accessToken');
-        await prefs.remove('refreshToken');
+        await _storage.delete(key: 'accessToken');
+        await _storage.delete(key: 'refreshToken');
+        final prefs = await SharedPreferences.getInstance();
         await prefs.remove('userEmail');
         await prefs.remove('userNickname');
         return true;
@@ -240,8 +242,7 @@ class AuthService {
     String oldPassword,
     String newPassword,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
+    final accessToken = await _storage.read(key: 'accessToken');
     final url = Uri.parse('$baseUrl/api/member/password');
 
     try {
@@ -277,8 +278,7 @@ class AuthService {
   static Future<http.Response> authenticatedRequest(
     Future<http.Response> Function(String token) requestFn,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('accessToken');
+    String? token = await _storage.read(key: 'accessToken');
 
     var response = await requestFn(token ?? '');
 

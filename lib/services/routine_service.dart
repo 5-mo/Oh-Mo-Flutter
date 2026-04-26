@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 import '../models/routine.dart';
+import '../const/app_config.dart';
 
 class RoutineService {
-  final String baseUrl = 'http://3.36.161.109:8080';
+  final String baseUrl = AppConfig.baseUrl;
 
   Future<List<Routine>> getRoutines(DateTime date, String token) async {
     final formattedDate = date.toIso8601String().split('T').first;

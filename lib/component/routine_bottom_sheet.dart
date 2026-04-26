@@ -1254,8 +1254,12 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
     final categoryRepo = LocalCategoryRepository(localDb);
     final categoryService = CategoryService();
 
+    List<CategoryItem> localCategories = await categoryRepo.fetchCategories(
+      scheduleType: 'ROUTINE',
+    );
+
     try {
-      final serverCategories = await categoryService.getCategories('ROUTINE');
+      final serverCategories = await categoryService.getCategories('ROUTINE').timeout(const Duration(seconds: 2));
       final currentLocalCategories = await categoryRepo.fetchCategories(
         scheduleType: 'ROUTINE',
       );

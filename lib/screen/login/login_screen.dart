@@ -9,12 +9,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/profile_data_provider.dart';
 import '../../services/auth_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/services.dart';
 
 import '../password/password_email_screen.dart';
-
-final _storage = FlutterSecureStorage();
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -283,29 +280,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (response != null) {
           try {
-            await _storage.write(key: 'userEmail', value: email);
-            await _storage.write(key: 'userPassword', value: password);
-
             TextInput.finishAutofillContext();
           } catch (e) {
-            print('Keychain 저장 에러 : $e');
+            print('Autofill 에러 : $e');
           }
           print('로그인 성공');
-
-          final prefs = await SharedPreferences.getInstance();
-
-          String? accessToken;
-          if (response['token'] != null && response['token'] is Map) {
-            accessToken = response['token']['accessToken'];
-          }
-
-          if (accessToken != null) {
-            await prefs.setString('accessToken', accessToken);
-            await prefs.setString('userEmail', email);
-            print('토큰 저장 완료: $accessToken');
-          } else {
-            print('경고: 응답 데이터에서 accessToken을 찾을 수 없습니다.');
-          }
 
           final profile = Provider.of<ProfileData>(context, listen: false);
 

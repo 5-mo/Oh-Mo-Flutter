@@ -253,17 +253,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _showInitialTooltip() async {
     final prefs = await SharedPreferences.getInstance();
 
+    final profile = Provider.of<ProfileData>(context, listen: false);
+
     final bool hasShownCalendar =
         prefs.getBool('hasShownCalendarTooltip') ?? false;
     final bool hasShownGroup = prefs.getBool('hasShowGroupTooltip') ?? false;
 
     if (!mounted) return;
 
-    if (!hasShownGroup) {
+    if (!hasShownCalendar) {
       _showTooltipOverlay();
-    } else if (!hasShownGroup) {
+      await prefs.setBool('hasShownCalendarTooltip', true);
+    }
+    else if (!profile.isGuest && !hasShownGroup) {
       _showGroupTooltipOverlay();
-      await prefs.setBool('hasShownGroupTooltip', true);
+      await prefs.setBool('hasShowGroupTooltip', true);
     }
   }
 
@@ -285,10 +289,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _hideSecondAndShowGroup() async {
     _hideToolTip();
 
-    _showGroupTooltipOverlay();
-
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('hasShowGroupTooltip', true);
+    final profile = Provider.of<ProfileData>(context, listen: false);
+
+    if (!profile.isGuest) {
+      _showGroupTooltipOverlay();
+      await prefs.setBool('hasShowGroupTooltip', true);
+    } else {
+      await prefs.setBool('hasShowGroupTooltip', true);
+    }
   }
 
   void _showSecondTooltipOverlay() {
@@ -1500,6 +1509,17 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                           onDataChanged: widget.onDataChanged,
 
                                           onStatusChanged: () async {
+                                            final localDb = db.LocalDatabaseSingleton.instance;
+                                            final profile = Provider.of<ProfileData>(context, listen: false);
+                                            final newIsDone = !routine.isDone;
+
+                                            await localDb.updateTodo(
+                                              db.TodosCompanion(
+                                                id: Value(routine.id),
+                                                isDone: Value(newIsDone),
+                                                isSynced: const Value(false),
+                                              ),
+                                            );
                                             widget.onDataChanged?.call();
                                           },
 
@@ -1621,7 +1641,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                       await todoService
                                                           .toggleTodoStatus(
                                                             serverId,
-                                                          );
+                                                          ).timeout(const Duration(seconds: 2));
 
                                                   if (serverResult != null) {
                                                     await localDb.updateTodo(

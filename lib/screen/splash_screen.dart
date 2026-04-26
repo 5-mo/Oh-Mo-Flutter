@@ -32,16 +32,24 @@ class _SplashState extends State<Splash> {
   }
 
   Future<void> _checkToken() async {
-    final token = await AuthService.refreshToken();
+    try {
+      final token = await AuthService.refreshToken().timeout(
+        const Duration(seconds: 5),
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (token != null) {
+      if (token != null) {
+        _navigateToMain();
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
       _navigateToMain();
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 

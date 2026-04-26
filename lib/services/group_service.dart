@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
+import '../const/app_config.dart';
 
 class GroupService {
-  static const String baseUrl = 'http://3.36.161.109:8080/api';
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
   Future<Map<String, dynamic>> createGroup({
     required String groupName,

@@ -717,8 +717,12 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     final categoryRepo = LocalCategoryRepository(localDb);
     final categoryService = CategoryService();
 
+    List<CategoryItem> localCategories = await categoryRepo.fetchCategories(
+      scheduleType: 'TO_DO',
+    );
+
     try {
-      final serverCategories = await categoryService.getCategories('TO_DO');
+      final serverCategories = await categoryService.getCategories('TO_DO').timeout(const Duration(seconds: 2));
       final currentLocalCategories = await categoryRepo.fetchCategories(
         scheduleType: 'TO_DO',
       );

@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../const/app_config.dart';
 
 class GroupSseService {
   final Dio _dio = Dio();
-  final String baseUrl = 'http://3.36.161.109:8080/api';
+  final String baseUrl = AppConfig.apiBaseUrl;
+  static const _storage = FlutterSecureStorage();
 
   Stream<String> subscribeGroup(int groupId) async* {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
+    final token = await _storage.read(key: 'accessToken');
 
     if (token == null) {
       print("[SSE] 토큰이 없어 연결을 시작할 수 없습니다.");

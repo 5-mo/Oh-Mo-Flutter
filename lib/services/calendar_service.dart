@@ -4,9 +4,10 @@ import 'package:ohmo/services/auth_service.dart';
 import '../models/monthly_schedule_response.dart';
 import '../models/daily_schedule_response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../const/app_config.dart';
 
 class CalendarService {
-  static const String baseUrl = 'http://3.36.161.109:8080';
+  static const String baseUrl = AppConfig.baseUrl;
 
   Future<DailyScheduleResponse> getDailySchedule(String date) async {
     final uri = Uri.parse(

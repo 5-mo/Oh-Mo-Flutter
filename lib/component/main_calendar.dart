@@ -105,7 +105,7 @@ class _MainCalendarState extends State<MainCalendar> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (widget.onGroupIconPressed != null)
+                  /*if (widget.onGroupIconPressed != null)
                     Transform.translate(
                       offset: const Offset(18, 0),
                       child: IconButton(
@@ -118,7 +118,7 @@ class _MainCalendarState extends State<MainCalendar> {
                           height: widget.groupIconSize ?? 23,
                         ),
                       ),
-                    ),
+                    ),*/
                   if (widget.onAlarmIconPressed != null)
                     Builder(
                       builder: (context) {

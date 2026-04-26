@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 import '../models/todo.dart';
+import '../const/app_config.dart';
 
 class TodoService {
-  final String baseUrl = 'http://3.36.161.109:8080';
+  final String baseUrl = AppConfig.baseUrl;
 
   Future<List<Todo>> getTodos(DateTime date, String token) async {
     final formattedDate = date.toIso8601String().split('T').first;
