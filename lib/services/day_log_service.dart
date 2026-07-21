@@ -16,7 +16,7 @@ class DayLogService {
 
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.post(
+            (token) => http.post(
           url,
           headers: {
             'Authorization': 'Bearer $token',
@@ -25,6 +25,8 @@ class DayLogService {
           body: jsonEncode(bodyMap),
         ),
       );
+
+      print('📤 [이모지 서버 전송] 상태 코드: ${response.statusCode} | 바디: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
@@ -42,7 +44,7 @@ class DayLogService {
     final url = Uri.parse('$baseUrl/api/day-log/emoji?date=$date');
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
+            (token) => http.get(
           url,
           headers: {
             'Authorization': 'Bearer $token',
@@ -51,11 +53,21 @@ class DayLogService {
         ),
       );
 
+      print('📥 [이모지 서버 조회 응답] 날짜: $date | 상태 코드: ${response.statusCode} | 바디: ${response.body}');
+
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        if (jsonResponse['isSuccess'] == true &&
-            jsonResponse['result'] != null) {
-          return jsonResponse['result']['emoji'];
+
+        if (jsonResponse['isSuccess'] == true && jsonResponse['result'] != null) {
+          final resultData = jsonResponse['result'];
+
+          if (resultData['emoji'] != null) {
+            final String serverEmoji = resultData['emoji'].toString().trim();
+
+            if (serverEmoji.isNotEmpty && serverEmoji != "null") {
+              return serverEmoji;
+            }
+          }
         }
       }
       return null;
@@ -164,7 +176,7 @@ class DayLogService {
     final url = Uri.parse('$baseUrl/api/question/answer?date=$date');
     try {
       final response = await AuthService.authenticatedRequest(
-        (token) => http.get(
+            (token) => http.get(
           url,
           headers: {
             'Authorization': 'Bearer $token',
@@ -181,10 +193,11 @@ class DayLogService {
       }
       return null;
     } catch (e) {
-      print('[문답 조회 오류 : $e');
+      print('[문답 조회 오류]: $e');
       return null;
     }
   }
+
   Future<dynamic> updateQuestion({
     required int questionId,
     required String questionContent,

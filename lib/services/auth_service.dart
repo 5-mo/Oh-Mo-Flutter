@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http_parser/http_parser.dart';
 import '../const/app_config.dart';
+import '../db/drift_database.dart';
 
 class AuthService {
   static const String baseUrl = AppConfig.baseUrl;
@@ -89,6 +90,7 @@ class AuthService {
         if (accessToken.isNotEmpty) {
           await _storage.write(key: 'accessToken', value: accessToken);
           await _storage.write(key: 'refreshToken', value: refreshToken);
+          print(accessToken);
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userEmail', email);
           if (result['nickname'] != null) {
@@ -121,11 +123,13 @@ class AuthService {
     final url = Uri.parse('$baseUrl/api/member/reissue');
 
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': storedRefreshToken}),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': storedRefreshToken}),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final decodeBody = utf8.decode(response.bodyBytes);
@@ -181,6 +185,8 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('userEmail');
       await prefs.remove('userNickname');
+
+      await LocalDatabaseSingleton.instance.clearAllDataExceptQuestions();
 
       if (response.statusCode == 200 && data['isSuccess'] == true) {
         print('서버 로그아웃 성공');

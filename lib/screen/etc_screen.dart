@@ -91,7 +91,6 @@ class _EtcScreenState extends State<EtcScreen> {
     );
   }
 
-
   Widget _buildEtcHeader() {
     return Text(
       '기타',
@@ -435,6 +434,10 @@ class _EtcScreenState extends State<EtcScreen> {
                       await AuthService.logout();
 
                       if (context.mounted) {
+                        Provider.of<ProfileData>(
+                          context,
+                          listen: false,
+                        ).reset();
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
@@ -464,7 +467,7 @@ class _EtcScreenState extends State<EtcScreen> {
 
   Widget _buildVersion() {
     return Text(
-      '버전 1.0.5',
+      '버전 1.0.4',
       style: TextStyle(
         fontFamily: 'PretendardRegular',
         fontSize: 10.5,

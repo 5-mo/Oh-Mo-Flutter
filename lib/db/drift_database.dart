@@ -68,6 +68,26 @@ class LocalDatabase extends _$LocalDatabase {
   @override
   int get schemaVersion => 8;
 
+  Future<void> clearAllDataExceptQuestions() async {
+    await delete(todos).go();
+    await delete(routines).go();
+    await delete(dayLogs).go();
+    await delete(categories).go();
+    await delete(completedTodos).go();
+    await delete(completedRoutines).go();
+    await delete(notices).go();
+    await delete(groups).go();
+    await delete(groupMembers).go();
+    await delete(notifications).go();
+    await (delete(dayLogQuestions)..where(
+            (q) => q.question.isNotIn(['오늘의 소비는?', '오늘의 내가 감사했던 일은?'])
+    )).go();
+
+    await (update(dayLogQuestions)..where(
+            (q) => q.question.isIn(['오늘의 소비는?', '오늘의 내가 감사했던 일은?'])
+    )).write(DayLogQuestionsCompanion(serverId: Value(null)));
+  }
+
   Future<void> clearAllData() async {
     await transaction(() async {
       await delete(todos).go();
@@ -959,12 +979,14 @@ class LocalDatabase extends _$LocalDatabase {
     final dayLogService = DayLogService();
     final localQuestions = await select(dayLogQuestions).get();
     final serverQuestionsResponse = await dayLogService.getQuestions();
+
     Set<String> serverContents = {};
     if (serverQuestionsResponse != null) {
       for (var sq in serverQuestionsResponse) {
         serverContents.add((sq['questionContent'] ?? '').trim());
       }
     }
+
     for (var lq in localQuestions) {
       if (!serverContents.contains(lq.question.trim())) {
         await dayLogService.registerQuestion(
@@ -973,8 +995,12 @@ class LocalDatabase extends _$LocalDatabase {
         );
       }
     }
-    final allLogs = await select(dayLogs).get();
+
     final finalServerQuestions = await dayLogService.getQuestions();
+    if (finalServerQuestions == null) return;
+
+    final allLogs = await select(dayLogs).get();
+
     for (var log in allLogs) {
       final dateStr = DateFormat('yyyy-MM-dd').format(log.date);
       try {
@@ -982,9 +1008,11 @@ class LocalDatabase extends _$LocalDatabase {
           await dayLogService.registerEmoji(date: dateStr, emoji: log.emotion!);
         if (log.diary != null && log.diary!.isNotEmpty)
           await dayLogService.registerDiary(date: dateStr, content: log.diary!);
-        if (log.answerMapJson != null && finalServerQuestions != null) {
+
+        if (log.answerMapJson != null) {
           final Map<String, dynamic> answers = jsonDecode(log.answerMapJson!);
           for (var entry in answers.entries) {
+            if (entry.value.toString().trim().isEmpty) continue;
             try {
               final target = finalServerQuestions.firstWhere((sq) {
                 final String qContent = sq['questionContent'] ?? '';
@@ -998,6 +1026,7 @@ class LocalDatabase extends _$LocalDatabase {
                 answer: entry.value.toString(),
                 date: dateStr,
               );
+              print('[답변 동기화 성공] ${entry.key}: ${entry.value}');
             } catch (e) {
               print('질문 매칭 실패: ${entry.key}');
             }

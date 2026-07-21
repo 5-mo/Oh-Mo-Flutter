@@ -297,7 +297,6 @@ class _LoginScreenState extends State<LoginScreen> {
           final db = LocalDatabaseSingleton.instance;
 
           try {
-            await db.clearAllData();
             await db.syncCategoriesToServer();
 
             await Future.delayed(const Duration(milliseconds: 500));

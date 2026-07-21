@@ -10,6 +10,8 @@ import 'package:ohmo/db/drift_database.dart';
 import 'package:ohmo/screen/home_screen.dart';
 import 'package:ohmo/services/group_sse_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt_pkg;
+import '../../component/ai_todo_bottom_sheet.dart';
 import '../../component/color_palette_bottom_sheet.dart';
 import '../../component/delete_bottom_sheet.dart';
 import '../../component/group_routine_card.dart';
@@ -80,12 +82,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   String? _myNickname;
   bool _isLoading = true;
 
+  late var _isInputVisible = false;
+  final TextEditingController _aiInputController = TextEditingController();
+
+  final stt_pkg.SpeechToText _speechToText = stt_pkg.SpeechToText();
+  bool _sttAvailable = false;
+
   @override
   void initState() {
     super.initState();
     _db = LocalDatabaseSingleton.instance;
     _fetchInitialData();
+    _initSpeech();
     //_startSseSubscription();
+  }
+
+  Future<void> _initSpeech() async {
+    _sttAvailable = await _speechToText.initialize();
   }
 
   Future<void> _fetchInitialData() async {
@@ -107,6 +120,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   @override
   void dispose() {
     // _sseSubscription?.cancel();
+    _aiInputController.dispose();
     super.dispose();
   }
 
@@ -143,6 +157,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       Map<DateTime, List<CalendarEvent>> tempEvents = {};
 
       for (var dayData in monthlyData) {
+        print('[월별원본] date=${dayData['date']} isFullDone=${dayData['isFullDone']}');
         final String? dateStr = dayData['date'];
         if (dateStr == null) continue;
 
@@ -154,6 +169,17 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         );
 
         List<CalendarEvent> dayEvents = [];
+
+        if (dayData['isFullDone'] == true) {
+          dayEvents.add(
+            CalendarEvent(
+              id: -999,
+              content: '',
+              currentCompletion: 1,
+              requiredCompletion: 1,
+            ),
+          );
+        }
 
         final List<dynamic> noticesJson = dayData['notices'] ?? [];
         dayEvents.addAll(
@@ -168,25 +194,19 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               )
               .toList(),
         );
-
-        if (dayData['isFullDone'] == true) {
-          dayEvents.insert(
-            0,
-            CalendarEvent(
-              id: -999,
-              content: '',
-              currentCompletion: 1,
-              requiredCompletion: 1,
-            ),
-          );
-        }
-
+        print(
+          '[월별] $dateOnly -> isFullDone=${dayData['isFullDone']}, eventCount=${dayEvents.length}',
+        );
         tempEvents[dateOnly] = dayEvents;
       }
 
       if (mounted) {
         setState(() {
           _eventsCache = tempEvents;
+          print(
+            '[캐시 갱신 완료] 총 ${_eventsCache.length}일치, -999 포함 일수: '
+            '${_eventsCache.values.where((list) => list.any((e) => e.id == -999)).length}',
+          );
         });
       }
     } catch (e) {
@@ -207,13 +227,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
     final localGroup = await _db.getGroupById(widget.groupId);
 
-    final serverColor = group['groupColor'];
     ColorType colorToApply;
 
-    if (serverColor != null) {
-      colorToApply = ColorTypeExtension.fromString(serverColor);
-    } else if (localGroup?.localColor != null) {
+    if (localGroup?.localColor != null) {
       colorToApply = ColorTypeExtension.fromString(localGroup!.localColor!);
+    } else if (group['groupColor'] != null) {
+      colorToApply = ColorTypeExtension.fromString(group['groupColor']);
     } else {
       colorToApply = ColorType.pinkLight;
     }
@@ -493,7 +512,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         return false;
       },
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           surfaceTintColor: Colors.white,
           leading: IconButton(
@@ -504,6 +523,38 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           elevation: 0,
         ),
         backgroundColor: ColorManager.getColor(_currentColor),
+        floatingActionButton:
+            _isInputVisible
+                ? null
+                : FloatingActionButton(
+                  onPressed: () {
+                    setState(() => _isInputVisible = true);
+                  },
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'android/assets/images/ohmo_icon.png',
+                        width: 60,
+                        height: 60,
+                      ),
+                    ),
+                  ),
+                ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
         body: SafeArea(
           child: Stack(
             children: [
@@ -532,6 +583,148 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                   ),
                 ),
               ),
+              if (_isInputVisible)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 10,
+                  child: SafeArea(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(27),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 0),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 40,
+                              padding: const EdgeInsets.only(
+                                left: 15,
+                                right: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(27),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.4),
+                                    spreadRadius: 1,
+                                    blurRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _aiInputController,
+                                      autofocus: false,
+                                      decoration: InputDecoration(
+                                        hintText: '오모에게 오늘 자료조사 해달라고 해줘',
+                                        hintStyle: TextStyle(
+                                          color: Color(0xFF525252),
+                                          fontFamily: 'PretendardSemiBold',
+                                          fontSize: 14,
+                                        ),
+                                        border: InputBorder.none,
+                                        isCollapsed: true,
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'PretendardSemiBold',
+                                      ),
+                                      onTapOutside: (_) {
+                                        setState(() => _isInputVisible = false);
+                                        _aiInputController.clear();
+                                      },
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder:
+                                            (context) => AITodoBottomSheet(
+                                              speechToText: _speechToText,
+                                              isAvailable: _sttAvailable,
+                                              groupId: widget.groupId,
+                                            ),
+                                      );
+                                      if (mounted)
+                                        await _refreshAllData(selectedDate);
+                                    },
+                                    child: SizedBox(
+                                      width: 42,
+                                      height: 42,
+                                      child: Center(
+                                        child: SvgPicture.asset(
+                                          'android/assets/images/mic_icon.svg',
+                                          width: 26,
+                                          height: 26,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () {
+                              _aiInputController.clear();
+                              setState(() => _isInputVisible = false);
+                            },
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 0),
+                                  ),
+                                  const BoxShadow(
+                                    color: Colors.white,
+                                    blurRadius: 50,
+                                    offset: Offset(0, 0),
+                                  ),
+                                ],
+                              ),
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                onPressed: () {
+                                  _aiInputController.clear();
+                                  setState(() => _isInputVisible = false);
+                                },
+                                icon: SvgPicture.asset(
+                                  'android/assets/images/arrow_icon.svg',
+                                  width: 15,
+                                  height: 15,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
               if (_isLoading)
                 Center(
                   child: CircularProgressIndicator(
@@ -575,6 +768,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 onColorChanged: (newColor) {
                   setState(() {
                     _currentColor = newColor;
+                    _needsRefresh = true;
                   });
                 },
               ),
@@ -618,7 +812,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             onDaySelected: onDaySelected,
             eventLoader: (day) {
               final dateOnly = DateTime.utc(day.year, day.month, day.day);
-              return _eventsCache[dateOnly] ?? [];
+              final events = _eventsCache[dateOnly] ?? [];
+              if (events.any((e) => e.id == -999)) {
+                print('[마커] $dateOnly 에 오모스티커 있음');
+              }
+              return events;
             },
             onPageChanged: (focusedDay) => _loadSchedulesForMonth(focusedDay),
             headerPadding: const EdgeInsets.symmetric(
@@ -918,7 +1116,7 @@ class _NoticeSectionState extends State<NoticeSection> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(right:15),
+                          padding: const EdgeInsets.only(right: 15),
                           child: CustomPaint(
                             size: const Size(10, 8),
                             painter: TrianglePainter(

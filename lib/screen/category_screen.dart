@@ -79,8 +79,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Future<void> _loadAllData() async {
-    final fetchedRoutines = await _repository.fetchCategories(scheduleType: 'ROUTINE');
-    final fetchedTodos = await _repository.fetchCategories(scheduleType: 'TO_DO');
+    final fetchedRoutines = await _repository.fetchCategories(
+      scheduleType: 'ROUTINE',
+    );
+    final fetchedTodos = await _repository.fetchCategories(
+      scheduleType: 'TO_DO',
+    );
     final localQuestions = await _repository.fetchDayLogQuestions();
 
     final isRoutineVisible = await RoutineVisibilityHelper.getVisibility();
@@ -91,7 +95,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     if (mounted) {
       setState(() {
-        routines = fetchedRoutines.where((c) => c.categoryName != 'default').toList();
+        routines =
+            fetchedRoutines.where((c) => c.categoryName != 'default').toList();
         todos = fetchedTodos.where((c) => c.categoryName != 'default').toList();
         daylogQuestions = localQuestions; // 질문 즉시 반영
 
@@ -231,7 +236,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
         };
       }),
     );
-
 
     if (mounted) {
       setState(() {
@@ -579,7 +583,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                                   _selectedColorType.name
                                                       .toUpperCase(),
                                               scheduleType: 'ROUTINE',
-                                            ).timeout(const Duration(seconds: 2));
+                                            )
+                                            .timeout(
+                                              const Duration(seconds: 2),
+                                            );
 
                                         if (serverId != null) isSynced = true;
                                       } catch (e) {
@@ -872,7 +879,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                                   _selectedColorType.name
                                                       .toUpperCase(),
                                               scheduleType: "TO_DO",
-                                            ).timeout(const Duration(seconds: 2));
+                                            )
+                                            .timeout(
+                                              const Duration(seconds: 2),
+                                            );
 
                                         if (serverId != null) {
                                           isSynced = true;
@@ -1423,6 +1433,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
         );
         if (needsRefresh == true) {
+          setState(() {});
           _loadAllData();
         }
       },

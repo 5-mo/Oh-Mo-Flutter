@@ -102,26 +102,6 @@ class _DaylogScreenState extends State<DaylogScreen> {
   void initState() {
     super.initState();
 
-    if (widget.showTodoSheet) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.onTodoSheetShown?.call();
-
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          isDismissible: true,
-          backgroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(59),
-              topLeft: Radius.circular(59),
-            ),
-          ),
-          builder: (_) => TodoBottomSheet(selectedDate: widget.selectedDate),
-        );
-      });
-    }
-
     _monthlyProgressFuture = _calculateMonthlyProgress();
     _focusedDay = widget.selectedDate;
 
@@ -285,16 +265,21 @@ class _DaylogScreenState extends State<DaylogScreen> {
     try {
       final serverQuestions = await dayLogService.getQuestions();
       if (serverQuestions != null) {
-        final Set<String> localContents =
-            _dbQuestions.map((q) => q.question.trim()).toSet();
-
         for (var sq in serverQuestions) {
           final String qText = (sq['questionContent'] ?? '').trim();
-          if (!localContents.contains(qText)) {
+          final int serverQId = sq['id'];
+
+          final existing = _dbQuestions.firstWhere(
+            (q) => q.question.trim() == qText,
+            orElse: () => DayLogQuestionItem(id: -1, question: '', emoji: ''),
+          );
+
+          if (existing.id == -1) {
             await _repository.insertDayLogQuestion(qText, sq['emoji'] ?? '');
+          } else {
+            await _repository.updateServerId(existing.id, serverQId);
           }
         }
-
         final finalLocal = await _repository.fetchDayLogQuestions();
         if (mounted) setState(() => _dbQuestions = finalLocal);
       }
@@ -366,20 +351,23 @@ class _DaylogScreenState extends State<DaylogScreen> {
     final dateOnly = DateTime(date.year, date.month, date.day);
     final dayLogService = DayLogService();
 
+    print('🔍 [디버그 시작] 날짜: $dateString --------------------');
+
+    // 1. 로컬 DB 확인 로그
     final existingLog = await database.getDayLog(dateOnly);
+    print('📦 1. 로컬 DB 결과: ${existingLog == null ? "데이터 없음(초기화됨)" : "존재함 (이모지: ${existingLog.emotion}, 일기: ${existingLog.diary})"}' );
 
     if (mounted) {
       setState(() {
         if (existingLog != null) {
           _diaryController.text = existingLog.diary ?? '';
           _setSelectedEmotion(existingLog.emotion);
-          if (existingLog.answerMapJson != null) {
-            _dailyAnswers = Map<String, String>.from(
-              jsonDecode(existingLog.answerMapJson!),
-            );
-          } else {
-            _dailyAnswers = {};
-          }
+          _dailyAnswers =
+          existingLog.answerMapJson != null
+              ? Map<String, String>.from(
+            jsonDecode(existingLog.answerMapJson!),
+          )
+              : {};
         } else {
           _diaryController.clear();
           _resetIconState();
@@ -388,33 +376,29 @@ class _DaylogScreenState extends State<DaylogScreen> {
       });
     }
 
-    final serverData = await dayLogService.getQuestionAnswers(dateString);
+    // 2. 서버 이모지 조회 로그
+    print('🌐 2. 서버 이모지 API 호출 시작...');
+    final serverEmoji = await dayLogService.getEmoji(dateString);
+    print('🌐 2. 서버 이모지 API 응답값: "$serverEmoji" (타입: ${serverEmoji.runtimeType})');
 
-    if (!mounted) return;
-
-    if (serverData == null) {
-      print('[서버] 에러: 서버로부터 응답을 받지 못했거나 에러가 발생했습니다.');
-    } else {
-      setState(() {
-        for (var item in serverData) {
-          String qContent = (item['questionContent'] ?? '').trim();
-          String emoji = item['emoji'] ?? '';
-          String fullKey = emoji.isNotEmpty ? '$emoji $qContent' : qContent;
-
-          var answerList = item['answerList'] as List;
-
-          if (answerList.isNotEmpty) {
-            String serverAnswer = answerList[0]['answer'] ?? '';
-            _dailyAnswers[fullKey] = serverAnswer;
-          }
-        }
-        if (selectedQuestion != null &&
-            _dailyAnswers.containsKey(selectedQuestion)) {
-          _answerController.text = _dailyAnswers[selectedQuestion!] ?? '';
-        }
-      });
+    if (!mounted) {
+      print('⚠️ [경고] 서버 이모지 수신 시점에 위젯이 unmounted 됨');
+      return;
     }
+
+    if (serverEmoji != null) {
+      setState(() {
+        _setSelectedEmotion(serverEmoji);
+      });
+      print('🎨 [UI 반영] 이모지 "$serverEmoji"로 상태 변경 완료 (현재 활성화: happy=$_happyActive, soso=$_sosoActive, bad=$_badActive)');
+    } else {
+      print('❌ [UI 미반영] 서버에서 넘어온 이모지가 null 입니다.');
+    }
+
+    // 3. 서버 일기 조회 로그
+    print('🌐 3. 서버 일기 API 호출 시작...');
     final serverDiary = await dayLogService.getDiary(dateString);
+    print('🌐 3. 서버 일기 API 응답값: $serverDiary');
     if (!mounted) return;
     if (serverDiary != null && serverDiary['content'] != null) {
       setState(() {
@@ -422,13 +406,46 @@ class _DaylogScreenState extends State<DaylogScreen> {
       });
     }
 
-    final serverEmoji = await dayLogService.getEmoji(dateString);
+    // 4. 서버 문답 조회 로그
+    print('🌐 4. 서버 문답 API 호출 시작...');
+    final serverData = await dayLogService.getQuestionAnswers(dateString);
+    print('🌐 4. 서버 문답 API 응답 목록 개수: ${serverData?.length ?? "null"}');
+
     if (!mounted) return;
-    if (serverEmoji != null && mounted) {
+
+    if (serverData != null) {
       setState(() {
-        _setSelectedEmotion(serverEmoji);
+        for (var item in serverData) {
+          String qContent = (item['questionContent'] ?? '').trim();
+          String emoji = item['emoji'] ?? '';
+
+          DayLogQuestionItem? matchedQ;
+          try {
+            matchedQ = _dbQuestions.firstWhere(
+                  (q) => q.question.trim() == qContent,
+            );
+          } catch (_) {
+            matchedQ = null;
+          }
+
+          final fullKey =
+          matchedQ != null
+              ? (matchedQ.emoji.isNotEmpty
+              ? '${matchedQ.emoji} ${matchedQ.question}'
+              : matchedQ.question)
+              : (emoji.isNotEmpty ? '$emoji $qContent' : qContent);
+
+          var answerList = item['answerList'] as List;
+          if (answerList.isNotEmpty) {
+            String serverAnswer = answerList.last['answer'] ?? '';
+            _dailyAnswers[fullKey] = serverAnswer;
+          }
+        }
       });
+      print('🎨 [UI 반영 후 최종 상태 체크] happy=$_happyActive, soso=$_sosoActive, bad=$_badActive');
     }
+
+    print('🔍 [디버그 종료] 날짜: $dateString --------------------');
   }
 
   Future<void> _updateFocusedDay(DateTime newDate) async {
@@ -472,7 +489,8 @@ class _DaylogScreenState extends State<DaylogScreen> {
 
       final scheduledForThisWeek =
           dailyRoutines.where((r) {
-            return r.daysOfWeek.contains(currentDate.weekday);
+            return r.daysOfWeek.contains(currentDate.weekday) &&
+                isRoutineVisibleOnDate(r, currentDate);
           }).toList();
 
       fetchedWeeklyRoutines.addAll(scheduledForThisWeek);
@@ -642,7 +660,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
     _badActive = false;
   }
 
-  void _onIconPressed(String iconName) {
+  void _onIconPressed(String iconName) async {
+    String? currentEmotion;
+
     setState(() {
       if (iconName == 'happy_unselected') {
         _happyActive = !_happyActive;
@@ -815,6 +835,21 @@ class _DaylogScreenState extends State<DaylogScreen> {
   Widget _buildRoutineSection() {
     final Map<String, List<Routine>> groupedRoutines = {};
     for (var routine in weeklyRoutines) {
+      final mondayOfThisWeek = _focusedDay.subtract(
+        Duration(days: _focusedDay.weekday - 1),
+      );
+
+      bool isVisibleAnyDayThisWeek = false;
+      for (int i = 0; i < 7; i++) {
+        final day = mondayOfThisWeek.add(Duration(days: i));
+        if (isRoutineVisibleOnDate(routine, day) &&
+            routine.daysOfWeek.contains(day.weekday)) {
+          isVisibleAnyDayThisWeek = true;
+          break;
+        }
+      }
+      if (!isVisibleAnyDayThisWeek) continue;
+
       if (groupedRoutines.containsKey(routine.content)) {
         groupedRoutines[routine.content]!.add(routine);
       } else {
@@ -1531,7 +1566,9 @@ class _DaylogScreenState extends State<DaylogScreen> {
       for (var entry in _dailyAnswers.entries) {
         final questionKey = entry.key;
         final answerText = entry.value.trim();
-        if (answerText.isEmpty) continue;
+        if (answerText.isEmpty) {
+          continue;
+        }
 
         try {
           final targetQuestion = _dbQuestions.firstWhere((q) {
@@ -1540,17 +1577,18 @@ class _DaylogScreenState extends State<DaylogScreen> {
             return fullKey == questionKey;
           });
 
+          final questionId = targetQuestion.serverId ?? targetQuestion.id;
+
           await dayLogService.registerAnswer(
-            questionId: targetQuestion.id,
+            questionId: questionId,
             answer: answerText,
             date: dateString,
           );
         } catch (e) {
-          print('[저장 오류]: $questionKey');
+          print('[저장 오류]: $questionKey | $e');
         }
       }
     }
-
     await _loadDayLogData(_focusedDay);
 
     if (!mounted) return;

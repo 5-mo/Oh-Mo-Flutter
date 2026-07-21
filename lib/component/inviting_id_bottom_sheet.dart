@@ -15,7 +15,7 @@ class InvitingIdBottomSheet extends StatefulWidget {
     Key? key,
     required this.groupId,
     required this.groupName,
-    this.title = "아이디로 초대하기",
+    this.title = "멤버 초대하기",
   }) : super(key: key);
 
   @override
@@ -123,7 +123,7 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
                     color: Colors.black,
                   ),
                   decoration: InputDecoration(
-                    hintText: "아이디를 입력하세요",
+                    hintText: "이메일을 입력하세요",
                     hintStyle: TextStyle(
                       fontSize: 15,
                       fontFamily: 'PretendardMedium',
@@ -169,8 +169,11 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
       child: GestureDetector(
         onTap: () async {
           final String email = _idController.text.trim();
-
           if (email.isEmpty) return;
+
+          final messenger=ScaffoldMessenger.of(context);
+
+          Navigator.pop(context,true);
 
           final success = await GroupService().inviteMemberByEmail(
             groupId: widget.groupId,
@@ -181,7 +184,6 @@ class _InvitingIdBottomSheetState extends State<InvitingIdBottomSheet> {
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text("$email 님에게 초대를 보냈습니다.")));
-            Navigator.pop(context, true);
           } else {
             ScaffoldMessenger.of(
               context,

@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:ohmo/component/invitation_popup.dart';
 import 'package:ohmo/component/main_calendar.dart';
 import 'package:ohmo/component/todo_bottom_sheet.dart';
@@ -17,6 +20,7 @@ import 'package:ohmo/component/todo_card.dart';
 import 'package:ohmo/component/bottom_navigation_bar.dart';
 import 'package:ohmo/services/calendar_service.dart';
 import 'package:ohmo/services/group_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ohmo/services/widget_updater.dart';
@@ -30,6 +34,7 @@ import '../db/drift_database.dart' as db;
 import '../models/profile_data_provider.dart';
 import '../models/routine.dart';
 import '../models/todo.dart';
+import '../services/auth_service.dart';
 import '../services/category_service.dart';
 import '../services/notification_service.dart';
 import '../services/routine_service.dart';
@@ -45,11 +50,13 @@ bool _isGlobalWidgetSheetOpen = false;
 class HomeScreen extends StatefulWidget {
   final int initialTabIndex;
   final bool showTodoSheetForDaylog;
+  final Uri? initialDeepLink;
 
   const HomeScreen({
     Key? key,
     this.initialTabIndex = 0,
     this.showTodoSheetForDaylog = false,
+    this.initialDeepLink,
   }) : super(key: key);
 
   @override
@@ -62,10 +69,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isProcessingWidgetClick = false;
   bool _isWidgetSheetOpen = false;
   bool _hasShownInitialTodoSheet = false;
+  bool _triggerWidgetTodoSheet = false;
   final LayerLink _calendarlayerLink = LayerLink();
   final LayerLink _routineLayerLink = LayerLink();
   OverlayEntry? _overlayEntry;
-
+  DateTime? _lastClickTime;
+  final GlobalKey<_HomeScreenBodyState> _homeScreenBodyKey =
+      GlobalKey<_HomeScreenBodyState>();
   final ValueNotifier<DateTime> _selectedDateNotifier = ValueNotifier(
     DateTime.now(),
   );
@@ -170,6 +180,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showInitialTooltip();
       _checkAndShowInvitations();
+
+      if (widget.initialDeepLink != null) {
+        _handleWidgetClick(widget.initialDeepLink);
+      }
     });
 
     _selectedIndex = widget.initialTabIndex;
@@ -185,17 +199,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     _initializeData(today);
 
-    HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
-      if (uri != null) {
-        _handleWidgetClick(uri);
-      }
-    });
-
     HomeWidget.widgetClicked.listen((uri) {
-      if (uri != _lastProcessedUri) {
-        _lastProcessedUri = null;
-        _handleWidgetClick(uri);
-      }
+      if (uri == null) return;
+      if (uri == _lastProcessedUri) return;
+      _lastProcessedUri = uri;
+      _handleWidgetClick(uri);
     });
     WidgetUpdater.update();
   }
@@ -252,22 +260,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _showInitialTooltip() async {
     final prefs = await SharedPreferences.getInstance();
+    final bool hasShown = prefs.getBool('hasShownCalendarTooltip') ?? false;
 
-    final profile = Provider.of<ProfileData>(context, listen: false);
-
-    final bool hasShownCalendar =
-        prefs.getBool('hasShownCalendarTooltip') ?? false;
-    final bool hasShownGroup = prefs.getBool('hasShowGroupTooltip') ?? false;
-
-    if (!mounted) return;
-
-    if (!hasShownCalendar) {
+    if (!hasShown && mounted) {
       _showTooltipOverlay();
       await prefs.setBool('hasShownCalendarTooltip', true);
-    }
-    else if (!profile.isGuest && !hasShownGroup) {
-      _showGroupTooltipOverlay();
-      await prefs.setBool('hasShowGroupTooltip', true);
     }
   }
 
@@ -284,20 +281,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _hideFirstAndShowSecond() {
     _hideToolTip();
     _showSecondTooltipOverlay();
-  }
-
-  void _hideSecondAndShowGroup() async {
-    _hideToolTip();
-
-    final prefs = await SharedPreferences.getInstance();
-    final profile = Provider.of<ProfileData>(context, listen: false);
-
-    if (!profile.isGuest) {
-      _showGroupTooltipOverlay();
-      await prefs.setBool('hasShowGroupTooltip', true);
-    } else {
-      await prefs.setBool('hasShowGroupTooltip', true);
-    }
   }
 
   void _showSecondTooltipOverlay() {
@@ -442,7 +425,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                   const SizedBox(width: 12),
                                   GestureDetector(
-                                    onTap: _hideSecondAndShowGroup,
+                                    onTap: _hideToolTip,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
@@ -477,145 +460,79 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showGroupTooltipOverlay() {
-    _overlayEntry = _createGroupOverlayEntry();
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  OverlayEntry _createGroupOverlayEntry() {
-      return OverlayEntry(
-        builder:
-            (context) => Material(
-          color: Colors.transparent,
-          child: Stack(
-            children: [
-              CompositedTransformFollower(
-                link: _routineLayerLink,
-                showWhenUnlinked: false,
-                offset: const Offset(-205, -365),
-                child: IntrinsicWidth(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: CustomPaint(
-                          size: const Size(8, 10),
-                          painter: TrianglePainter(
-                            color: const Color(0xFF4E4E4E),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4E4E4E),
-                          borderRadius: BorderRadius.circular(7),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                const Text(
-                                  "그룹 기능이 생겼어요!\n한 번 클릭해볼까요?",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontFamily: 'PretendardMedium',
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                GestureDetector(
-                                  onTap: _hideToolTip,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2A2A2A),
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                    child: const Text(
-                                      "확인",
-                                      style: TextStyle(
-                                        color: Color(0xFFE6E6E6),
-                                        fontSize: 12,
-                                        fontFamily: 'PretendardMedium',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-  void _handleWidgetClick(Uri? uri) {
+  void _handleWidgetClick(Uri? uri) async {
+    await _writeLog('_handleWidgetClick 호출 uri: $uri');
     if (uri == null) return;
 
-    if (_isGlobalWidgetSheetOpen || _isProcessingWidgetClick) return;
-
     if (uri.host == 'daylog' && uri.path == '/todo') {
-      _isProcessingWidgetClick = true;
-      _isGlobalWidgetSheetOpen = true;
+      await _writeLog('bodyContext: ${_homeScreenBodyKey.currentContext}');
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() {
-          _hasShownInitialTodoSheet = true;
-        });
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(59),
-              topLeft: Radius.circular(59),
-            ),
-          ),
-          builder:
-              (_) => TodoBottomSheet(
-                selectedDate: _selectedDateNotifier.value,
-                onTodoAdded: () async {
-                  await _loadDataForDate(_selectedDateNotifier.value);
-                  await WidgetUpdater.update();
-                },
+      if (uri.host == 'daylog' && uri.path == '/todo') {
+        if (_isGlobalWidgetSheetOpen || _isProcessingWidgetClick) return;
+
+        _isProcessingWidgetClick = true;
+        _isGlobalWidgetSheetOpen = true;
+
+        if (mounted) {
+          setState(() => _selectedIndex = 0);
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+
+          final bodyContext = _homeScreenBodyKey.currentContext;
+
+          if (bodyContext == null) {
+            return;
+          }
+
+          showModalBottomSheet(
+            context: bodyContext,
+            isScrollControlled: true,
+            backgroundColor: Colors.white,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(59),
+                topLeft: Radius.circular(59),
               ),
-        ).whenComplete(() {
-          _isGlobalWidgetSheetOpen = false;
-          _isProcessingWidgetClick = false;
-          _lastProcessedUri = null;
+            ),
+            builder: (_) => TodoBottomSheet(
+              selectedDate: _selectedDateNotifier.value,
+              onTodoAdded: () async {
+                await _loadDataForDate(_selectedDateNotifier.value);
+                await _loadDataForMonth(_selectedDateNotifier.value);
+                await WidgetUpdater.update();
+                if (mounted) {
+                  setState(() {});
+                } else {
+                }
+              },
+              onDataChanged: () async {
+                await _loadDataForDate(_selectedDateNotifier.value);
+                if (mounted) setState(() {});
+              },
+            ),
+          ).whenComplete(() async {
+            _isGlobalWidgetSheetOpen = false;
+            _isProcessingWidgetClick = false;
+            _lastProcessedUri = null;
+            _loadDataForDate(_selectedDateNotifier.value);
+          });
         });
-      });
+      }
     }
   }
 
   Future<void> _initializeData(DateTime date) async {
     setState(() => _isInitialLoading = true);
 
-    await _fetchMonthlyDataAndRefresh(date);
     await _fetchDailyDataAndRefresh(date);
+    await _loadDataForDate(date);
+
+    await _fetchMonthlyDataAndRefresh(date);
 
     if (mounted) {
       setState(() => _isInitialLoading = false);
-
-      await WidgetUpdater.update();
     }
   }
 
@@ -629,21 +546,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      print("앱이 다시 활성화되어 데이터를 새로고침합니다.");
       _loadDataForDate(_selectedDateNotifier.value);
+      WidgetUpdater.update();
     }
   }
 
   Future<void> _loadDataForDate(DateTime date) async {
-    final routines = await fetchRoutines(date);
-    _routinesNotifier.value = routines;
 
+    final routines = await fetchRoutines(date);
     final todos = await fetchTodos(date);
-    _todosNotifier.value = todos;
+
 
     if (mounted) {
+
+      _routinesNotifier.value = List<Routine>.from(routines);
+      _todosNotifier.value = List<Todo>.from(todos);
+
       setState(() {});
+    } else {
     }
+  }
+
+  Future<void> _writeLog(String message) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/debug_log.txt');
+      final timestamp = DateFormat('HH:mm:ss').format(DateTime.now());
+      await file.writeAsString(
+        '[$timestamp] $message\n',
+        mode: FileMode.append,
+      );
+    } catch (e) {}
   }
 
   Future<List<Routine>> fetchRoutines(DateTime date) async {
@@ -787,35 +720,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadDataForMonth(DateTime month) async {
     _currentFocusedMonth = DateTime(month.year, month.month, 1);
-    final firstDay = _currentFocusedMonth;
-    final lastDay = DateTime(month.year, month.month + 1, 0);
 
-    final database = db.LocalDatabaseSingleton.instance;
-    final fetched = await database.getTodosBetween(firstDay, lastDay);
-
-    final monthTodos =
-        fetched
-            .where((t) {
-              if (t.isSynced &&
-                  (t.todoServerId == null || t.todoServerId == 0)) {
-                return false;
-              }
-              return true;
-            })
-            .map((t) {
-              return Todo(
-                id: t.id,
-                content: t.content,
-                Date: t.date,
-                colorType: ColorType.values[t.colorType],
-                isDone: t.isDone,
-                alarm: false,
-              );
-            })
-            .toList();
-
-    final todoMap = _groupTodosByDay(monthTodos);
-    _calendarTodosNotifier.value = todoMap;
+    await _fetchMonthlyDataAndRefresh(_currentFocusedMonth);
   }
 
   Map<DateTime, List<Todo>> _groupTodosByDay(List<Todo> todos) {
@@ -835,15 +741,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _onDateChanged(DateTime newDate) async {
+    final bool isMonthChanged =
+        newDate.month != _currentFocusedMonth.month ||
+        newDate.year != _currentFocusedMonth.year;
+
     _selectedDateNotifier.value = newDate;
 
     await _loadDataForDate(newDate);
 
-    if (newDate.month != _currentFocusedMonth.month ||
-        newDate.year != _currentFocusedMonth.year) {
+    if (isMonthChanged) {
       _currentFocusedMonth = DateTime(newDate.year, newDate.month);
-      await _loadDataForMonth(newDate);
-      _fetchMonthlyDataAndRefresh(newDate);
+      await _fetchMonthlyDataAndRefresh(newDate);
     } else {
       _fetchDailyDataAndRefresh(newDate);
     }
@@ -853,11 +761,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       final dateString = DateFormat('yyyy-MM-dd').format(date);
 
+      final uri = Uri.parse(
+        '${CalendarService.baseUrl}/by-date',
+      ).replace(queryParameters: {'date': dateString});
+      final rawResponse = await AuthService.authenticatedRequest(
+        (token) => http.get(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
       final response = await _calendarService.getDailySchedule(dateString);
 
       if (response.isSuccess && response.result != null) {
         await _syncDailyApiDataToLocalDb(response.result!, date);
         await _loadDataForDate(date);
+        await WidgetUpdater.update();
       }
     } catch (e) {
       print("일별 데이터 동기화 에러 : $e");
@@ -884,18 +806,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final isRoutine = categoryItem.scheduleType.toUpperCase() == 'ROUTINE';
 
         if (isRoutine) {
-          await (database.delete(database.todos)
-            ..where((t) => t.id.equals(categoryItem.id))).go();
+          continue;
         } else {
-          final existingTodo =
-              await (database.select(database.todos)
-                ..where((t) => t.id.equals(categoryItem.id))).getSingleOrNull();
-
-          if (existingTodo != null) continue;
-
           await database
               .into(database.todos)
-              .insert(
+              .insertOnConflictUpdate(
                 db.TodosCompanion.insert(
                   id: Value(categoryItem.id),
                   groupId: const Value(null),
@@ -903,10 +818,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   date: date,
                   colorType: Value(colorIndex),
                   isDone: const Value(false),
+                  todoServerId: Value(categoryItem.id),
+                  isSynced: const Value(true),
                 ),
               );
-          await (database.delete(database.routines)
-            ..where((r) => r.id.equals(categoryItem.id))).go();
         }
       }
     }
@@ -998,7 +913,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           })).get();
 
       for (final local in localTodos) {
-        if (local.isSynced && !serverScheduleIds.contains(local.id)) {
+        final bool existsOnServer =
+            serverScheduleIds.contains(local.id) ||
+            (local.scheduleId != null &&
+                serverScheduleIds.contains(local.scheduleId));
+
+        if (local.isSynced && !existsOnServer) {
           await (database.delete(database.todos)
             ..where((t) => t.id.equals(local.id))).go();
         }
@@ -1007,7 +927,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       for (var item in data.todoList) {
         if (item.scheduleType.toUpperCase() != 'TO_DO' || item.todo == null)
           continue;
-        if (item.content.trim() == item.category.categoryName.trim()) continue;
+        if (item.content.trim().isEmpty) continue;
 
         int? timeMin;
         if (item.time != null && item.time!.contains(':')) {
@@ -1053,7 +973,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
         final weekStr = _convertWeekDaysListToString(item.repeatWeek);
-        if (weekStr.isEmpty) continue;
+        if (weekStr.isEmpty) {
+          continue;
+        }
+
+        final existing =
+            await (database.select(database.routines)
+              ..where((r) => r.scheduleId.equals(uiId))).getSingleOrNull();
+
+        final localId = existing?.id ?? uiId;
+
+        if (existing != null && existing.id != uiId) {
+          await (database.delete(database.routines)
+            ..where((r) => r.id.equals(existing.id))).go();
+        }
 
         await database
             .into(database.routines)
@@ -1080,92 +1013,123 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
     });
-
-    await _loadDataForMonth(date);
-    await _loadDataForDate(date);
-
-    if (mounted) setState(() {});
+    final todos = await fetchTodos(date);
+    _todosNotifier.value = todos;
   }
 
   Future<void> _fetchMonthlyDataAndRefresh(DateTime date) async {
     try {
       final yearMonth = "${date.year}-${date.month.toString().padLeft(2, '0')}";
-      final apiResult = await _calendarService.getMonthlySchedule(yearMonth);
+      final List<DailyScheduleResult> apiResult = await _calendarService
+          .getMonthlySchedule(yearMonth);
 
-      await _syncApiDataToLocalDb(apiResult);
+      final Map<DateTime, List<Todo>> tempCalendarMap = {};
 
-      await _loadDataForMonth(date);
-      await _loadDataForDate(date);
+      if (apiResult.isNotEmpty) {
+        for (var dayData in apiResult) {
+          final parsedDate = DateTime.parse(dayData.date);
+          final normalizedDay = DateTime(
+            parsedDate.year,
+            parsedDate.month,
+            parsedDate.day,
+          );
+
+          if (dayData.categoryList != null &&
+              dayData.categoryList!.isNotEmpty) {
+            List<Todo> dayTodos = [];
+
+            for (var categoryItem in dayData.categoryList!) {
+              if (categoryItem.scheduleType.toUpperCase() != 'TO_DO') continue;
+
+              dayTodos.add(
+                Todo(
+                  id: categoryItem.id,
+                  content: categoryItem.categoryName ?? '',
+                  Date: normalizedDay,
+                  colorType: _parseColorType(categoryItem.color),
+                  isDone: false,
+                  alarm: false,
+                ),
+              );
+            }
+
+            if (dayTodos.isNotEmpty) {
+              tempCalendarMap[normalizedDay] = dayTodos;
+            }
+          }
+        }
+
+        _calendarTodosNotifier.value = Map<DateTime, List<Todo>>.from(
+          tempCalendarMap,
+        );
+
+        if (mounted) {
+          setState(() {});
+        }
+      } else {
+        _calendarTodosNotifier.value = {};
+      }
     } catch (e) {
-      print("서버 동기화 실패(오프라인 상태일 수 있음) : $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      HomeScreenBody(
-        calendarLayerLink: _calendarlayerLink,
-        routineLayerLink: _routineLayerLink,
-        routinesNotifier: _routinesNotifier,
-        todosNotifier: _todosNotifier,
-        selectedDateNotifier: _selectedDateNotifier,
-        hideRoutineUI: _hideRoutineUI,
-        hideTodoUI: _hideTodoUI,
-        onDateChanged: _onDateChanged,
-        calendarTodosNotifier: _calendarTodosNotifier,
-        onPageChanged: _loadDataForMonth,
-
-        onRoutineAdded: () async {
-          await _loadDataForDate(_selectedDateNotifier.value);
-          await _loadDataForMonth(_selectedDateNotifier.value);
-          await WidgetUpdater.update();
-        },
-        onTodoAdded: () async {
-          await _loadDataForDate(_selectedDateNotifier.value);
-          await _loadDataForMonth(_selectedDateNotifier.value);
-          await WidgetUpdater.update();
-        },
-        onDataChanged: () async {
-          await _loadDataForDate(_selectedDateNotifier.value);
-          await _loadDataForMonth(_selectedDateNotifier.value);
-          await WidgetUpdater.update();
-        },
-      ),
-      DaylogScreen(
-        onTabChange: _onTabChange,
-        selectedDateNotifier: _selectedDateNotifier,
-        showTodoSheet:
-            widget.showTodoSheetForDaylog && !_hasShownInitialTodoSheet,
-        onTodoSheetShown: () {
-          setState(() {
-            _hasShownInitialTodoSheet = true;
-          });
-        },
-        selectedDate: _selectedDateNotifier.value,
-        routines: _routinesNotifier.value,
-        todos: _todosNotifier.value,
-      ),
-      MyScreen(
-        onTabChange: _onTabChange,
-        selectedDateNotifier: _selectedDateNotifier,
-        onDataChanged: () async {
-          await _loadDataForDate(_selectedDateNotifier.value);
-          await WidgetUpdater.update();
-        },
-      ),
-    ];
-    if (_isInitialLoading) {
-      return Scaffold(
-        body: screens[_selectedIndex],
-        bottomNavigationBar: OhmoBottomNavigationBar(
-          selectedIndex: _selectedIndex,
-          onTabChange: _onTabChange,
-        ),
-      );
-    }
     return Scaffold(
-      body: screens[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          HomeScreenBody(
+            key: _homeScreenBodyKey,
+            calendarLayerLink: _calendarlayerLink,
+            routineLayerLink: _routineLayerLink,
+            routinesNotifier: _routinesNotifier,
+            todosNotifier: _todosNotifier,
+            selectedDateNotifier: _selectedDateNotifier,
+            hideRoutineUI: _hideRoutineUI,
+            hideTodoUI: _hideTodoUI,
+            onDateChanged: _onDateChanged,
+            calendarTodosNotifier: _calendarTodosNotifier,
+            onPageChanged: _loadDataForMonth,
+            onRoutineAdded: () async {
+              await _loadDataForDate(_selectedDateNotifier.value);
+              await _loadDataForMonth(_selectedDateNotifier.value);
+              await WidgetUpdater.update();
+            },
+            onTodoAdded: () async {
+              await _loadDataForDate(_selectedDateNotifier.value);
+              await _loadDataForMonth(_selectedDateNotifier.value);
+              await WidgetUpdater.update();
+              if (mounted) setState(() {});
+            },
+            onDataChanged: () async {
+              await _loadDataForDate(_selectedDateNotifier.value);
+              await _loadDataForMonth(_selectedDateNotifier.value);
+              await WidgetUpdater.update();
+              if (mounted) setState(() {});
+            },
+          ),
+          DaylogScreen(
+            onTabChange: _onTabChange,
+            selectedDateNotifier: _selectedDateNotifier,
+            showTodoSheet: widget.showTodoSheetForDaylog && !_hasShownInitialTodoSheet,
+            onTodoSheetShown: () {
+              setState(() => _hasShownInitialTodoSheet = true);
+            },
+            selectedDate: _selectedDateNotifier.value,
+            routines: _routinesNotifier.value,
+            todos: _todosNotifier.value,
+          ),
+          MyScreen(
+            onTabChange: _onTabChange,
+            selectedDateNotifier: _selectedDateNotifier,
+            onDataChanged: () async {
+              await _loadDataForDate(_selectedDateNotifier.value);
+              await WidgetUpdater.update();
+            },
+          ),
+        ],
+      ),
       bottomNavigationBar: OhmoBottomNavigationBar(
         selectedIndex: _selectedIndex,
         onTabChange: _onTabChange,
@@ -1344,8 +1308,8 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
 
             await NotificationService().scheduleNotification(
               id: currentTodo.id,
-              title: '[To-do] $originalTimeStr ${currentTodo.content}',
-              body: '${notificationTime}',
+              title: '오늘의 할 일!',
+              body: '[To-do] $originalTimeStr ${currentTodo.content}',
               scheduledTime: notificationTime,
               payload: 'todo_${currentTodo.id}',
             );
@@ -1509,17 +1473,6 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                           onDataChanged: widget.onDataChanged,
 
                                           onStatusChanged: () async {
-                                            final localDb = db.LocalDatabaseSingleton.instance;
-                                            final profile = Provider.of<ProfileData>(context, listen: false);
-                                            final newIsDone = !routine.isDone;
-
-                                            await localDb.updateTodo(
-                                              db.TodosCompanion(
-                                                id: Value(routine.id),
-                                                isDone: Value(newIsDone),
-                                                isSynced: const Value(false),
-                                              ),
-                                            );
                                             widget.onDataChanged?.call();
                                           },
 
@@ -1579,8 +1532,16 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                     selectedDate: selectedDate,
                                     onTodoAdded:
                                         widget.onTodoAdded ?? () async {},
+                                    onDataChanged:
+                                        widget.onDataChanged != null
+                                            ? () async {
+                                              widget.onDataChanged!();
+                                            }
+                                            : null,
                                   ),
-                            );
+                            ).whenComplete(() {
+                              widget.onDataChanged?.call();
+                            });
                           },
                         ),
                         ValueListenableBuilder<List<Todo>>(
@@ -1641,7 +1602,7 @@ class _HomeScreenBodyState extends State<HomeScreenBody> {
                                                       await todoService
                                                           .toggleTodoStatus(
                                                             serverId,
-                                                          ).timeout(const Duration(seconds: 2));
+                                                          );
 
                                                   if (serverResult != null) {
                                                     await localDb.updateTodo(

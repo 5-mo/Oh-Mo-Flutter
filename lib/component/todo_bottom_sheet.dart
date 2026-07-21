@@ -405,7 +405,10 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => CategoryScreen()),
-        ).then((_) => _loadCategories());
+        ).then((_) => _loadInitialData());
+        if (widget.onDataChanged != null) {
+          widget.onDataChanged!();
+        }
       },
       child: Container(
         width: 97,
@@ -722,7 +725,9 @@ class _TodoBottomSheetState extends State<TodoBottomSheet> {
     );
 
     try {
-      final serverCategories = await categoryService.getCategories('TO_DO').timeout(const Duration(seconds: 2));
+      final serverCategories = await categoryService
+          .getCategories('TO_DO')
+          .timeout(const Duration(seconds: 2));
       final currentLocalCategories = await categoryRepo.fetchCategories(
         scheduleType: 'TO_DO',
       );

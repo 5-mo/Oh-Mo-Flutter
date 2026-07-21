@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../const/colors.dart';
+import '../models/monthly_schedule_response.dart';
 import '../screen/group/group_main_screen.dart';
 import '../models/todo.dart';
 
@@ -105,7 +106,7 @@ class _MainCalendarState extends State<MainCalendar> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  /*if (widget.onGroupIconPressed != null)
+                  if (widget.onGroupIconPressed != null)
                     Transform.translate(
                       offset: const Offset(18, 0),
                       child: IconButton(
@@ -118,7 +119,7 @@ class _MainCalendarState extends State<MainCalendar> {
                           height: widget.groupIconSize ?? 23,
                         ),
                       ),
-                    ),*/
+                    ),
                   if (widget.onAlarmIconPressed != null)
                     Builder(
                       builder: (context) {
@@ -261,9 +262,67 @@ class _MainCalendarState extends State<MainCalendar> {
 
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, date, events) {
+            final bool isWeekFormat = _format == CalendarFormat.week;
+
+            final String dateStr = DateFormat('yyyyMMdd').format(date);
+            final Map<String, String> holidayNames = {
+              "20260101": "신정",
+              "20260216": "설날",
+              "20260217": "설날",
+              "20260218": "설날",
+              "20260301": "삼일절",
+              "20260302": "대체휴무",
+              "20260501": "근로자의날",
+              "20260505": "어린이날",
+              "20260524": "석가탄신일",
+              "20260525": "대체휴무",
+              "20260603": "지방선거",
+              "20260606": "현충일",
+              "20260717": "제헌절",
+              "20260815": "광복절",
+              "20260817": "대체휴무",
+              "20260924": "추석",
+              "20260925": "추석",
+              "20260926": "추석",
+              "20261003": "개천절",
+              "20261005": "대체휴무",
+              "20261009": "한글날",
+              "20261225": "성탄절",
+            };
+
+            if (holidayNames.containsKey(dateStr)) {
+              final String holidayName = holidayNames[dateStr]!;
+              final double bottomPositionNew = isWeekFormat ? 12.0 : 2.0;
+
+              return Positioned(
+                left: 0,
+                right: 0,
+                bottom: bottomPositionNew,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      holidayName,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 8.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              );
+            }
+
             if (events.isNotEmpty) {
               final event = events.first;
-              final bool isWeekFormat = _format == CalendarFormat.week;
 
               if (event is CalendarEvent) {
                 final double bottomPosition = isWeekFormat ? 3 : 0;
@@ -272,36 +331,31 @@ class _MainCalendarState extends State<MainCalendar> {
                   right: 0,
                   bottom: bottomPosition,
                   child: Center(
-                    child:
-                        event.isFullyCompleted()
-                            ? Image.asset(
-                              'android/assets/images/clear_ohmo.png',
-                              width: 20,
-                              height: 20,
-                            )
-                            : Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 2,
-                              ),
-                              width: 40.0,
-                              decoration: BoxDecoration(
-                                color: ColorManager.getColor(
-                                  widget.markerColor,
-                                ).withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                event.toString(),
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 8.0,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
+                    child: event.isFullyCompleted()
+                        ? Image.asset(
+                      'android/assets/images/clear_ohmo.png',
+                      width: 20,
+                      height: 20,
+                    )
+                        : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      width: 40.0,
+                      decoration: BoxDecoration(
+                        color: ColorManager.getColor(widget.markerColor).withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        event.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 8.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
                   ),
                 );
               } else if (event is Todo) {
@@ -314,18 +368,17 @@ class _MainCalendarState extends State<MainCalendar> {
                   bottom: bottomPositionNew,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children:
-                        todosToShow.map((todo) {
-                          return Container(
-                            width: 6.0,
-                            height: 6.0,
-                            margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: ColorManager.getColor(todo.colorType),
-                            ),
-                          );
-                        }).toList(),
+                    children: todosToShow.map((todo) {
+                      return Container(
+                        width: 6.0,
+                        height: 6.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: ColorManager.getColor(todo.colorType),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 );
               }

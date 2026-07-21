@@ -43,6 +43,7 @@ dependencies:
   firebase_analytics: ^12.1.2
   firebase_messaging: ^16.1.1
   flutter_secure_storage: ^10.0.0
+  speech_to_text: ^6.6.0
 
 dev_dependencies:
   flutter_test:
@@ -118,6 +119,8 @@ flutter:
     - android/assets/images/onboarding/onboarding_4.png
     - android/assets/images/onboarding/onboarding_5.png
     - android/assets/images/group.png
+    - android/assets/images/mic_icon.svg
+    - android/assets/images/arrow_icon.svg
 
   uses-material-design: true
   fonts:

@@ -199,61 +199,57 @@ struct HomeWidgetExtensionEntryView: View {
     
     // MARK: - Widget Views
     var smallView: some View {
-            let todosForToday = entry.todoList
-            let isEmpty = todosForToday.isEmpty ||
-                          (todosForToday.count == 1 && (todosForToday.first?.contains("추가해보세요") == true || todosForToday.first?.contains("실패") == true))
+        let todosForToday = entry.todoList
+        let isEmpty = todosForToday.isEmpty ||
+                      (todosForToday.count == 1 && (todosForToday.first?.contains("추가해보세요") == true || todosForToday.first?.contains("실패") == true))
 
-            return GeometryReader { geometry in
-                ZStack {
-                    if isEmpty {
+        return GeometryReader { geometry in
+            ZStack {
+                if isEmpty {
+                    VStack(spacing: 3) {
+                        Spacer()
                         VStack(spacing: 3) {
-                            Spacer()
-                            
-                            VStack(spacing: 3) {
-                                Text("오늘 할 일을")
-                                Text("추가해보세요 :)")
-                            }
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.black)
-                            .multilineTextAlignment(.center)
-                            
-                            Spacer()
-                            Spacer() 
+                            Text("오늘 할 일을")
+                            Text("추가해보세요 :)")
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(todosForToday.prefix(4), id: \.self) { todoContent in
-                                HStack(alignment: .top, spacing: 5) {
-                                    Text("●")
-                                        .font(.system(size: 8))
-                                        .offset(y: 4)
-                                    Text(todoContent)
-                                        .font(.system(size: 14))
-                                        .lineLimit(1)
-                                }
-                                .foregroundColor(.black)
-                            }
-                            Spacer()
-                        }
-                        .padding(.top, 20)
-                        .padding(.horizontal, 18)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.black)
+                        .multilineTextAlignment(.center)
+                        Spacer()
+                        Spacer()
                     }
-                    
-    
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(todosForToday.prefix(4), id: \.self) { todoContent in
+                            HStack(alignment: .top, spacing: 5) {
+                                Text("●")
+                                    .font(.system(size: 8))
+                                    .offset(y: 4)
+                                Text(todoContent)
+                                    .font(.system(size: 14))
+                                    .lineLimit(1)
+                            }
+                            .foregroundColor(.black)
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 20)
+                    .padding(.horizontal, 18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                Link(destination: URL(string: "ohmoapp://daylog/todo")!) {
                     Image("ohmo")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 65, height: 65)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                        .offset(x: 15, y: 15)
                 }
-                .widgetURL(URL(string: "ohmoapp://daylog/todo"))
+                .offset(x: 15, y: 15)
             }
         }
-    
+    }
     private func DayView(for date: Date, entry: Provider.Entry) -> some View {
         let calendar = Calendar.current
         let dayKey = calendar.startOfDay(for: date)

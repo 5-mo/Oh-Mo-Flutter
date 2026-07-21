@@ -71,6 +71,8 @@ class _RoutineBottomSheetState extends State<RoutineBottomSheet> {
 
     final finalCategories = await _loadCategories();
 
+    routines = finalCategories;
+
     if (widget.routineIdToEdit != null) {
       await _loadDataForEdit(widget.routineIdToEdit!);
     }

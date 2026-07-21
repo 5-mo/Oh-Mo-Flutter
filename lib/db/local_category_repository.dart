@@ -75,6 +75,12 @@ class LocalCategoryRepository {
   }
 
   // ------------------ DayLog ------------------
+  Future<void> updateServerId(int localId, int serverId) async {
+    await (_db.update(_db.dayLogQuestions)
+      ..where((q) => q.id.equals(localId)))
+        .write(db.DayLogQuestionsCompanion(serverId: drift.Value(serverId)));
+  }
+
   Future<List<DayLogQuestionItem>> fetchDayLogQuestions() async {
     final rows = await _db.getAllDayLogQuestions();
     return rows

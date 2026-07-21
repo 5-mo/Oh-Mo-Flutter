@@ -112,6 +112,14 @@ class DailyRoutineItem {
 
   factory DailyRoutineItem.fromJson(Map<String, dynamic> json) {
     final categoryJson = json['category'];
+    final routineJson = json['routine'];
+    List<String> parsedRepeatWeek = [];
+
+    if (json['repeatWeek'] != null) {
+      parsedRepeatWeek = List<String>.from(json['repeatWeek']);
+    } else if (routineJson != null && routineJson['repeatWeek'] != null) {
+      parsedRepeatWeek = List<String>.from(routineJson['repeatWeek']);
+    }
     return DailyRoutineItem(
       scheduleId: json['scheduleId'] ?? 0,
       date: json['date'] ?? '',
@@ -122,15 +130,8 @@ class DailyRoutineItem {
               ? ScheduleCategory.fromJson(categoryJson)
               : ScheduleCategory.fromJson({}),
       routineByDateList:
-          json['routineByDateList'] != null
-              ? (json['routineByDateList'] as List)
-                  .map((i) => RoutineDetail.fromJson(i))
-                  .toList()
-              : [],
-      repeatWeek:
-          json['repeatWeek'] != null
-              ? List<String>.from(json['repeatWeek'])
-              : [],
+          routineJson != null ? [RoutineDetail.fromJson(routineJson)] : [],
+      repeatWeek: parsedRepeatWeek,
       time: json['time'],
       alarmTime: json['alarmTime'],
     );

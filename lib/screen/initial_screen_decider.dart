@@ -77,7 +77,8 @@ class _InitialScreenDeciderState extends State<InitialScreenDecider> with Widget
         await Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => HomeScreen(
-              initialTabIndex: 1,
+              initialTabIndex: 0,
+              initialDeepLink: uri,
               showTodoSheetForDaylog: showTodoSheet,
             ),
           ),

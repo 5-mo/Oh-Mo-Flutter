@@ -135,7 +135,11 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 selectedColorType: _selectedColorType,
                 onColorSelected: (colorType) async {
                   try {
-                    await _db.updateLocalColor(widget.groupId, colorType, widget.groupName);
+                    await _db.updateLocalColor(
+                      widget.groupId,
+                      colorType,
+                      widget.groupName,
+                    );
 
                     final check = await _db.getGroupById(widget.groupId);
 
@@ -199,6 +203,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             );
           },
         );
+        if (result == true && mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Container(
         width: 318,
@@ -431,8 +438,8 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     );
     if (confirmed == true) {
       try {
-        final bool isSuccess=await GroupService().leaveGroup(widget.groupId);
-        if (isSuccess&&mounted) {
+        final bool isSuccess = await GroupService().leaveGroup(widget.groupId);
+        if (isSuccess && mounted) {
           Navigator.of(pageContext).pop('leave');
         }
       } catch (e) {

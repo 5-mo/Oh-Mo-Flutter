@@ -104,27 +104,25 @@ class MemberService {
       String subtype =
           (extension == 'jpg' || extension == 'jpeg') ? 'jpeg' : extension;
 
+      final bytes = await imageFile.readAsBytes();
+
       var request = http.MultipartRequest('PATCH', url);
       request.headers['Authorization'] = 'Bearer ${token?.trim()}';
       request.files.add(
-        await http.MultipartFile.fromPath(
+        await http.MultipartFile.fromBytes(
           'profileImage',
-          imageFile.path,
+          bytes,
+          filename: p.basename(imageFile.path),
           contentType: MediaType('image', subtype),
         ),
       );
 
-      print("이미지 업로드 시도: ${imageFile.path} (type: $subtype)");
-      print("Authorization 헤더: Bearer ${token?.trim().substring(0, 20)}...");
       var response = await request.send();
       final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
-        print("프로필 이미지 수정 성공");
       } else {
         print("프로필 이미지 수정 실패 : ${response.statusCode}");
-        print("응답 헤더: ${response.headers}");
-        print("응답 바디: $responseBody");
       }
       return response.statusCode;
     } catch (e) {

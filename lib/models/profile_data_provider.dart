@@ -37,4 +37,13 @@ class ProfileData extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void reset() {
+    image = null;
+    imageUrl = null;
+    nickname = '';
+    email = '';
+    _isGuest = false;
+    notifyListeners();
+  }
 }
